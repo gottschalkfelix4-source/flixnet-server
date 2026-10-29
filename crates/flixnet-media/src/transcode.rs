@@ -6,16 +6,24 @@
 //!   past its output simply starts it again there.
 //! * Sessions nobody asked for anything within the idle timeout are reaped: process
 //!   killed, directory removed. Closing the player also stops its session.
+//! * Video transcodes use the hardware encoder found at startup. If a hardware run
+//!   fails before the session produced anything, the session retries with a simpler
+//!   pipeline (CPU decoding, then software) — never later, because the init segment
+//!   a player already has belongs to the encoder.
 
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use tokio::process::Child;
 
-use crate::decision::PlaybackPlan;
+use crate::decision::{PlaybackPlan, SourceVideo, StreamAction};
+use crate::hardware::{
+    self, EncoderKind, HardwareMode, HardwareOptions, HardwareReport, TranscodingInfo, VideoEncoder,
+};
 use crate::hls::{self, FFMPEG_PLAYLIST, HlsJob, INIT_FILE, Segments};
 use crate::process::command;
 
@@ -45,6 +53,8 @@ pub struct SessionSpec {
     /// Fixed for transcodes, the keyframe index for copied video.
     pub segments: Segments,
     pub plan: PlaybackPlan,
+    /// The source's video stream (codec, bit depth), so the GPU decodes only what it can.
+    pub source_video: Option<SourceVideo>,
 }
 
 /// Tunables; the defaults suit real use, tests shorten them.
@@ -81,6 +91,8 @@ pub struct SessionInfo {
     /// An ffmpeg process is running.
     pub transcoding: bool,
     pub last_requested: Option<u32>,
+    /// Encoder of the current pipeline (software for copied video).
+    pub encoder: EncoderKind,
 }
 
 #[derive(Clone)]
@@ -93,11 +105,23 @@ struct Inner {
     root: PathBuf,
     settings: TranscodeSettings,
     sessions: Mutex<HashMap<String, Arc<Session>>>,
+    hardware: Mutex<Hardware>,
+    fallbacks: AtomicU64,
+}
+
+/// Detection state and the encoder new sessions get.
+#[derive(Default)]
+struct Hardware {
+    mode: HardwareMode,
+    report: Option<HardwareReport>,
+    encoder: VideoEncoder,
 }
 
 struct Session {
     id: String,
     spec: SessionSpec,
+    /// Video encoder and its fallbacks, most capable first.
+    encoders: Vec<VideoEncoder>,
     dir: PathBuf,
     /// Held only briefly (checks and spawning), never across waits.
     state: tokio::sync::Mutex<State>,
@@ -110,6 +134,8 @@ struct State {
     /// Segments known to be complete on disk, from any run.
     done: BTreeSet<u32>,
     last_requested: Option<u32>,
+    /// Index into the session's encoders.
+    level: usize,
 }
 
 struct Run {
@@ -148,17 +174,88 @@ impl TranscodeManager {
             root,
             settings,
             sessions: Mutex::default(),
+            hardware: Mutex::default(),
+            fallbacks: AtomicU64::new(0),
         });
         tokio::spawn(reaper(Arc::downgrade(&inner)));
         Self { inner }
     }
 
+    /// Tests the hardware encoders (seconds; run it in the background) and uses the
+    /// best one — or the configured one, if it works — for new sessions.
+    pub async fn detect_hardware(&self, options: HardwareOptions) {
+        self.inner.hardware.lock().unwrap().mode = options.mode;
+        let work_dir = self.inner.root.join("hwtest");
+        let report = hardware::detect(&self.inner.ffmpeg, &work_dir, &options).await;
+        let encoder = report.best();
+        match &encoder {
+            VideoEncoder::Software if options.mode != HardwareMode::None => {
+                tracing::warn!(mode = ?options.mode, "no hardware encoder works; transcoding in software");
+            }
+            VideoEncoder::Software => {
+                tracing::info!("hardware encoding disabled; transcoding in software")
+            }
+            VideoEncoder::Hardware(hw) => tracing::info!(
+                accel = ?hw.accel,
+                hw_decode = hw.hw_decode,
+                tonemap = ?hw.tonemap,
+                "transcoding on the GPU"
+            ),
+        }
+        let mut hardware = self.inner.hardware.lock().unwrap();
+        hardware.report = Some(report);
+        hardware.encoder = encoder;
+    }
+
+    /// Uses this encoder for new sessions (tests, or a known setup).
+    pub fn set_encoder(&self, encoder: VideoEncoder) {
+        self.inner.hardware.lock().unwrap().encoder = encoder;
+    }
+
+    /// What transcodes run on, and what detection found.
+    pub fn transcoding_info(&self) -> TranscodingInfo {
+        let hardware = self.inner.hardware.lock().unwrap();
+        let (hw_decode, tonemap) = match &hardware.encoder {
+            VideoEncoder::Software => (false, hardware::Tonemap::Software),
+            VideoEncoder::Hardware(hw) => (hw.hw_decode, hw.tonemap),
+        };
+        TranscodingInfo {
+            mode: hardware.mode,
+            detected: hardware.report.is_some(),
+            encoder: hardware.encoder.kind(),
+            hw_decode,
+            tonemap,
+            ffmpeg_version: hardware
+                .report
+                .as_ref()
+                .and_then(|r| r.ffmpeg_version.clone()),
+            probes: hardware
+                .report
+                .as_ref()
+                .map(|r| r.probes.clone())
+                .unwrap_or_default(),
+            fallbacks: self.inner.fallbacks.load(Ordering::Relaxed),
+        }
+    }
+
     /// Registers a session; ffmpeg starts with the first request.
     pub fn create(&self, spec: SessionSpec) -> String {
         let id = new_id();
+        let transcodes_video = spec
+            .plan
+            .video
+            .as_ref()
+            .is_some_and(|v| v.action == StreamAction::Transcode);
+        let encoders = if transcodes_video {
+            let encoder = self.inner.hardware.lock().unwrap().encoder.clone();
+            encoder.fallbacks(spec.source_video.as_ref())
+        } else {
+            vec![VideoEncoder::Software]
+        };
         let session = Arc::new(Session {
             dir: self.inner.root.join(&id),
             id: id.clone(),
+            encoders,
             spec,
             state: tokio::sync::Mutex::default(),
             touched: Mutex::new(Instant::now()),
@@ -212,6 +309,10 @@ impl TranscodeManager {
             {
                 let mut state = session.state.lock().await;
                 refresh(&session, &mut state);
+                // Before using the init segment: a failed run's one is never served.
+                if failed(&state) && !self.fall_back(&session, &mut state)? {
+                    return Err(failure(&session.dir));
+                }
                 let complete = state
                     .run
                     .as_ref()
@@ -219,13 +320,6 @@ impl TranscodeManager {
                     || !state.done.is_empty();
                 if complete && path.exists() {
                     return Ok(path);
-                }
-                if let Some(Run {
-                    exited: Some(false),
-                    ..
-                }) = &state.run
-                {
-                    return Err(failure(&session.dir));
                 }
                 if state.run.is_none() && Instant::now() >= grace {
                     self.start(&session, &mut state, 0)?;
@@ -253,6 +347,9 @@ impl TranscodeManager {
                 refresh(&session, &mut state);
                 if state.done.contains(&index) && path.exists() {
                     return Ok(path);
+                }
+                if failed(&state) && !self.fall_back(&session, &mut state)? {
+                    return Err(failure(&session.dir));
                 }
                 let restart = match &state.run {
                     None => true,
@@ -295,6 +392,8 @@ impl TranscodeManager {
             start_segment: segment,
             segments: &session.spec.segments,
             plan: &session.spec.plan,
+            encoder: &session.encoders[state.level],
+            source: session.spec.source_video.as_ref(),
         });
         // ffmpeg resolves the init segment's name against its working directory.
         let child = command(&self.inner.ffmpeg)
@@ -304,7 +403,12 @@ impl TranscodeManager {
             .stderr(Stdio::from(log))
             .spawn()
             .map_err(TranscodeError::Spawn)?;
-        tracing::debug!(session = %session.id, segment, "ffmpeg started");
+        tracing::debug!(
+            session = %session.id,
+            segment,
+            encoder = ?session.encoders[state.level].kind(),
+            "ffmpeg started"
+        );
         state.run = Some(Run {
             child,
             start: segment,
@@ -312,6 +416,36 @@ impl TranscodeManager {
             exited: None,
         });
         Ok(())
+    }
+
+    /// After a failed run: retries at the same segment with the next simpler pipeline,
+    /// as long as the session has produced nothing (else a player may already hold an
+    /// init segment of the failed encoder). Returns whether it did.
+    fn fall_back(&self, session: &Session, state: &mut State) -> Result<bool, TranscodeError> {
+        let Some(run) = &state.run else {
+            return Ok(false);
+        };
+        if !state.done.is_empty() || state.level + 1 >= session.encoders.len() {
+            return Ok(false);
+        }
+        let start = run.start;
+        let reason = log_tail(&session.dir);
+        let from = &session.encoders[state.level];
+        let to = &session.encoders[state.level + 1];
+        tracing::warn!(
+            session = %session.id,
+            from = ?from.kind(),
+            to = ?to.kind(),
+            gpu_decode = matches!(to, VideoEncoder::Hardware(hw) if hw.hw_decode),
+            %reason,
+            "transcode failed; retrying with a simpler pipeline"
+        );
+        state.level += 1;
+        self.inner.fallbacks.fetch_add(1, Ordering::Relaxed);
+        // The failed run may have written an init segment for its encoder.
+        let _ = std::fs::remove_file(session.dir.join(INIT_FILE));
+        self.start(session, state, start)?;
+        Ok(true)
     }
 
     /// Stops a session: kills ffmpeg and removes its files.
@@ -357,6 +491,7 @@ impl TranscodeManager {
                 file_id: session.spec.file_id,
                 transcoding: state.run.as_ref().is_some_and(|r| r.exited.is_none()),
                 last_requested: state.last_requested,
+                encoder: session.encoders[state.level].kind(),
             });
         }
         out.sort_by(|a, b| a.id.cmp(&b.id));
@@ -405,11 +540,25 @@ async fn close(session: &Session) {
     tracing::debug!(session = %session.id, "transcode session closed");
 }
 
+/// The current run exited with an error.
+fn failed(state: &State) -> bool {
+    matches!(
+        state.run,
+        Some(Run {
+            exited: Some(false),
+            ..
+        })
+    )
+}
+
 /// The last lines ffmpeg wrote to its log.
-fn failure(dir: &Path) -> TranscodeError {
+fn log_tail(dir: &Path) -> String {
     let log = std::fs::read_to_string(dir.join("ffmpeg.log")).unwrap_or_default();
-    let tail: Vec<_> = log.lines().rev().take(5).collect();
-    TranscodeError::Failed(tail.into_iter().rev().collect::<Vec<_>>().join(" | "))
+    hardware::log_tail(&log)
+}
+
+fn failure(dir: &Path) -> TranscodeError {
+    TranscodeError::Failed(log_tail(dir))
 }
 
 /// Reaps idle sessions and stops runs that got too far ahead.

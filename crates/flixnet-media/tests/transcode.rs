@@ -50,6 +50,7 @@ fn spec(input: PathBuf) -> SessionSpec {
             subtitle: None,
             reasons: vec![],
         },
+        source_video: None,
     }
 }
 

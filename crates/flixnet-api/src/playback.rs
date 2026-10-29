@@ -108,11 +108,8 @@ async fn get_playback_info(
             continue;
         }
         let streams = media::streams(&state.db, file.id).await?;
-        let plan = decide(
-            &source_media(&file, &streams),
-            &request.device_profile,
-            choice,
-        );
+        let source = source_media(&file, &streams);
+        let plan = decide(&source, &request.device_profile, choice);
         let hls_url = if plan.method == PlayMethod::DirectPlay {
             None
         } else {
@@ -124,6 +121,7 @@ async fn get_playback_info(
                 input: PathBuf::from(&file.path),
                 segments,
                 plan: session_plan,
+                source_video: source.video.clone(),
             });
             Some(format!("/api/v1/transcode/{session}/main.m3u8"))
         };

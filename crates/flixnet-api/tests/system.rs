@@ -20,6 +20,27 @@ async fn system_info_returns_server_details() {
 }
 
 #[tokio::test]
+async fn transcoding_info_is_for_admins() {
+    let app = app().await;
+    let admin = app.setup_admin().await;
+    let response = app.get("/api/v1/system/transcoding", Some(&admin)).await;
+    assert_eq!(response.status, StatusCode::OK);
+    let json = response.json;
+    // No detection runs in API tests: software until something better is found.
+    assert_eq!(json["mode"], "auto");
+    assert_eq!(json["detected"], false);
+    assert_eq!(json["encoder"], "software");
+    assert_eq!(json["tonemap"], "software");
+    assert_eq!(json["probes"], serde_json::json!([]));
+    assert_eq!(json["fallbacks"], 0);
+
+    assert_eq!(
+        app.get("/api/v1/system/transcoding", None).await.status,
+        StatusCode::UNAUTHORIZED
+    );
+}
+
+#[tokio::test]
 async fn openapi_spec_is_served_and_documents_routes() {
     let app = app().await;
     let response = app.get("/api/v1/openapi.json", None).await;

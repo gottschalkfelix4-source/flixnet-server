@@ -11,6 +11,7 @@ use flixnet_core::maintenance;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use flixnet_library::jobs as library_jobs;
+use flixnet_media::hardware::{HardwareMode, HardwareOptions};
 use flixnet_media::transcode::{TranscodeManager, TranscodeSettings};
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
@@ -152,6 +153,12 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         config.paths.transcode_dir(),
         TranscodeSettings::default(),
     );
+    // Testing the GPU takes seconds; transcodes use software until it is done.
+    tokio::spawn({
+        let transcoder = transcoder.clone();
+        let options = hardware_options(&config.media);
+        async move { transcoder.detect_hardware(options).await }
+    });
 
     let services = Services {
         events,
@@ -184,6 +191,20 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     db.close().await;
     tracing::info!("Flixnet stopped");
     Ok(())
+}
+
+fn hardware_options(media: &flixnet_core::config::MediaConfig) -> HardwareOptions {
+    use flixnet_core::config::HardwareAcceleration as Configured;
+    HardwareOptions {
+        mode: match media.hardware_acceleration {
+            Configured::Auto => HardwareMode::Auto,
+            Configured::None => HardwareMode::None,
+            Configured::Qsv => HardwareMode::Qsv,
+            Configured::Vaapi => HardwareMode::Vaapi,
+            Configured::Nvenc => HardwareMode::Nvenc,
+        },
+        vaapi_device: media.vaapi_device.clone(),
+    }
 }
 
 /// Secret for signed media URLs, created once and stored in the database so URLs

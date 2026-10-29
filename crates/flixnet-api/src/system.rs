@@ -1,15 +1,40 @@
-//! `/api/v1/system/*` — public server information.
+//! `/api/v1/system/*` — public server information and diagnostics (administrators).
 
 use axum::Json;
+use axum::extract::State;
+use flixnet_media::hardware::TranscodingInfo;
 use serde::Serialize;
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::AppState;
+use crate::auth::AdminUser;
+use crate::error::ErrorBody;
 
 pub(crate) fn router() -> OpenApiRouter<AppState> {
-    OpenApiRouter::new().routes(routes!(info))
+    OpenApiRouter::new()
+        .routes(routes!(info))
+        .routes(routes!(get_transcoding_info))
+}
+
+/// Hardware transcoding: what was detected at startup and what transcodes use.
+#[utoipa::path(
+    get,
+    path = "/transcoding",
+    operation_id = "getTranscodingInfo",
+    tag = "system",
+    responses(
+        (status = OK, description = "Encoders, tone mapping and ffmpeg version", body = TranscodingInfo),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Not an administrator", body = ErrorBody),
+    )
+)]
+async fn get_transcoding_info(
+    _: AdminUser,
+    State(state): State<AppState>,
+) -> Json<TranscodingInfo> {
+    Json(state.transcoder.transcoding_info())
 }
 
 /// Public server information used by clients to discover and identify the server.

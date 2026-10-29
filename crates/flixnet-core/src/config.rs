@@ -32,6 +32,11 @@ pub struct MediaConfig {
     pub ffprobe: PathBuf,
     /// Watch library folders for changes (periodic rescans run either way).
     pub watch_folders: bool,
+    /// Hardware transcoding: `auto` (best that works), `none`, `qsv`, `vaapi`, `nvenc`.
+    /// Whatever is chosen is tested at startup; software is the fallback.
+    pub hardware_acceleration: HardwareAcceleration,
+    /// Render node for VA-API and Quick Sync (Linux).
+    pub vaapi_device: PathBuf,
 }
 
 impl Default for MediaConfig {
@@ -40,8 +45,22 @@ impl Default for MediaConfig {
             ffmpeg: PathBuf::from("ffmpeg"),
             ffprobe: PathBuf::from("ffprobe"),
             watch_folders: true,
+            hardware_acceleration: HardwareAcceleration::Auto,
+            vaapi_device: PathBuf::from("/dev/dri/renderD128"),
         }
     }
+}
+
+/// `media.hardware_acceleration`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum HardwareAcceleration {
+    #[default]
+    Auto,
+    None,
+    Qsv,
+    Vaapi,
+    Nvenc,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -158,6 +177,43 @@ mod tests {
         Jail::expect_with(|jail| {
             jail.set_env("FLIXNET_SERVER__BIND", "not-an-address");
             assert!(Config::load(Path::new("missing.toml")).is_err());
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn hardware_acceleration_from_file_and_env() {
+        Jail::expect_with(|jail| {
+            assert_eq!(
+                Config::default().media.hardware_acceleration,
+                HardwareAcceleration::Auto
+            );
+            jail.create_file(
+                "flixnet.toml",
+                "[media]\nhardware_acceleration = \"vaapi\"\nvaapi_device = \"/dev/dri/renderD129\"\n",
+            )?;
+            let config = Config::load(Path::new("flixnet.toml")).expect("load");
+            assert_eq!(
+                config.media.hardware_acceleration,
+                HardwareAcceleration::Vaapi
+            );
+            assert_eq!(
+                config.media.vaapi_device,
+                PathBuf::from("/dev/dri/renderD129")
+            );
+
+            jail.set_env("FLIXNET_MEDIA__HARDWARE_ACCELERATION", "nvenc");
+            let config = Config::load(Path::new("flixnet.toml")).expect("load");
+            assert_eq!(
+                config.media.hardware_acceleration,
+                HardwareAcceleration::Nvenc
+            );
+
+            jail.set_env("FLIXNET_MEDIA__HARDWARE_ACCELERATION", "cuda");
+            assert!(
+                Config::load(Path::new("flixnet.toml")).is_err(),
+                "unknown method"
+            );
             Ok(())
         });
     }
