@@ -15,9 +15,12 @@ use utoipa_scalar::{Scalar, Servable};
 
 pub mod auth;
 pub mod error;
+mod invitations;
+pub mod limiter;
 mod session;
 mod system;
 mod users;
+mod validate;
 
 /// Path prefix of the current API version.
 const API_PREFIX: &str = "/api/v1";
@@ -27,6 +30,7 @@ const API_PREFIX: &str = "/api/v1";
 pub struct AppState {
     pub config: Arc<Config>,
     pub db: Db,
+    pub limits: Arc<limiter::Limits>,
 }
 
 impl AppState {
@@ -34,6 +38,7 @@ impl AppState {
         Self {
             config: Arc::new(config),
             db,
+            limits: Arc::default(),
         }
     }
 }
@@ -50,8 +55,9 @@ impl AppState {
     modifiers(&SecuritySchemes),
     tags(
         (name = "system", description = "Server information"),
-        (name = "auth", description = "First-run setup, sign-in and sign-out"),
-        (name = "users", description = "User accounts"),
+        (name = "auth", description = "First-run setup, sign-in, sign-out and profile switching"),
+        (name = "users", description = "User accounts and household profiles"),
+        (name = "invitations", description = "Invitation links for new accounts"),
     )
 )]
 struct ApiDoc;
@@ -85,6 +91,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
     OpenApiRouter::with_openapi(doc)
         .nest(&format!("{API_PREFIX}/system"), system::router())
         .nest(&format!("{API_PREFIX}/users"), users::router())
+        .nest(&format!("{API_PREFIX}/invitations"), invitations::router())
         .nest(API_PREFIX, session::router())
         .split_for_parts()
 }

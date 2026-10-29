@@ -13,6 +13,7 @@ use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
+pub mod invitations;
 pub mod sessions;
 pub mod settings;
 pub mod users;
@@ -25,10 +26,23 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 pub enum DbError {
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),
+    /// A UNIQUE constraint rejected the write (e.g. a user name that is taken).
+    #[error("unique constraint violated")]
+    Conflict,
     #[error("database migration failed: {0}")]
     Migrate(#[from] sqlx::migrate::MigrateError),
     #[error("invalid JSON value: {0}")]
     Json(#[from] serde_json::Error),
+}
+
+impl DbError {
+    /// Maps UNIQUE violations to [`DbError::Conflict`], everything else to `Sqlx`.
+    pub(crate) fn from_unique(err: sqlx::Error) -> Self {
+        match &err {
+            sqlx::Error::Database(db) if db.is_unique_violation() => DbError::Conflict,
+            _ => DbError::Sqlx(err),
+        }
+    }
 }
 
 pub type Result<T, E = DbError> = std::result::Result<T, E>;

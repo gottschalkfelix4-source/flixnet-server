@@ -19,10 +19,14 @@ const auth: Middleware = {
     if (session) request.headers.set('Authorization', `Bearer ${session.token}`)
     return request
   },
-  onResponse({ request, response }) {
+  async onResponse({ request, response }) {
+    // Only a rejected *session* signs out; other 401s (e.g. wrong credentials) do not.
     if (response.status === 401 && request.headers.has('Authorization')) {
-      setSession(null)
-      onUnauthorized()
+      const body = (await response.clone().json().catch(() => null)) as { code?: string } | null
+      if (body?.code === 'unauthorized') {
+        setSession(null)
+        onUnauthorized()
+      }
     }
     return response
   },

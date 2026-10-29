@@ -100,6 +100,59 @@ pub async fn touch(db: &Db, token_id: i64, device_id: i64) -> Result<()> {
     Ok(())
 }
 
+/// A device of a user that currently holds an active token.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct Device {
+    pub id: i64,
+    pub name: String,
+    pub client: String,
+    pub created_at: i64,
+    pub last_seen: i64,
+}
+
+/// Devices with an active session, most recently used first.
+pub async fn list_devices(db: &Db, user_id: i64) -> Result<Vec<Device>> {
+    let devices = sqlx::query_as(
+        "SELECT d.id, d.name, d.client, d.created_at, d.last_seen
+         FROM devices d
+         WHERE d.user_id = ?
+           AND EXISTS (SELECT 1 FROM access_tokens t WHERE t.device_id = d.id AND t.revoked_at IS NULL)
+         ORDER BY d.last_seen DESC",
+    )
+    .bind(user_id)
+    .fetch_all(db.reader())
+    .await?;
+    Ok(devices)
+}
+
+/// Signs a device out (revokes its tokens). Scoped to the owner.
+pub async fn revoke_device(db: &Db, user_id: i64, device_id: i64) -> Result<bool> {
+    let result = sqlx::query(
+        "UPDATE access_tokens SET revoked_at = ?
+         WHERE device_id = ? AND user_id = ? AND revoked_at IS NULL",
+    )
+    .bind(now_ms())
+    .bind(device_id)
+    .bind(user_id)
+    .execute(db.writer())
+    .await?;
+    Ok(result.rows_affected() > 0)
+}
+
+/// Revokes every token of a user, optionally keeping one (e.g. after a password change).
+pub async fn revoke_all_for_user(db: &Db, user_id: i64, keep_token_id: Option<i64>) -> Result<()> {
+    sqlx::query(
+        "UPDATE access_tokens SET revoked_at = ?
+         WHERE user_id = ? AND revoked_at IS NULL AND id IS NOT ?",
+    )
+    .bind(now_ms())
+    .bind(user_id)
+    .bind(keep_token_id)
+    .execute(db.writer())
+    .await?;
+    Ok(())
+}
+
 pub async fn revoke(db: &Db, token_id: i64) -> Result<()> {
     sqlx::query("UPDATE access_tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL")
         .bind(now_ms())

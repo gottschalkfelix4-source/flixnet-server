@@ -59,6 +59,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Too many failed attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -79,6 +89,379 @@
           },
           "401": {
             "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/profiles": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Household profiles for the \"Who's watching?\" picker.",
+        "operationId": "listProfiles",
+        "responses": {
+          "200": {
+            "description": "Visible profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/switch": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Switch this device to another household profile.",
+        "description": "Issues a new token for the target profile and revokes the current one.\nProfiles with a PIN need the PIN; administrators without a PIN need their password.",
+        "operationId": "switchProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Switched; use the new token from now on",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong PIN or password for the target profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such visible profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many failed attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations": {
+      "get": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "All invitations (administrators only).",
+        "operationId": "listInvitations",
+        "responses": {
+          "200": {
+            "description": "Invitations, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InvitationDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Create an invitation link (administrators only).",
+        "operationId": "createInvitation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Invitation created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedInvitationDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/invitations/redeem/{code}": {
+      "get": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Is this invitation code still usable?",
+        "operationId": "getInvitationStatus",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "description": "Invitation code from the link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether the code can be redeemed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      },
+      "post": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Redeem an invitation: create the own account and sign in.",
+        "operationId": "redeemInvitation",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "description": "Invitation code from the link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Credentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Account created and signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, expired or used invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Name is taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/invitations/{id}": {
+      "delete": {
+        "tags": [
+          "invitations"
+        ],
+        "summary": "Withdraw an invitation (administrators only).",
+        "operationId": "deleteInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Invitation id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Invitation deleted"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such invitation",
             "content": {
               "application/json": {
                 "schema": {
@@ -194,6 +577,119 @@
         ]
       }
     },
+    "/api/v1/users": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "All users (administrators only).",
+        "operationId": "listUsers",
+        "responses": {
+          "200": {
+            "description": "All users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create a user or household profile (administrators only).",
+        "operationId": "createUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Name is taken",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/me": {
       "get": {
         "tags": [
@@ -224,10 +720,451 @@
           }
         }
       }
+    },
+    "/api/v1/users/me/devices": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Devices signed in to the own account.",
+        "operationId": "listMyDevices",
+        "responses": {
+          "200": {
+            "description": "Signed-in devices, most recent first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/devices/{id}": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Sign out one of the own devices.",
+        "operationId": "signOutDevice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Device id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Device signed out"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such signed-in device",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/password": {
+      "put": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Change the own password. Signs out all other devices.",
+        "operationId": "changePassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Wrong current password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "New password too short",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many failed attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/me/pin": {
+      "put": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Set or remove the own profile PIN.",
+        "operationId": "setPin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "PIN updated"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "PIN is not 4–8 digits",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}": {
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete a user (administrators only; not yourself).",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "User id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Cannot delete yourself",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Change a user (administrators only).",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "User id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Name taken, or the last administrator would be lost",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ChangePasswordRequest": {
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "properties": {
+          "current_password": {
+            "type": "string"
+          },
+          "new_password": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateInvitationRequest": {
+        "type": "object",
+        "properties": {
+          "max_age_rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Age limit applied to the new account."
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Free text, e.g. who the invitation is for."
+          },
+          "valid_days": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Days until the link expires (1–30, default 7)."
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "is_admin": {
+            "type": "boolean"
+          },
+          "is_hidden": {
+            "type": "boolean"
+          },
+          "max_age_rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Omit for a profile that cannot sign in remotely (only reachable by switching)."
+          },
+          "pin": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "CreatedInvitationDto": {
+        "type": "object",
+        "required": [
+          "invitation",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The secret code; shown once. The web UI link is `/invite/{code}`."
+          },
+          "invitation": {
+            "$ref": "#/components/schemas/InvitationDto"
+          }
+        }
+      },
       "Credentials": {
         "type": "object",
         "required": [
@@ -244,6 +1181,41 @@
             "example": "Felix"
           },
           "password": {
+            "type": "string"
+          }
+        }
+      },
+      "DeviceDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "client",
+          "created_at",
+          "last_seen",
+          "is_current"
+        ],
+        "properties": {
+          "client": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "is_current": {
+            "type": "boolean",
+            "description": "The device making this request."
+          },
+          "last_seen": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
             "type": "string"
           }
         }
@@ -270,7 +1242,7 @@
           "name": {
             "type": "string",
             "description": "Human-readable device name.",
-            "example": "Chrome Â· Windows"
+            "example": "Chrome · Windows"
           }
         }
       },
@@ -294,6 +1266,95 @@
           }
         }
       },
+      "InvitationDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "expires_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "expires_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "max_age_rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "used_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "used_by": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "InvitationStatus": {
+        "type": "object",
+        "required": [
+          "valid"
+        ],
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProfileDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "is_admin",
+          "unlock",
+          "is_current"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "is_admin": {
+            "type": "boolean"
+          },
+          "is_current": {
+            "type": "boolean",
+            "description": "The profile currently signed in on this device."
+          },
+          "name": {
+            "type": "string"
+          },
+          "unlock": {
+            "$ref": "#/components/schemas/Unlock"
+          }
+        }
+      },
       "SessionDto": {
         "type": "object",
         "description": "A newly issued device token plus the signed-in user.",
@@ -311,6 +1372,18 @@
           }
         }
       },
+      "SetPinRequest": {
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "4–8 digits, or `null` to remove the PIN."
+          }
+        }
+      },
       "SetupStatus": {
         "type": "object",
         "required": [
@@ -320,6 +1393,36 @@
           "setup_required": {
             "type": "boolean",
             "description": "`true` until the first administrator account has been created."
+          }
+        }
+      },
+      "SwitchProfileRequest": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "device"
+        ],
+        "properties": {
+          "device": {
+            "$ref": "#/components/schemas/DeviceInfo"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required when the profile's `unlock` is `password`."
+          },
+          "pin": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required when the profile's `unlock` is `pin`."
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -361,20 +1464,96 @@
           }
         }
       },
+      "Unlock": {
+        "type": "string",
+        "description": "What switching to a profile requires.",
+        "enum": [
+          "none",
+          "pin",
+          "password"
+        ]
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "description": "Every field is optional; `null` clears nullable fields (password, PIN, age limit).",
+        "properties": {
+          "is_admin": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "is_hidden": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "max_age_rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Setting or clearing the password signs the user out everywhere."
+          },
+          "pin": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "UserDto": {
         "type": "object",
         "required": [
           "id",
           "name",
-          "is_admin"
+          "is_admin",
+          "is_hidden",
+          "has_password",
+          "has_pin"
         ],
         "properties": {
+          "has_password": {
+            "type": "boolean",
+            "description": "Can sign in with a password (profiles without one are reachable by switching only)."
+          },
+          "has_pin": {
+            "type": "boolean",
+            "description": "Profile switching to this user requires a PIN."
+          },
           "id": {
             "type": "integer",
             "format": "int64"
           },
           "is_admin": {
             "type": "boolean"
+          },
+          "is_hidden": {
+            "type": "boolean",
+            "description": "Hidden users do not appear in the profile picker."
+          },
+          "max_age_rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Content age limit; `null` = unrestricted."
           },
           "name": {
             "type": "string"
@@ -410,11 +1589,15 @@
     },
     {
       "name": "auth",
-      "description": "First-run setup, sign-in and sign-out"
+      "description": "First-run setup, sign-in, sign-out and profile switching"
     },
     {
       "name": "users",
-      "description": "User accounts"
+      "description": "User accounts and household profiles"
+    },
+    {
+      "name": "invitations",
+      "description": "Invitation links for new accounts"
     }
   ]
 }

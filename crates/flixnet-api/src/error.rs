@@ -55,6 +55,10 @@ impl ApiError {
         )
     }
 
+    pub fn not_found(message: impl Into<String>) -> Self {
+        Self::new(StatusCode::NOT_FOUND, "not_found", message)
+    }
+
     pub fn validation(message: impl Into<String>) -> Self {
         Self::new(StatusCode::UNPROCESSABLE_ENTITY, "validation", message)
     }
@@ -79,7 +83,13 @@ impl ApiError {
 
 impl From<flixnet_db::DbError> for ApiError {
     fn from(err: flixnet_db::DbError) -> Self {
-        Self::internal(err)
+        match err {
+            flixnet_db::DbError::Conflict => Self::conflict(
+                "conflict",
+                "Ein Eintrag mit diesem Namen existiert bereits.",
+            ),
+            other => Self::internal(other),
+        }
     }
 }
 

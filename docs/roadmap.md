@@ -16,7 +16,9 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 
 ## Phase 1 – Auth und Nutzer
 - [x] 1.1 Setup-Assistent, argon2, Login → Device-Token, Auth-Extractor – *fertig wenn* jede OpenAPI-Operation ohne Token 401 liefert
-- [ ] 1.2 Haushalt, Profile mit PIN, Bibliotheksrechte, Einladungen, Admin-Rolle
+- [x] 1.2 Haushalt, Profile mit PIN („Wer schaut?“), Nutzerverwaltung, Einladungen, Admin-Rolle, Altersgrenze pro Profil, Geräteverwaltung, Brute-Force-Schutz
+  - Bibliotheksrechte pro Nutzer: `all_libraries`-Flag vorhanden, Einzelfreigaben kommen mit den Bibliotheken in 2.3
+  - Altersgrenze wird ab 2.6 (Items-API) durchgesetzt
 
 ## Phase 2 – Scannen und Metadaten
 - [ ] 2.1 Dateinamen-Parser (300+ Testfälle)

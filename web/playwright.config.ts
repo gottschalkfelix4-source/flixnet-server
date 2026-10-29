@@ -22,13 +22,13 @@ export default defineConfig({
     { name: 'setup', testMatch: /global\.setup\.ts/ },
     {
       name: 'signed-in',
-      testIgnore: /auth\.spec\.ts/,
+      testIgnore: /(auth|profiles)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/admin.json' },
     },
     {
       name: 'signed-out',
-      testMatch: /auth\.spec\.ts/,
+      testMatch: /(auth|profiles)\.spec\.ts/,
       dependencies: ['setup'],
       use: { ...devices['Desktop Chrome'] },
     },

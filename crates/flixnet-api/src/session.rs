@@ -1,4 +1,5 @@
-//! `/api/v1/setup` (first-run wizard) and `/api/v1/auth/*` (login/logout).
+//! `/api/v1/setup` (first-run wizard) and `/api/v1/auth/*` (sign-in, sign-out,
+//! household profile switching).
 
 use axum::Json;
 use axum::extract::State;
@@ -13,6 +14,7 @@ use utoipa_axum::routes;
 use crate::AppState;
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult, ErrorBody};
+use crate::validate;
 
 /// Mounted directly under `/api/v1` (paths carry their own `/setup` / `/auth` prefix,
 /// so `POST /api/v1/setup` has no trailing slash).
@@ -22,6 +24,8 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(complete_setup))
         .routes(routes!(login))
         .routes(routes!(logout))
+        .routes(routes!(list_profiles))
+        .routes(routes!(switch_profile))
 }
 
 /// The client installation that is signing in.
@@ -31,7 +35,7 @@ pub struct DeviceInfo {
     #[schema(example = "6f1c2a6e-4c1d-4a8e-9a57-0d7f4f1b2c3d")]
     pub id: String,
     /// Human-readable device name.
-    #[schema(example = "Chrome Â· Windows")]
+    #[schema(example = "Chrome · Windows")]
     pub name: String,
     /// Client application.
     #[schema(example = "Flixnet Web")]
@@ -51,6 +55,14 @@ pub struct UserDto {
     pub id: i64,
     pub name: String,
     pub is_admin: bool,
+    /// Hidden users do not appear in the profile picker.
+    pub is_hidden: bool,
+    /// Can sign in with a password (profiles without one are reachable by switching only).
+    pub has_password: bool,
+    /// Profile switching to this user requires a PIN.
+    pub has_pin: bool,
+    /// Content age limit; `null` = unrestricted.
+    pub max_age_rating: Option<i64>,
 }
 
 /// A newly issued device token plus the signed-in user.
@@ -65,6 +77,36 @@ pub struct SessionDto {
 pub struct SetupStatus {
     /// `true` until the first administrator account has been created.
     pub setup_required: bool,
+}
+
+/// What switching to a profile requires.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Unlock {
+    /// Anyone on this device may switch.
+    None,
+    Pin,
+    Password,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ProfileDto {
+    pub id: i64,
+    pub name: String,
+    pub is_admin: bool,
+    pub unlock: Unlock,
+    /// The profile currently signed in on this device.
+    pub is_current: bool,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct SwitchProfileRequest {
+    pub user_id: i64,
+    /// Required when the profile's `unlock` is `pin`.
+    pub pin: Option<String>,
+    /// Required when the profile's `unlock` is `password`.
+    pub password: Option<String>,
+    pub device: DeviceInfo,
 }
 
 /// Is first-run setup still required?
@@ -101,12 +143,11 @@ async fn complete_setup(
     State(state): State<AppState>,
     Json(body): Json<Credentials>,
 ) -> ApiResult<Json<SessionDto>> {
-    let name = validate_name(&body.name)?;
-    validate_password(&body.password)?;
+    let name = validate::name(&body.name)?;
+    validate::password(&body.password)?;
     validate_device(&body.device)?;
 
-    let password = body.password.clone();
-    let hash = tokio::task::spawn_blocking(move || auth::hash_password(&password)).await?;
+    let hash = hash_secret(body.password.clone()).await?;
     let user = users::create_first_admin(&state.db, &name, &hash)
         .await?
         .ok_or_else(|| {
@@ -129,6 +170,7 @@ async fn complete_setup(
         (status = OK, description = "Signed in", body = SessionDto),
         (status = UNAUTHORIZED, description = "Wrong name or password", body = ErrorBody),
         (status = UNPROCESSABLE_ENTITY, description = "Invalid device info", body = ErrorBody),
+        (status = TOO_MANY_REQUESTS, description = "Too many failed attempts", body = ErrorBody),
     )
 )]
 async fn login(
@@ -136,22 +178,23 @@ async fn login(
     Json(body): Json<Credentials>,
 ) -> ApiResult<Json<SessionDto>> {
     validate_device(&body.device)?;
-    let user = users::find_by_name(&state.db, body.name.trim()).await?;
+    let name = body.name.trim();
+    let limit_key = format!("login:{}", name.to_lowercase());
+    state.limits.login.check(&limit_key)?;
 
-    let password = body.password.clone();
-    let stored_hash = user.as_ref().and_then(|u| u.password_hash.clone());
-    let valid = tokio::task::spawn_blocking(move || match stored_hash {
-        Some(hash) => auth::verify_password(&password, &hash),
-        None => {
-            auth::verify_dummy(&password);
-            false
-        }
-    })
-    .await?;
+    let user = users::find_by_name(&state.db, name).await?;
+    let stored = user.as_ref().and_then(|u| u.password_hash.clone());
+    let valid = verify_secret(body.password.clone(), stored).await?;
 
     match user {
-        Some(user) if valid => issue_session(&state, user, &body.device).await.map(Json),
-        _ => Err(ApiError::invalid_credentials()),
+        Some(user) if valid => {
+            state.limits.login.reset(&limit_key);
+            issue_session(&state, user, &body.device).await.map(Json)
+        }
+        _ => {
+            state.limits.login.record_failure(&limit_key);
+            Err(ApiError::invalid_credentials())
+        }
     }
 }
 
@@ -171,7 +214,112 @@ async fn logout(user: AuthUser, State(state): State<AppState>) -> ApiResult<Stat
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn issue_session(
+/// Household profiles for the "Who's watching?" picker.
+#[utoipa::path(
+    get,
+    path = "/auth/profiles",
+    operation_id = "listProfiles",
+    tag = "auth",
+    responses(
+        (status = OK, description = "Visible profiles", body = Vec<ProfileDto>),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+    )
+)]
+async fn list_profiles(
+    user: AuthUser,
+    State(state): State<AppState>,
+) -> ApiResult<Json<Vec<ProfileDto>>> {
+    let profiles = users::list(&state.db)
+        .await?
+        .into_iter()
+        .filter(|u| !u.is_hidden || u.id == user.user_id)
+        .map(|u| ProfileDto {
+            is_current: u.id == user.user_id,
+            unlock: unlock_for(&u),
+            id: u.id,
+            name: u.name,
+            is_admin: u.is_admin,
+        })
+        .collect();
+    Ok(Json(profiles))
+}
+
+/// Switch this device to another household profile.
+///
+/// Issues a new token for the target profile and revokes the current one.
+/// Profiles with a PIN need the PIN; administrators without a PIN need their password.
+#[utoipa::path(
+    post,
+    path = "/auth/switch",
+    operation_id = "switchProfile",
+    tag = "auth",
+    request_body = SwitchProfileRequest,
+    responses(
+        (status = OK, description = "Switched; use the new token from now on", body = SessionDto),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Wrong PIN or password for the target profile", body = ErrorBody),
+        (status = NOT_FOUND, description = "No such visible profile", body = ErrorBody),
+        (status = TOO_MANY_REQUESTS, description = "Too many failed attempts", body = ErrorBody),
+    )
+)]
+async fn switch_profile(
+    current: AuthUser,
+    State(state): State<AppState>,
+    Json(body): Json<SwitchProfileRequest>,
+) -> ApiResult<Json<SessionDto>> {
+    validate_device(&body.device)?;
+    let target = users::get(&state.db, body.user_id)
+        .await?
+        .filter(|u| !u.is_hidden || u.id == current.user_id)
+        .ok_or_else(|| ApiError::not_found("Profil nicht gefunden."))?;
+
+    let limit_key = format!("switch:{}", target.id);
+    let unlock = if target.id == current.user_id {
+        Unlock::None
+    } else {
+        unlock_for(&target)
+    };
+    if unlock != Unlock::None {
+        state.limits.unlock.check(&limit_key)?;
+        let (secret, stored) = match unlock {
+            Unlock::Pin => (body.pin.clone(), target.pin_hash.clone()),
+            _ => (body.password.clone(), target.password_hash.clone()),
+        };
+        let valid = match secret {
+            Some(secret) => verify_secret(secret, stored).await?,
+            None => false,
+        };
+        if !valid {
+            state.limits.unlock.record_failure(&limit_key);
+            // 403, not 401: the device's own session is fine, only the unlock failed.
+            return Err(ApiError::new(
+                StatusCode::FORBIDDEN,
+                "invalid_credentials",
+                match unlock {
+                    Unlock::Pin => "Die PIN ist falsch.",
+                    _ => "Das Passwort ist falsch.",
+                },
+            ));
+        }
+        state.limits.unlock.reset(&limit_key);
+    }
+
+    sessions::revoke(&state.db, current.token_id).await?;
+    issue_session(&state, target, &body.device).await.map(Json)
+}
+
+/// What a device must provide to switch to this profile.
+fn unlock_for(user: &users::User) -> Unlock {
+    if user.pin_hash.is_some() {
+        Unlock::Pin
+    } else if user.is_admin {
+        Unlock::Password
+    } else {
+        Unlock::None
+    }
+}
+
+pub(crate) async fn issue_session(
     state: &AppState,
     user: users::User,
     device: &DeviceInfo,
@@ -194,43 +342,38 @@ async fn issue_session(
     })
 }
 
+/// argon2 hashing off the async runtime.
+pub(crate) async fn hash_secret(secret: String) -> ApiResult<String> {
+    Ok(tokio::task::spawn_blocking(move || auth::hash_password(&secret)).await?)
+}
+
+/// argon2 verification off the async runtime; burns equal time when nothing is stored.
+pub(crate) async fn verify_secret(secret: String, stored: Option<String>) -> ApiResult<bool> {
+    Ok(tokio::task::spawn_blocking(move || match stored {
+        Some(hash) => auth::verify_password(&secret, &hash),
+        None => {
+            auth::verify_dummy(&secret);
+            false
+        }
+    })
+    .await?)
+}
+
 impl From<users::User> for UserDto {
     fn from(user: users::User) -> Self {
         Self {
+            has_password: user.password_hash.is_some(),
+            has_pin: user.pin_hash.is_some(),
             id: user.id,
             name: user.name,
             is_admin: user.is_admin,
+            is_hidden: user.is_hidden,
+            max_age_rating: user.max_age_rating,
         }
     }
 }
 
-fn validate_name(name: &str) -> ApiResult<String> {
-    let name = name.trim();
-    if name.is_empty() || name.chars().count() > 64 {
-        return Err(ApiError::validation(
-            "Der Name muss zwischen 1 und 64 Zeichen lang sein.",
-        ));
-    }
-    if name.chars().any(char::is_control) {
-        return Err(ApiError::validation(
-            "Der Name enthÃ¤lt ungÃ¼ltige Zeichen.",
-        ));
-    }
-    Ok(name.to_owned())
-}
-
-fn validate_password(password: &str) -> ApiResult<()> {
-    let len = password.chars().count();
-    if !(auth::PASSWORD_MIN_LEN..=auth::PASSWORD_MAX_LEN).contains(&len) {
-        return Err(ApiError::validation(format!(
-            "Das Passwort muss mindestens {} Zeichen lang sein.",
-            auth::PASSWORD_MIN_LEN
-        )));
-    }
-    Ok(())
-}
-
-fn validate_device(device: &DeviceInfo) -> ApiResult<()> {
+pub(crate) fn validate_device(device: &DeviceInfo) -> ApiResult<()> {
     let ok = |s: &str| {
         let s = s.trim();
         !s.is_empty() && s.chars().count() <= 128 && !s.chars().any(char::is_control)
@@ -238,6 +381,6 @@ fn validate_device(device: &DeviceInfo) -> ApiResult<()> {
     if ok(&device.id) && ok(&device.name) && ok(&device.client) {
         Ok(())
     } else {
-        Err(ApiError::validation("UngÃ¼ltige GerÃ¤teangaben."))
+        Err(ApiError::validation("Ungültige Geräteangaben."))
     }
 }

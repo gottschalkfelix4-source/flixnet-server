@@ -11,10 +11,13 @@ import { currentUserQuery, setupStatusQuery } from '@/api/queries/auth'
 import { AppShell } from '@/components/layout/AppShell'
 import { getSession } from '@/lib/session'
 import { HomePage } from '@/routes/HomePage'
+import { InvitePage } from '@/routes/InvitePage'
 import { LoginPage } from '@/routes/LoginPage'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 import { PlaceholderPage } from '@/routes/PlaceholderPage'
+import { ProfilesPage } from '@/routes/ProfilesPage'
 import { SetupPage } from '@/routes/SetupPage'
+import { type SettingsTab, SettingsPage } from '@/routes/settings/SettingsPage'
 
 interface RouterContext {
   queryClient: QueryClient
@@ -54,23 +57,56 @@ const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: 'app',
   component: AppShell,
-  beforeLoad: async ({ context, location }) => {
-    const toLogin = () =>
-      redirect({ to: '/login', search: location.href === '/' ? {} : { redirect: location.href } })
+  beforeLoad: requireSession,
+})
 
-    if (!getSession()) {
-      const status = await context.queryClient.ensureQueryData(setupStatusQuery)
-      if (status.setup_required) throw redirect({ to: '/setup' })
-      throw toLogin()
-    }
-    // Verify the stored token once (cached); a revoked token clears the session.
-    try {
-      await context.queryClient.ensureQueryData(currentUserQuery)
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) throw toLogin()
-      throw error
-    }
-  },
+/** Guard for signed-in areas: sends to setup or sign-in, verifies the token once. */
+async function requireSession({
+  context,
+  location,
+}: {
+  context: RouterContext
+  location: { href: string }
+}) {
+  const toLogin = () =>
+    redirect({ to: '/login', search: location.href === '/' ? {} : { redirect: location.href } })
+
+  if (!getSession()) {
+    const status = await context.queryClient.ensureQueryData(setupStatusQuery)
+    if (status.setup_required) throw redirect({ to: '/setup' })
+    throw toLogin()
+  }
+  // Verify the stored token once (cached); a revoked token clears the session.
+  try {
+    await context.queryClient.ensureQueryData(currentUserQuery)
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) throw toLogin()
+    throw error
+  }
+}
+
+/** Full-screen "Who's watching?" picker (signed in, but without the sidebar). */
+const profilesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/profiles',
+  component: ProfilesPage,
+  beforeLoad: requireSession,
+})
+
+/** Public invitation landing page. */
+const inviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/invite/$code',
+  component: InvitePage,
+})
+
+const settingsTabs: SettingsTab[] = ['account', 'users', 'invitations']
+const settingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/settings',
+  component: SettingsPage,
+  validateSearch: (search: Record<string, unknown>): { tab?: SettingsTab } =>
+    settingsTabs.includes(search.tab as SettingsTab) ? { tab: search.tab as SettingsTab } : {},
 })
 
 function placeholder(path: string, title: string, note: string) {
@@ -84,7 +120,10 @@ function placeholder(path: string, title: string, note: string) {
 const routeTree = rootRoute.addChildren([
   setupRoute,
   loginRoute,
+  profilesRoute,
+  inviteRoute,
   appRoute.addChildren([
+    settingsRoute,
     createRoute({ getParentRoute: () => appRoute, path: '/', component: HomePage }),
     placeholder('/movies', 'Filme', 'Filmbibliotheken kommen mit dem Scanner in Phase 2.'),
     placeholder('/shows', 'Serien', 'Serienbibliotheken kommen mit dem Scanner in Phase 2.'),
@@ -92,7 +131,6 @@ const routeTree = rootRoute.addChildren([
     placeholder('/live', 'Live TV', 'Live TV und DVR folgen in Phase 7.'),
     placeholder('/for-you', 'Für dich', 'KI-Empfehlungen folgen in Phase 6.'),
     placeholder('/search', 'Suche', 'Die Suche kommt mit der Items-API in Phase 2.'),
-    placeholder('/settings', 'Einstellungen', 'Nutzer- und Serververwaltung kommen in Phase 1.2.'),
   ]),
 ])
 
