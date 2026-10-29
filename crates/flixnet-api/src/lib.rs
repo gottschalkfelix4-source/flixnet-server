@@ -12,6 +12,7 @@ use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use flixnet_library::images::ImageCache;
 use flixnet_library::watch::LibraryWatcher;
+use flixnet_media::transcode::TranscodeManager;
 use tower_http::trace::TraceLayer;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
@@ -32,6 +33,7 @@ mod session;
 mod settings;
 pub mod signing;
 mod system;
+mod transcode;
 mod users;
 mod validate;
 
@@ -50,6 +52,7 @@ pub struct AppState {
     pub images: ImageCache,
     pub signer: Arc<signing::UrlSigner>,
     pub watcher: Option<LibraryWatcher>,
+    pub transcoder: TranscodeManager,
 }
 
 /// Long-lived services the API talks to.
@@ -62,6 +65,7 @@ pub struct Services {
     pub url_secret: Vec<u8>,
     /// File watcher, re-synced when libraries change (`None` = disabled).
     pub watcher: Option<LibraryWatcher>,
+    pub transcoder: TranscodeManager,
 }
 
 impl AppState {
@@ -76,6 +80,7 @@ impl AppState {
             images: services.images,
             signer: Arc::new(signing::UrlSigner::new(services.url_secret)),
             watcher: services.watcher,
+            transcoder: services.transcoder,
         }
     }
 }
@@ -141,6 +146,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, items::router())
         .nest(API_PREFIX, browse::router())
         .nest(API_PREFIX, playback::router())
+        .nest(API_PREFIX, transcode::router())
         .nest(API_PREFIX, settings::router())
         .split_for_parts()
 }

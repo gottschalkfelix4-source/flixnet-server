@@ -64,13 +64,24 @@ impl Default for ServerConfig {
 pub struct PathsConfig {
     /// Persistent data: database, image cache, models. `/config` in Docker.
     pub config_dir: PathBuf,
+    /// Temporary transcode segments (ideally in RAM). Defaults to `<config_dir>/transcode`.
+    pub transcode_dir: Option<PathBuf>,
 }
 
 impl Default for PathsConfig {
     fn default() -> Self {
         Self {
             config_dir: PathBuf::from("dev-config"),
+            transcode_dir: None,
         }
+    }
+}
+
+impl PathsConfig {
+    pub fn transcode_dir(&self) -> PathBuf {
+        self.transcode_dir
+            .clone()
+            .unwrap_or_else(|| self.config_dir.join("transcode"))
     }
 }
 

@@ -11,6 +11,7 @@ use flixnet_core::jobs::JobRuntime;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use flixnet_library::images::ImageCache;
+use flixnet_media::transcode::{TranscodeManager, TranscodeSettings};
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use tempfile::TempDir;
@@ -38,6 +39,11 @@ pub async fn app() -> TestApp {
         images: ImageCache::new(dir.path().join("cache/images")),
         url_secret: b"test-secret".to_vec(),
         watcher: None,
+        transcoder: TranscodeManager::new(
+            "ffmpeg",
+            dir.path().join("transcode"),
+            TranscodeSettings::default(),
+        ),
     };
     let router = router(AppState::new(Config::default(), db.clone(), services));
     TestApp {

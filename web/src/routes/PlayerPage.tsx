@@ -1,13 +1,14 @@
 import { Link, useParams, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useItem } from '@/api/queries/items'
 import { REASON_LABELS, usePlaybackInfo } from '@/api/queries/playback'
 import { episodeLabel } from '@/lib/media'
+import { useVideoSource } from '@/lib/useVideoSource'
 
 /**
- * Full-screen player. Plays the original file when the decision engine says Direct
- * Play; remux/transcode streams, track selection and custom controls follow in later
+ * Full-screen player: the original file when the decision engine says Direct Play,
+ * otherwise an HLS transcode. Track selection and custom controls follow in later
  * milestones.
  */
 export function PlayerPage() {
@@ -16,14 +17,17 @@ export function PlayerPage() {
   const item = useItem(itemId)
   const playback = usePlaybackInfo(itemId)
   const router = useRouter()
+  const video = useRef<HTMLVideoElement>(null)
   const [part, setPart] = useState(0)
   const [failed, setFailed] = useState(false)
 
   const sources = playback.data?.sources ?? []
   const source = sources[part]
-  const direct = source?.plan.method === 'direct_play'
-  // A file the engine judged playable can still fail (e.g. a broken file or a wrong guess).
-  const blocked = failed || playback.isError || (!!source && !direct)
+  const streamError = useVideoSource(video, source)
+  const error = playback.isError
+    ? 'Für diesen Eintrag gibt es keine abspielbare Datei.'
+    : (streamError ?? (failed ? 'Die Datei ließ sich nicht abspielen.' : null))
+
   const title = item.data
     ? [item.data.series_title, episodeLabel(item.data), item.data.title].filter(Boolean).join(' · ')
     : ''
@@ -48,43 +52,35 @@ export function PlayerPage() {
             Teil {part + 1} von {sources.length}
           </span>
         )}
+        {source && (
+          <span className="ml-auto rounded bg-white/15 px-2 py-0.5 text-xs font-semibold" data-testid="play-method">
+            {source.plan.method === 'direct_play' ? 'Direct Play' : source.plan.method === 'remux' ? 'Remux' : 'Transcode'}
+          </span>
+        )}
       </header>
 
-      {source && direct && !failed && (
-        <video
-          key={source.file_id}
-          src={source.direct_url}
-          controls
-          autoPlay
-          playsInline
-          className="size-full"
-          data-testid="player-video"
-          onEnded={() => part + 1 < sources.length && setPart(part + 1)}
-          onError={() => setFailed(true)}
-        />
-      )}
+      <video
+        ref={video}
+        controls
+        autoPlay
+        playsInline
+        hidden={!!error}
+        className="size-full"
+        data-testid="player-video"
+        onEnded={() => part + 1 < sources.length && setPart(part + 1)}
+        onError={() => setFailed(true)}
+      />
 
-      {blocked && (
+      {error && (
         <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center" role="alert">
           <TriangleAlert className="size-10 text-amber-400" aria-hidden="true" />
-          <p className="text-lg font-bold">Dieses Video kann dein Browser nicht direkt abspielen.</p>
-          {playback.isError ? (
-            <p className="max-w-md text-sm text-white/70">Für diesen Eintrag gibt es keine abspielbare Datei.</p>
-          ) : (
-            <>
-              {source && !direct && (
-                <ul className="max-w-md space-y-1 text-sm text-white/70" data-testid="playback-reasons">
-                  {source.plan.reasons.map((reason) => (
-                    <li key={reason}>{REASON_LABELS[reason]}</li>
-                  ))}
-                </ul>
-              )}
-              <p className="max-w-md text-sm text-white/50">
-                {source && !direct
-                  ? `Nötig wäre: ${source.plan.method === 'remux' ? 'Umpacken (Remux)' : 'Umwandeln (Transcoding)'} – kommt mit den nächsten Meilensteinen.`
-                  : 'Die Datei ließ sich nicht abspielen.'}
-              </p>
-            </>
+          <p className="text-lg font-bold">{error}</p>
+          {source && source.plan.reasons.length > 0 && (
+            <ul className="max-w-md space-y-1 text-sm text-white/70" data-testid="playback-reasons">
+              {source.plan.reasons.map((reason) => (
+                <li key={reason}>{REASON_LABELS[reason]}</li>
+              ))}
+            </ul>
           )}
           <Link to="/item/$id" params={{ id }} className="mt-2 rounded-full bg-white/15 px-5 py-2 text-sm font-semibold hover:bg-white/25">
             Zur Detailseite

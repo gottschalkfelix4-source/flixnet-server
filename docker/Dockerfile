@@ -47,7 +47,7 @@ RUN chmod 755 /usr/local/bin/entrypoint.sh
 
 ENV PATH="/usr/lib/jellyfin-ffmpeg:${PATH}" \
     FLIXNET_CONFIG=/config/flixnet.toml \
-    FLIXNET_PATHS__CONFIG_DIR=/config \
+    FLIXNET_PATHS__CONFIG_DIR=/config     FLIXNET_PATHS__TRANSCODE_DIR=/transcode \
     FLIXNET_SERVER__BIND=0.0.0.0:8097 \
     PUID=99 \
     PGID=100 \

@@ -2675,6 +2675,251 @@
         }
       }
     },
+    "/api/v1/transcode/sessions": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Active transcode sessions (administrators).",
+        "operationId": "listTranscodeSessions",
+        "responses": {
+          "200": {
+            "description": "Active sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TranscodeSessionDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transcode/{session}": {
+      "delete": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Ends a session (the player closed); stops its ffmpeg and removes its files.",
+        "operationId": "stopTranscodeSession",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "description": "Session id from playback info",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Stopped (or already gone)"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Someone else's session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transcode/{session}/init.mp4": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "The fMP4 init segment.",
+        "operationId": "getTranscodeInit",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "description": "Session id from playback info",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Init segment",
+            "content": {
+              "video/mp4": {}
+            }
+          },
+          "404": {
+            "description": "Unknown or expired session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Transcoding too slow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/transcode/{session}/main.m3u8": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "The session's VOD playlist (all segments, so players can seek anywhere).",
+        "operationId": "getTranscodePlaylist",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "description": "Session id from playback info",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HLS playlist",
+            "content": {
+              "application/vnd.apple.mpegurl": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or expired session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/transcode/{session}/{segment}": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "One media segment (`{n}.m4s`); seeking far ahead restarts the transcode there.",
+        "operationId": "getTranscodeSegment",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "description": "Session id from playback info",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "segment",
+            "in": "path",
+            "description": "Segment file name, e.g. `12.m4s`",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Media segment",
+            "content": {
+              "video/iso.segment": {}
+            }
+          },
+          "404": {
+            "description": "Unknown session or segment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Transcoding too slow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
     "/api/v1/users": {
       "get": {
         "tags": [
@@ -4496,6 +4741,13 @@
           "file_name": {
             "type": "string"
           },
+          "hls_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "HLS playlist of a transcode session, when the plan is not Direct Play."
+          },
           "part": {
             "type": [
               "integer",
@@ -5055,6 +5307,45 @@
           }
         }
       },
+      "TranscodeSessionDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "item_id",
+          "file_id",
+          "transcoding"
+        ],
+        "properties": {
+          "file_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "item_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_segment": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "transcoding": {
+            "type": "boolean",
+            "description": "An ffmpeg process is currently running for this session."
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "Unlock": {
         "type": "string",
         "description": "What switching to a profile requires.",
@@ -5265,6 +5556,7 @@
       "VideoPlan": {
         "type": "object",
         "required": [
+          "stream_index",
           "action",
           "codec",
           "width",
@@ -5288,6 +5580,10 @@
             "description": "Output codec (the source codec when copied)."
           },
           "height": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stream_index": {
             "type": "integer",
             "format": "int64"
           },

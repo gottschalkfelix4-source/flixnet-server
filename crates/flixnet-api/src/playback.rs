@@ -6,7 +6,7 @@
 //! out signed URLs bound to the file *and* the user; every request re-checks that the
 //! user still exists and may see the library, so revoking access takes effect at once.
 
-use std::path::Path as FsPath;
+use std::path::{Path as FsPath, PathBuf};
 
 use axum::Json;
 use axum::body::Body;
@@ -15,9 +15,10 @@ use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::Response;
 use flixnet_db::{items, libraries, media, users};
 use flixnet_media::decision::{
-    DeviceProfile, PlaybackChoice, PlaybackPlan, SourceAudio, SourceMedia, SourceSubtitle,
-    SourceVideo, decide,
+    DeviceProfile, PlayMethod, PlaybackChoice, PlaybackPlan, SourceAudio, SourceMedia,
+    SourceSubtitle, SourceVideo, StreamAction, decide,
 };
+use flixnet_media::transcode::SessionSpec;
 use serde::{Deserialize, Serialize};
 use tower_http::services::ServeFile;
 use utoipa::{IntoParams, ToSchema};
@@ -68,6 +69,8 @@ pub struct MediaSourceDto {
     pub part: Option<i64>,
     /// Signed URL of the original file (supports HTTP range requests).
     pub direct_url: String,
+    /// HLS playlist of a transcode session, when the plan is not Direct Play.
+    pub hls_url: Option<String>,
     /// How this source would be played on the requesting device, and why.
     pub plan: PlaybackPlan,
 }
@@ -109,8 +112,20 @@ async fn get_playback_info(
             &request.device_profile,
             choice,
         );
+        let hls_url = (plan.method != PlayMethod::DirectPlay).then(|| {
+            let session = state.transcoder.create(SessionSpec {
+                user_id: user.user_id,
+                item_id: id,
+                file_id: file.id,
+                input: PathBuf::from(&file.path),
+                duration_ms: file.duration_ms.unwrap_or(0),
+                plan: session_plan(&plan),
+            });
+            format!("/api/v1/transcode/{session}/main.m3u8")
+        });
         sources.push(MediaSourceDto {
             direct_url: state.signer.stream_url(file.id, user.user_id),
+            hls_url,
             file_name: file_name(&file.path),
             file_id: file.id,
             container: file.container,
@@ -130,6 +145,21 @@ async fn get_playback_info(
     }))
 }
 
+/// What the transcode session runs. Copying video into HLS needs segment cuts on the
+/// file's own keyframes (milestone 4.4); until then remuxes re-encode the video too.
+fn session_plan(plan: &PlaybackPlan) -> PlaybackPlan {
+    let mut plan = plan.clone();
+    if let Some(video) = plan
+        .video
+        .as_mut()
+        .filter(|v| v.action == StreamAction::Copy)
+    {
+        video.action = StreamAction::Transcode;
+        video.codec = "h264".to_owned();
+    }
+    plan
+}
+
 /// Embedded cover art shows up as a video stream; it is not the movie.
 const COVER_CODECS: &[&str] = &["mjpeg", "png", "bmp", "gif", "webp"];
 
@@ -146,6 +176,7 @@ fn source_media(file: &media::MediaFile, streams: &[media::Stream]) -> SourceMed
             .iter()
             .find(|s| s.kind == "video" && !COVER_CODECS.contains(&codec(s).as_str()))
             .map(|s| SourceVideo {
+                index: s.idx,
                 codec: codec(s),
                 width: s.width.unwrap_or(0),
                 height: s.height.unwrap_or(0),

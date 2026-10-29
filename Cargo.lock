@@ -973,11 +973,14 @@ dependencies = [
 name = "flixnet-media"
 version = "0.1.0"
 dependencies = [
+ "getrandom 0.3.4",
+ "hex",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror",
  "tokio",
+ "tracing",
  "utoipa",
 ]
 

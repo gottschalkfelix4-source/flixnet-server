@@ -62,6 +62,8 @@ pub struct SourceMedia {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SourceVideo {
+    /// Stream index within the file.
+    pub index: i64,
     pub codec: String,
     pub width: i64,
     pub height: i64,
@@ -134,6 +136,7 @@ pub enum Reason {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct VideoPlan {
+    pub stream_index: i64,
     pub action: StreamAction,
     /// Output codec (the source codec when copied).
     pub codec: String,
@@ -303,6 +306,7 @@ pub fn decide(
     let video = source.video.as_ref().map(|v| {
         if video_copy {
             VideoPlan {
+                stream_index: v.index,
                 action: StreamAction::Copy,
                 codec: v.codec.clone(),
                 width: v.width,
@@ -318,6 +322,7 @@ pub fn decide(
             let bitrate = max_bitrate.map(|max| (max - AUDIO_BUDGET).max(500_000));
             let (width, height) = transcode_size(v, support, bitrate);
             VideoPlan {
+                stream_index: v.index,
                 action: StreamAction::Transcode,
                 codec: TRANSCODE_VIDEO.to_owned(),
                 width,
@@ -399,6 +404,7 @@ mod tests {
         hdr: &str,
     ) -> Option<SourceVideo> {
         Some(SourceVideo {
+            index: 0,
             codec: codec.into(),
             width,
             height,

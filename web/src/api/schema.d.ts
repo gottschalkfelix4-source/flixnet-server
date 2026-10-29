@@ -607,6 +607,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transcode/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active transcode sessions (administrators). */
+        get: operations["listTranscodeSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transcode/{session}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Ends a session (the player closed); stops its ffmpeg and removes its files. */
+        delete: operations["stopTranscodeSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transcode/{session}/init.mp4": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The fMP4 init segment. */
+        get: operations["getTranscodeInit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transcode/{session}/main.m3u8": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The session's VOD playlist (all segments, so players can seek anywhere). */
+        get: operations["getTranscodePlaylist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transcode/{session}/{segment}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One media segment (`{n}.m4s`); seeking far ahead restarts the transcode there. */
+        get: operations["getTranscodeSegment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/users": {
         parameters: {
             query?: never;
@@ -1135,6 +1220,8 @@ export interface components {
             /** Format: int64 */
             file_id: number;
             file_name: string;
+            /** @description HLS playlist of a transcode session, when the plan is not Direct Play. */
+            hls_url?: string | null;
             /**
              * Format: int64
              * @description Part number for multi-part movies (`cd1`, `part2`, …).
@@ -1329,6 +1416,19 @@ export interface components {
             /** Format: int64 */
             next_run?: number | null;
         };
+        TranscodeSessionDto: {
+            /** Format: int64 */
+            file_id: number;
+            id: string;
+            /** Format: int64 */
+            item_id: number;
+            /** Format: int32 */
+            last_segment?: number | null;
+            /** @description An ffmpeg process is currently running for this session. */
+            transcoding: boolean;
+            /** Format: int64 */
+            user_id: number;
+        };
         /**
          * @description What switching to a profile requires.
          * @enum {string}
@@ -1408,6 +1508,8 @@ export interface components {
             codec: string;
             /** Format: int64 */
             height: number;
+            /** Format: int64 */
+            stream_index: number;
             /** @description HDR → SDR tone mapping during the transcode. */
             tonemap: boolean;
             /** Format: int64 */
@@ -3364,6 +3466,199 @@ export interface operations {
             };
             /** @description No such task */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listTranscodeSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active sessions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscodeSessionDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    stopTranscodeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id from playback info */
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stopped (or already gone) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Someone else's session */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getTranscodeInit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id from playback info */
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Init segment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": unknown;
+                };
+            };
+            /** @description Unknown or expired session */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Transcoding too slow */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getTranscodePlaylist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id from playback info */
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description HLS playlist */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.apple.mpegurl": string;
+                };
+            };
+            /** @description Unknown or expired session */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getTranscodeSegment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id from playback info */
+                session: string;
+                /** @description Segment file name, e.g. `12.m4s` */
+                segment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Media segment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/iso.segment": unknown;
+                };
+            };
+            /** @description Unknown session or segment */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Transcoding too slow */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

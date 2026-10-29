@@ -31,11 +31,8 @@ for dev in /dev/dri/renderD* /dev/dri/card* /dev/nvidia*; do
     esac
 done
 
-mkdir -p /config
-chown "$PUID:$PGID" /config
-if [ -d /transcode ]; then
-    chown "$PUID:$PGID" /transcode
-fi
+mkdir -p /config /transcode
+chown "$PUID:$PGID" /config /transcode
 
 groups="$PGID${extra_groups:+,$extra_groups}"
 exec setpriv --reuid="$PUID" --regid="$PGID" --groups="$groups" --inh-caps=-all -- "$@"

@@ -4,7 +4,9 @@
 //! paths — never from raw request strings.
 
 pub mod decision;
+pub mod hls;
 pub mod probe;
 mod process;
+pub mod transcode;
 
 pub use probe::{Chapter, Ffprobe, MediaInfo, ProbeError, StreamInfo, StreamKind};

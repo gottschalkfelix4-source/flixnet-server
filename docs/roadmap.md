@@ -39,7 +39,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 ## Phase 4 – Wiedergabe
 - [x] 4.1 Direct Play mit Range-Requests — `playback-info` mit an Nutzer+Datei gebundenen signierten URLs, `/stream/{file_id}` (206/416, Rechte bei jedem Request neu geprüft), Vollbild-Player-Seite; E2E `playback.spec.ts`
 - [x] 4.2 DeviceProfile + Decision-Engine + playback-info — reine `decide()`-Funktion (Direct Play / Remux / Transcode mit Gründen, Tonemapping, Bitraten-Leiter, Burn-in) mit Tabellen-Test über Medien × Profile; Browser-Profil per `canPlayType`; Player zeigt die Gründe
-- [ ] 4.3 HLS-Transcode (Software) + TranscodeManager
+- [x] 4.3 HLS-Transcode (Software) + TranscodeManager — serverseitige VOD-Playlist, ffmpeg-Neustart beim Seek auf der absoluten Zeitachse (`-output_ts_offset` + erzwungene Keyframes), Drosselung, Reaper, Stop beim Schließen; hls.js im Player. *Gate (E2E, Chromium ohne HEVC):* HEVC 10-Bit spielt, Seek auf 80 % < 3 s, danach keine Session/ffmpeg. Remux kodiert Video bis 4.4 noch neu; Firefox-Projekt in Playwright steht noch aus
 - [ ] 4.4 Remux mit Keyframe-Index, Audio-Transcode
 - [ ] 4.5 QSV/VAAPI/NVENC + HDR→SDR-Tonemapping
 - [ ] 4.6 Untertitel (WebVTT, PGS-Burn-in), Spurwechsel

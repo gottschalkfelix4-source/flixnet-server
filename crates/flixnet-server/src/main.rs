@@ -11,6 +11,7 @@ use flixnet_core::maintenance;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use flixnet_library::jobs as library_jobs;
+use flixnet_media::transcode::{TranscodeManager, TranscodeSettings};
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
@@ -146,6 +147,12 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         None
     };
 
+    let transcoder = TranscodeManager::new(
+        &config.media.ffmpeg,
+        config.paths.transcode_dir(),
+        TranscodeSettings::default(),
+    );
+
     let services = Services {
         events,
         jobs,
@@ -155,6 +162,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         ),
         url_secret: url_signing_secret(&db).await?,
         watcher,
+        transcoder: transcoder.clone(),
     };
     let app = flixnet_api::router(AppState::new(config, db.clone(), services))
         .fallback_service(web::router());
@@ -168,6 +176,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .with_graceful_shutdown(shutdown_signal())
         .await?;
 
+    transcoder.stop_all().await;
     stop_scheduler.cancel();
     let _ = scheduler.await;
     running_jobs.shutdown(Duration::from_secs(10)).await;

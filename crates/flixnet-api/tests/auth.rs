@@ -210,6 +210,10 @@ async fn every_protected_operation_requires_a_token() {
             // Signed URL bound to user + file, or a token (playback_api.rs).
             "GET /api/v1/stream/{file_id}",
             "GET /api/v1/system/info",
+            // The 128-bit session id is the capability (playback_api.rs).
+            "GET /api/v1/transcode/{session}/init.mp4",
+            "GET /api/v1/transcode/{session}/main.m3u8",
+            "GET /api/v1/transcode/{session}/{segment}",
             "POST /api/v1/auth/login",
             "POST /api/v1/invitations/redeem/{code}",
             "POST /api/v1/setup",
