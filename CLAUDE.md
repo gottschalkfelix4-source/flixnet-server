@@ -14,7 +14,7 @@ Architektur: `docs/architecture.md`. Fortschritt: `docs/roadmap.md`.
 ## Dev-Loop
 - Backend: `cargo run -p flixnet-server` (Port 8097, Daten in `dev-config/`). Debug-Builds lesen `web/dist` von der Platte.
 - Frontend: in `web/` `npm run dev` (Vite auf 5173, Proxy für `/api`) bzw. `npm run build` für das eingebettete UI.
-- E2E: `npm run build && npm run test:e2e` in `web/` (startet den Server selbst mit leerer Temp-DB auf Port 18097).
+- E2E: `npm run build && npm run test:e2e` in `web/` (startet den Server selbst mit leerer Temp-DB auf Port 18097; anderer Port per `FLIXNET_E2E_PORT`).
 - TypeScript bleibt auf 5.9, bis typescript-eslint und openapi-typescript TS 6/7 unterstützen.
 - UI-Texte sind deutsch; Design-Tokens stehen in `web/src/styles/index.css`.
 

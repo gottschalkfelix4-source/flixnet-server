@@ -5,7 +5,8 @@ import { defineConfig, devices } from '@playwright/test'
 
 // E2E tests run against the real Rust server serving the built UI (`npm run build` first),
 // with a throwaway config dir so every run starts from an empty database.
-const port = 18097
+// FLIXNET_E2E_PORT lets several checkouts run their E2E suites at the same time.
+const port = Number(process.env.FLIXNET_E2E_PORT ?? 18097)
 const configDir = mkdtempSync(join(tmpdir(), 'flixnet-e2e-'))
 
 export default defineConfig({
