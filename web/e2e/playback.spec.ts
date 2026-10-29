@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { type Page, expect, test } from '@playwright/test'
+import { type Locator, type Page, expect, test } from '@playwright/test'
 
 // Playwright's Chromium plays VP9 and H.264/AAC but neither HEVC nor AC-3: the VP9
 // file is direct-played, H.264 with AC-3 in Matroska is remuxed (video copied, audio
@@ -155,4 +155,111 @@ test('H.264 with AC-3 is remuxed: video copied on keyframes, audio converted', a
   await page.getByRole('button', { name: 'Zurück' }).click()
   await expect(page.getByRole('heading', { name: REMUX })).toBeVisible()
   await expect.poll(() => api(page, '/api/v1/transcode/sessions'), { timeout: 5_000 }).toEqual([])
+})
+
+// Milestone 4.6: an MP4 (H.264/AAC, so Direct Play) with German and English audio and
+// two sidecar subtitles, a forced German and an English one.
+const TRACKS = 'Spurwechsel'
+
+function tracksRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), 'flixnet-e2e-tracks-'))
+  const folder = join(root, `${TRACKS} (2021)`)
+  mkdirSync(folder)
+  execFileSync('ffmpeg', [
+    '-hide_banner', '-loglevel', 'error', '-y',
+    '-f', 'lavfi', '-i', 'testsrc2=s=640x360:r=25:d=20',
+    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=20',
+    '-f', 'lavfi', '-i', 'sine=frequency=880:duration=20',
+    '-map', '0', '-map', '1', '-map', '2',
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-g', '50', '-sc_threshold', '0', '-c:a', 'aac',
+    '-metadata:s:a:0', 'language=ger', '-metadata:s:a:1', 'language=eng',
+    '-disposition:a:0', 'default', '-disposition:a:1', '0',
+    join(folder, `${TRACKS}.2021.mp4`),
+  ])
+  writeFileSync(join(folder, `${TRACKS}.2021.de.forced.srt`), '1\n00:00:00,000 --> 00:00:20,000\nErzwungener Text\n')
+  writeFileSync(join(folder, `${TRACKS}.2021.en.srt`), '1\n00:00:00,000 --> 00:00:20,000\nEnglish subtitle line\n')
+  return root
+}
+
+test('subtitles and audio tracks can be switched in the player', async ({ page }) => {
+  await page.goto('/settings?tab=libraries')
+  await page.getByRole('button', { name: 'Bibliothek hinzufügen' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Name').fill(TRACKS)
+  await dialog.getByLabel('Ordnerpfad').fill(tracksRoot())
+  await dialog.getByRole('button', { name: 'Speichern' }).click()
+  const entry = page.getByTestId('library-list').getByRole('listitem').filter({ hasText: TRACKS })
+  await expect(entry.getByTestId('library-counts')).toContainText('1 Film', { timeout: 30_000 })
+  await expect(entry.getByTestId('library-counts')).not.toContainText('analysiert', { timeout: 30_000 })
+
+  await openPlayer(page, TRACKS)
+  await expect(page.getByTestId('play-method')).toHaveText('Direct Play')
+  const itemId = Number(/\/play\/(\d+)/.exec(page.url())?.[1])
+  const video = page.getByTestId('player-video')
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.muted = true
+    return v.play()
+  })
+
+  // The subtitle track the player shows, with the cues active right now.
+  const showing = () =>
+    video.evaluate((v: HTMLVideoElement) => {
+      const track = Array.from(v.textTracks).find((t) => t.mode === 'showing')
+      const cues = Array.from(track?.activeCues ?? []).map((c) => (c as VTTCue).text)
+      return { label: track?.label ?? null, cues }
+    })
+  const menu = async () => {
+    await page.getByRole('button', { name: 'Wiedergabe-Einstellungen' }).click()
+    return page.getByRole('menu', { name: 'Wiedergabe-Einstellungen' })
+  }
+  const audioItem = (m: Locator, name: RegExp) => m.getByRole('group', { name: 'Tonspur' }).getByRole('menuitemradio', { name })
+  const subtitleItem = (m: Locator, name: RegExp) =>
+    m.getByRole('group', { name: 'Untertitel' }).getByRole('menuitemradio', { name })
+
+  // Forced German subtitles are on without being asked.
+  await expect.poll(showing, { timeout: 10_000 }).toEqual({ label: 'Deutsch (erzwungen)', cues: ['Erzwungener Text'] })
+  let m = await menu()
+  await expect(audioItem(m, /Deutsch/)).toHaveAttribute('aria-checked', 'true')
+  await expect(subtitleItem(m, /Deutsch/)).toHaveAttribute('aria-checked', 'true')
+
+  // Other text subtitles switch in the player, without a new source.
+  await subtitleItem(m, /Englisch/).click()
+  await expect(m).toBeHidden()
+  await expect.poll(showing).toEqual({ label: 'Englisch', cues: ['English subtitle line'] })
+  await expect(page.getByTestId('play-method')).toHaveText('Direct Play')
+  m = await menu()
+  await subtitleItem(m, /^Aus$/).click()
+  await expect.poll(showing).toEqual({ label: null, cues: [] })
+
+  // Browsers cannot switch audio tracks of a file: the English track comes as a remux
+  // and playback continues where it was.
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.currentTime = 8
+  })
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(8)
+  m = await menu()
+  await audioItem(m, /Englisch/).click()
+  await expect(page.getByTestId('play-method')).toHaveText('Remux')
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 15_000 }).toBeGreaterThan(8.5)
+  const sessions = async () =>
+    ((await api(page, '/api/v1/transcode/sessions')) as { item_id: number }[]).filter((s) => s.item_id === itemId)
+  expect(await sessions()).toHaveLength(1)
+  m = await menu()
+  await expect(audioItem(m, /Englisch/)).toHaveAttribute('aria-checked', 'true')
+
+  // Text subtitles work over HLS as well.
+  await subtitleItem(m, /Englisch/).click()
+  await expect.poll(showing).toEqual({ label: 'Englisch', cues: ['English subtitle line'] })
+
+  // Back to the German track: Direct Play again, the remux session is stopped and the
+  // subtitles stay on.
+  m = await menu()
+  await audioItem(m, /Deutsch/).click()
+  await expect(page.getByTestId('play-method')).toHaveText('Direct Play')
+  await expect.poll(sessions, { timeout: 5_000 }).toEqual([])
+  await expect.poll(showing, { timeout: 10_000 }).toEqual({ label: 'Englisch', cues: ['English subtitle line'] })
+  expect(await video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(8.5)
+
+  await page.getByRole('button', { name: 'Zurück' }).click()
+  await expect(page.getByRole('heading', { name: TRACKS })).toBeVisible()
 })

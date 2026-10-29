@@ -30,6 +30,7 @@ use crate::AppState;
 use crate::auth::AuthUser;
 use crate::browse::ensure_visible;
 use crate::error::{ApiError, ApiResult, ErrorBody};
+use crate::tracks::{self, AudioTrackDto, SubtitleTrackDto};
 
 pub(crate) fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
@@ -74,6 +75,11 @@ pub struct MediaSourceDto {
     pub hls_url: Option<String>,
     /// How this source would be played on the requesting device, and why.
     pub plan: PlaybackPlan,
+    /// Audio tracks to choose from (`audio_stream_index`).
+    pub audio_tracks: Vec<AudioTrackDto>,
+    /// Subtitle tracks to choose from: text ones with a WebVTT URL, picture ones
+    /// burned in when chosen (`subtitle_stream_index`).
+    pub subtitle_tracks: Vec<SubtitleTrackDto>,
 }
 
 /// Sources of a movie or episode with a playback decision for the client's device.
@@ -136,6 +142,13 @@ async fn get_playback_info(
             bitrate: file.bitrate,
             part: file.part,
             plan,
+            audio_tracks: tracks::audio_tracks(&streams),
+            subtitle_tracks: tracks::subtitle_tracks(
+                &state.signer,
+                file.id,
+                user.user_id,
+                &streams,
+            ),
         });
     }
     if sources.is_empty() {
@@ -241,6 +254,42 @@ fn file_name(path: &str) -> String {
         .unwrap_or_default()
 }
 
+/// The file a media request may read. `signed_user` is the user a verified URL
+/// signature was issued to: the signature proves who it was, but that user's access
+/// is checked again on every request. Without one, a signed-in user must see the item.
+pub(crate) async fn accessible_file(
+    state: &AppState,
+    user: Option<&AuthUser>,
+    signed_user: Option<i64>,
+    file_id: i64,
+) -> ApiResult<media::MediaFile> {
+    let not_found = || ApiError::not_found("Datei nicht gefunden.");
+    if signed_user.is_none() && user.is_none() {
+        return Err(ApiError::unauthorized());
+    }
+    let file = media::get_file(&state.db, file_id)
+        .await?
+        .filter(|f| f.missing_since.is_none())
+        .ok_or_else(not_found)?;
+    let item_id = file.item_id.ok_or_else(not_found)?;
+    if let Some(user_id) = signed_user {
+        let user = users::get(&state.db, user_id)
+            .await?
+            .ok_or_else(ApiError::unauthorized)?;
+        if !user.is_admin
+            && !libraries::user_can_access(&state.db, user.id, file.library_id).await?
+        {
+            return Err(not_found());
+        }
+    } else if let Some(user) = user {
+        ensure_visible(state, user, item_id).await?;
+    }
+    if items::get(&state.db, item_id).await?.is_none() {
+        return Err(not_found());
+    }
+    Ok(file)
+}
+
 #[derive(Debug, Deserialize, IntoParams)]
 #[into_params(parameter_in = Query)]
 pub struct StreamQuery {
@@ -284,31 +333,7 @@ async fn stream_file(
         }
         _ => None,
     };
-    if signed_user.is_none() && user.is_none() {
-        return Err(ApiError::unauthorized());
-    }
-
-    let file = media::get_file(&state.db, file_id)
-        .await?
-        .filter(|f| f.missing_since.is_none())
-        .ok_or_else(not_found)?;
-    let item_id = file.item_id.ok_or_else(not_found)?;
-    if let Some(user_id) = signed_user {
-        // The signature proves who it was issued to; re-check that user's access.
-        let user = users::get(&state.db, user_id)
-            .await?
-            .ok_or_else(ApiError::unauthorized)?;
-        if !user.is_admin
-            && !libraries::user_can_access(&state.db, user.id, file.library_id).await?
-        {
-            return Err(not_found());
-        }
-    } else if let Some(user) = &user {
-        ensure_visible(&state, user, item_id).await?;
-    }
-    if items::get(&state.db, item_id).await?.is_none() {
-        return Err(not_found());
-    }
+    let file = accessible_file(&state, user.as_ref(), signed_user, file_id).await?;
 
     // The path comes from the database, never from the request.
     let response = ServeFile::new(&file.path)

@@ -3583,6 +3583,111 @@
         ]
       }
     },
+    "/api/v1/subtitles/{file_id}/{track}": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "A text subtitle track as WebVTT (`{stream_index}.vtt`), converted on first use.",
+        "description": "Use the signed `vtt_url` from playback info; alternatively authenticate normally.",
+        "operationId": "getSubtitleVtt",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "description": "Media file id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "track",
+            "in": "path",
+            "description": "Subtitle stream index plus `.vtt`, e.g. `1000.vtt`",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "u",
+            "in": "query",
+            "description": "User the URL was issued to, from URLs returned by the API.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "description": "Expiry of the signature (unix seconds).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "description": "URL signature.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The subtitles",
+            "content": {
+              "text/vtt": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Neither a valid signature nor a valid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such file or text subtitle track, or no access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The conversion took too long",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
     "/api/v1/system/info": {
       "get": {
         "tags": [
@@ -4848,6 +4953,55 @@
               "string",
               "null"
             ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AudioTrackDto": {
+        "type": "object",
+        "required": [
+          "index",
+          "is_default"
+        ],
+        "properties": {
+          "channel_layout": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channels": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "index": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Stream index within the file (`audio_stream_index` in playback info)."
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO 639-2 language code (`deu`, `eng`, …)."
           },
           "title": {
             "type": [
@@ -6124,9 +6278,18 @@
           "file_name",
           "size",
           "direct_url",
-          "plan"
+          "plan",
+          "audio_tracks",
+          "subtitle_tracks"
         ],
         "properties": {
+          "audio_tracks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AudioTrackDto"
+            },
+            "description": "Audio tracks to choose from (`audio_stream_index`)."
+          },
           "bitrate": {
             "type": [
               "integer",
@@ -6181,6 +6344,13 @@
           "size": {
             "type": "integer",
             "format": "int64"
+          },
+          "subtitle_tracks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubtitleTrackDto"
+            },
+            "description": "Subtitle tracks to choose from: text ones with a WebVTT URL, picture ones\nburned in when chosen (`subtitle_stream_index`)."
           }
         }
       },
@@ -6868,6 +7038,69 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "SubtitleTrackDto": {
+        "type": "object",
+        "required": [
+          "index",
+          "is_default",
+          "is_forced",
+          "is_sdh",
+          "is_external",
+          "burn_in"
+        ],
+        "properties": {
+          "burn_in": {
+            "type": "boolean",
+            "description": "Picture subtitles: choosing them burns them into the video (a transcode)."
+          },
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ffprobe codec name, or the file extension of a sidecar file."
+          },
+          "index": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Stream index within the file; sidecar files are numbered from 1000\n(`subtitle_stream_index` in playback info)."
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "is_external": {
+            "type": "boolean",
+            "description": "A sidecar file next to the media file."
+          },
+          "is_forced": {
+            "type": "boolean",
+            "description": "Only translates foreign-language parts."
+          },
+          "is_sdh": {
+            "type": "boolean",
+            "description": "For the deaf and hard of hearing."
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "vtt_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed WebVTT URL for text subtitles, rendered by the player."
           }
         }
       },

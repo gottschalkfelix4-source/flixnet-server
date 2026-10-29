@@ -3,27 +3,31 @@ import { ArrowLeft, TriangleAlert } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useItem } from '@/api/queries/items'
 import { REASON_LABELS, usePlaybackInfo } from '@/api/queries/playback'
+import { TrackMenu } from '@/components/player/TrackMenu'
 import { episodeLabel } from '@/lib/media'
+import { useSourceTracks, useTrackSelection } from '@/lib/useTracks'
 import { useVideoSource } from '@/lib/useVideoSource'
 
 /**
  * Full-screen player: the original file when the decision engine says Direct Play,
- * otherwise an HLS transcode. Track selection and custom controls follow in later
- * milestones.
+ * otherwise an HLS transcode. The gear menu switches audio and subtitle tracks;
+ * custom controls follow in a later milestone.
  */
 export function PlayerPage() {
   const { id } = useParams({ from: '/play/$id' })
   const itemId = Number(id)
   const item = useItem(itemId)
-  const playback = usePlaybackInfo(itemId)
   const router = useRouter()
   const video = useRef<HTMLVideoElement>(null)
+  const tracks = useTrackSelection(video)
+  const playback = usePlaybackInfo(itemId, tracks.choice)
   const [part, setPart] = useState(0)
   const [failed, setFailed] = useState(false)
 
   const sources = playback.data?.sources ?? []
   const source = sources[part]
   const streamError = useVideoSource(video, source)
+  const subtitle = useSourceTracks(video, source, tracks)
   const error = playback.isError
     ? 'Für diesen Eintrag gibt es keine abspielbare Datei.'
     : (streamError ?? (failed ? 'Die Datei ließ sich nicht abspielen.' : null))
@@ -56,6 +60,9 @@ export function PlayerPage() {
           <span className="ml-auto rounded bg-white/15 px-2 py-0.5 text-xs font-semibold" data-testid="play-method">
             {source.plan.method === 'direct_play' ? 'Direct Play' : source.plan.method === 'remux' ? 'Remux' : 'Transcode'}
           </span>
+        )}
+        {source && (
+          <TrackMenu source={source} subtitle={subtitle} onAudio={tracks.selectAudio} onSubtitle={tracks.selectSubtitle} />
         )}
       </header>
 

@@ -739,6 +739,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/subtitles/{file_id}/{track}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A text subtitle track as WebVTT (`{stream_index}.vtt`), converted on first use.
+         * @description Use the signed `vtt_url` from playback info; alternatively authenticate normally.
+         */
+        get: operations["getSubtitleVtt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/system/info": {
         parameters: {
             query?: never;
@@ -1100,6 +1120,21 @@ export interface components {
             /** Format: int64 */
             index: number;
             is_default: boolean;
+            language?: string | null;
+            title?: string | null;
+        };
+        AudioTrackDto: {
+            channel_layout?: string | null;
+            /** Format: int64 */
+            channels?: number | null;
+            codec?: string | null;
+            /**
+             * Format: int64
+             * @description Stream index within the file (`audio_stream_index` in playback info).
+             */
+            index: number;
+            is_default: boolean;
+            /** @description ISO 639-2 language code (`deu`, `eng`, …). */
             language?: string | null;
             title?: string | null;
         };
@@ -1522,6 +1557,8 @@ export interface components {
             video?: components["schemas"]["VideoStreamDto"] | null;
         };
         MediaSourceDto: {
+            /** @description Audio tracks to choose from (`audio_stream_index`). */
+            audio_tracks: components["schemas"]["AudioTrackDto"][];
             /** Format: int64 */
             bitrate?: number | null;
             /** @description Container as probed (e.g. `matroska,webm`, `mov,mp4,m4a,3gp,3g2,mj2`). */
@@ -1544,6 +1581,11 @@ export interface components {
             plan: components["schemas"]["PlaybackPlan"];
             /** Format: int64 */
             size: number;
+            /**
+             * @description Subtitle tracks to choose from: text ones with a WebVTT URL, picture ones
+             *     burned in when chosen (`subtitle_stream_index`).
+             */
+            subtitle_tracks: components["schemas"]["SubtitleTrackDto"][];
         };
         MetadataSettingsDto: {
             /** @description Country for age ratings, e.g. `DE`. */
@@ -1785,6 +1827,29 @@ export interface components {
             is_sdh: boolean;
             language?: string | null;
             title?: string | null;
+        };
+        SubtitleTrackDto: {
+            /** @description Picture subtitles: choosing them burns them into the video (a transcode). */
+            burn_in: boolean;
+            /** @description ffprobe codec name, or the file extension of a sidecar file. */
+            codec?: string | null;
+            /**
+             * Format: int64
+             * @description Stream index within the file; sidecar files are numbered from 1000
+             *     (`subtitle_stream_index` in playback info).
+             */
+            index: number;
+            is_default: boolean;
+            /** @description A sidecar file next to the media file. */
+            is_external: boolean;
+            /** @description Only translates foreign-language parts. */
+            is_forced: boolean;
+            /** @description For the deaf and hard of hearing. */
+            is_sdh: boolean;
+            language?: string | null;
+            title?: string | null;
+            /** @description Signed WebVTT URL for text subtitles, rendered by the player. */
+            vtt_url?: string | null;
         };
         SwitchProfileRequest: {
             device: components["schemas"]["DeviceInfo"];
@@ -4628,6 +4693,65 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getSubtitleVtt: {
+        parameters: {
+            query?: {
+                /** @description User the URL was issued to, from URLs returned by the API. */
+                u?: number;
+                /** @description Expiry of the signature (unix seconds). */
+                exp?: number;
+                /** @description URL signature. */
+                sig?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Media file id */
+                file_id: number;
+                /** @description Subtitle stream index plus `.vtt`, e.g. `1000.vtt` */
+                track: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The subtitles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/vtt": string;
+                };
+            };
+            /** @description Neither a valid signature nor a valid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such file or text subtitle track, or no access */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The conversion took too long */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
             };
         };
     };

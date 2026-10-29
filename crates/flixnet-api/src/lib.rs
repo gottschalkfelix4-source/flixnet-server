@@ -13,6 +13,7 @@ use flixnet_db::Db;
 use flixnet_library::images::ImageCache;
 use flixnet_library::watch::LibraryWatcher;
 use flixnet_media::Ffprobe;
+use flixnet_media::subtitles::SubtitleCache;
 use flixnet_media::transcode::TranscodeManager;
 use tower_http::trace::TraceLayer;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme};
@@ -36,6 +37,7 @@ mod session;
 mod settings;
 pub mod signing;
 mod system;
+mod tracks;
 mod transcode;
 mod users;
 mod validate;
@@ -57,6 +59,7 @@ pub struct AppState {
     pub watcher: Option<LibraryWatcher>,
     pub transcoder: TranscodeManager,
     pub ffprobe: Ffprobe,
+    pub subtitles: SubtitleCache,
 }
 
 /// Long-lived services the API talks to.
@@ -71,6 +74,8 @@ pub struct Services {
     pub watcher: Option<LibraryWatcher>,
     pub transcoder: TranscodeManager,
     pub ffprobe: Ffprobe,
+    /// WebVTT conversions of text subtitles (`<config_dir>/cache/subtitles`).
+    pub subtitles: SubtitleCache,
 }
 
 impl AppState {
@@ -87,6 +92,7 @@ impl AppState {
             watcher: services.watcher,
             transcoder: services.transcoder,
             ffprobe: services.ffprobe,
+            subtitles: services.subtitles,
         }
     }
 }
@@ -157,6 +163,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, playlists::router())
         .nest(API_PREFIX, playback::router())
         .nest(API_PREFIX, transcode::router())
+        .nest(API_PREFIX, tracks::router())
         .nest(API_PREFIX, settings::router())
         .split_for_parts()
 }

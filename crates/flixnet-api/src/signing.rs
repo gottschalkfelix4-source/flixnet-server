@@ -64,6 +64,25 @@ impl UrlSigner {
         self.verify(&format!("stream:{user_id}"), file_id, expires, signature)
     }
 
+    /// `/api/v1/subtitles/{file_id}/{stream_index}.vtt?u=…&exp=…&sig=…`, bound to the
+    /// user and the file like stream URLs (`<track>` elements cannot send headers).
+    pub fn subtitle_url(&self, file_id: i64, stream_index: i64, user_id: i64) -> String {
+        let (expires, sig) = self.sign(&format!("subtitle:{user_id}"), file_id);
+        format!(
+            "/api/v1/subtitles/{file_id}/{stream_index}.vtt?u={user_id}&exp={expires}&sig={sig}"
+        )
+    }
+
+    pub fn verify_subtitle(
+        &self,
+        file_id: i64,
+        user_id: i64,
+        expires: i64,
+        signature: &str,
+    ) -> bool {
+        self.verify(&format!("subtitle:{user_id}"), file_id, expires, signature)
+    }
+
     /// `/api/v1/images/{id}?w=…&exp=…&sig=…`
     pub fn image_url(&self, image_id: i64, width: Option<u32>) -> String {
         let (expires, sig) = self.sign("img", image_id);
@@ -89,6 +108,27 @@ mod tests {
         assert!(!signer.verify("img", 42, 1, &sig), "expired");
         assert!(!signer.verify("img", 42, expires, "zz"), "garbage");
         assert!(!UrlSigner::new(b"other".to_vec()).verify("img", 42, expires, &sig));
+    }
+
+    #[test]
+    fn subtitle_urls_are_bound_to_user_and_file() {
+        let signer = UrlSigner::new(b"secret".to_vec());
+        let url = signer.subtitle_url(7, 1000, 3);
+        let query = |name: &str| {
+            url.split(['?', '&'])
+                .find_map(|p| p.strip_prefix(&format!("{name}=")))
+                .unwrap()
+                .to_owned()
+        };
+        assert!(url.starts_with("/api/v1/subtitles/7/1000.vtt?u=3&"));
+        let (exp, sig) = (query("exp").parse().unwrap(), query("sig"));
+        assert!(signer.verify_subtitle(7, 3, exp, &sig));
+        assert!(!signer.verify_subtitle(7, 4, exp, &sig), "other user");
+        assert!(!signer.verify_subtitle(8, 3, exp, &sig), "other file");
+        assert!(
+            !signer.verify_stream(7, 3, exp, &sig),
+            "not a stream signature"
+        );
     }
 
     #[test]
