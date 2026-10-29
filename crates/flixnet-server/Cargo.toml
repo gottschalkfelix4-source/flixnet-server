@@ -1,0 +1,23 @@
+[package]
+name = "flixnet-server"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "flixnet-server"
+path = "src/main.rs"
+
+[dependencies]
+flixnet-api.workspace = true
+flixnet-core.workspace = true
+
+anyhow.workspace = true
+axum.workspace = true
+clap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true

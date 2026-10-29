@@ -1,0 +1,21 @@
+# Flixnet – Hinweise für Claude
+
+Selbst gehosteter Media Server (Rust-Backend, React-Web-UI), Ziel: Plex/Jellyfin-Funktionsumfang + lokale KI + Live TV.
+Architektur: `docs/architecture.md`. Fortschritt: `docs/roadmap.md`.
+
+## Arbeitsweise
+- Ein Meilenstein aus `docs/roadmap.md` pro Session. Erst abhaken, wenn sein „Fertig wenn“ nachweislich erfüllt ist.
+- Vor dem Abschluss: `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`; im Web `npm run lint` und `npm run build`.
+- Nach API-Änderungen OpenAPI neu erzeugen (`cargo run -p flixnet-server -- openapi > web/openapi.json`) und den TS-Client regenerieren.
+- Neue Crates nur, wenn eine Abhängigkeit es erzwingt.
+
+## Harte Regeln
+- ffmpeg/ffprobe nur über den typisierten `FfmpegArgs`-Builder starten, nie über eine Shell, nie mit rohen Strings aus Requests.
+- Keine Schreibtransaktion über externe I/O (HTTP, ffprobe, Dateisystem) hinweg halten. Erst berechnen, dann in Batches schreiben.
+- Jede Route ist authentifiziert, außer einer expliziten Whitelist (system/info, Login, Setup).
+- Nutzerdaten (Watch-State, Bewertungen) hängen am `content_key`, nicht an Item-ID oder Pfad.
+- API ist versioniert unter `/api/v1`; keine Breaking Changes ohne neue Version.
+- Zeiten als Unix-Millisekunden (UTC) in INTEGER-Spalten; Schema bleibt Postgres-portabel.
+
+## Umgebung
+- Dev: Windows 11, Port 8097. Produktion: Docker auf Unraid mit Intel QuickSync (`/dev/dri`); `/config` liegt auf `/mnt/cache/appdata/flixnet`, nicht auf `/mnt/user`.

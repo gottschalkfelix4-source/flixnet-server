@@ -1,0 +1,9 @@
+/target
+/web/node_modules
+/web/dist
+/fixtures/generated
+/dev-config
+*.db
+*.db-shm
+*.db-wal
+.env

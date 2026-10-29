@@ -1,0 +1,72 @@
+# Flixnet – Roadmap
+
+Details zu Architektur und Entscheidungen: [architecture.md](architecture.md).
+
+Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn“-Kriterium nachweislich erfüllt ist.
+
+## Phase 0 – Grundgerüst
+- [x] 0.0 Rust-Toolchain (rustup, stable 1.99.1, MSVC) auf dem Dev-PC
+- [ ] 0.0b jellyfin-ffmpeg 7 portable auf dem Dev-PC (spätestens vor Phase 4)
+- [x] 0.1 Workspace, axum, tracing, Config, `GET /api/v1/system/info` – *fertig wenn* `cargo test` + `cargo clippy -- -D warnings` grün
+- [ ] 0.2 flixnet-db: Migrationen, WAL, Writer-/Read-Pool, Settings – *fertig wenn* Migrationstest auf Temp-DB grün
+- [ ] 0.3 OpenAPI (utoipa) + Scalar-UI, `flixnet-server openapi > web/openapi.json`
+- [ ] 0.4 Web-Shell (React/Vite, Theme, Sidebar, generierter Client), per rust-embed ausgeliefert – *fertig wenn* Playwright-Smoke grün
+- [ ] 0.5 `xtask fixtures`, Dockerfile, GitHub Actions, Unraid – *fertig wenn* Container auf Unraid die UI zeigt
+
+## Phase 1 – Auth und Nutzer
+- [ ] 1.1 Setup-Assistent, argon2, Login → Device-Token, Auth-Extractor – *fertig wenn* jede OpenAPI-Operation ohne Token 401 liefert
+- [ ] 1.2 Haushalt, Profile mit PIN, Bibliotheksrechte, Einladungen, Admin-Rolle
+
+## Phase 2 – Scannen und Metadaten
+- [ ] 2.1 Dateinamen-Parser (300+ Testfälle)
+- [ ] 2.2 Job-Runtime + Jobs-API – *fertig wenn* Kill während der Queue → Neustart setzt fort
+- [ ] 2.3 FS-Diff → media_files → ffprobe-Jobs – *fertig wenn* Rescan ohne Änderung null Probes macht
+- [ ] 2.4 NFO + lokale Artworks
+- [ ] 2.5 TMDB-Client, Matching mit Confidence, Identify, Bild-Cache + Blurhash
+- [ ] 2.6 Items-API (Filter-DSL, Sortierung, Paging, A–Z, FTS5) – *fertig wenn* p95 < 50 ms bei 50k Items
+- [ ] 2.7 Watcher, Rename-Erkennung – *fertig wenn* Watch-State nach Rename erhalten bleibt
+- [ ] 2.8 TVDB, fanart.tv, Personen/Credits
+
+## Phase 3 – Browsing-UI
+- [ ] 3.1 Home (Hero, Reihen), Bibliotheks-Grid, Detailseiten, Suche
+
+## Phase 4 – Wiedergabe
+- [ ] 4.1 Direct Play mit Range-Requests
+- [ ] 4.2 DeviceProfile + Decision-Engine + playback-info
+- [ ] 4.3 HLS-Transcode (Software) + TranscodeManager
+- [ ] 4.4 Remux mit Keyframe-Index, Audio-Transcode
+- [ ] 4.5 QSV/VAAPI/NVENC + HDR→SDR-Tonemapping
+- [ ] 4.6 Untertitel (WebVTT, PGS-Burn-in), Spurwechsel
+- [ ] 4.7 Fortschritt, Weiterschauen, Nächste Folge, Sessions
+- [ ] 4.8 Eigener Player, Trickplay, Kapitelbilder, Autoplay
+
+## Phase 5 – Analyse und Organisation
+- [ ] 5.1 Intro/Credits-Erkennung + Skip
+- [ ] 5.2 OpenSubtitles
+- [ ] 5.3 Collections, Playlists, Smart Playlists
+- [ ] 5.4 Jugendschutz
+
+## Phase 6 – KI
+- [ ] 6.1 Model-Manager + Item-Embeddings (sqlite-vec)
+- [ ] 6.2 Hybrid-Suche (BM25 + Vektor, RRF)
+- [ ] 6.3 Recommendations (Taste-Cluster, Co-Watch, MMR, Onboarding)
+- [ ] 6.4 LLM: natürliche Sprache → Filter, Erklärungen
+- [ ] 6.5 Szenensuche (Untertitel-Chunks, Whisper opt-in)
+- [ ] 6.6 Gruppenmodus
+- [ ] 6.7 Chat-Assistent, spoilerfreie Recaps, Themen-Collections
+
+## Phase 7 – Live TV und DVR
+- [ ] 7.1 Tuner-Trait, M3U/Xtream → HLS
+- [ ] 7.2 HDHomeRun
+- [ ] 7.3 XMLTV, Sender-Matching, Guide-Grid
+- [ ] 7.4 Shared Upstream, Timeshift
+- [ ] 7.5 DVR (Regeln, Konflikte, Aufnahmen als Items)
+- [ ] 7.6 Schedules Direct, tvheadend
+
+## Phase 8 – Jellyfin-Kompatibilität
+- [ ] 8.1 Auth, Views, Items
+- [ ] 8.2 PlaybackInfo, Streams
+- [ ] 8.3 Sessions, Resume, NextUp, Bilder – *fertig wenn* Infuse, Swiftfin, Findroid, Streamyfin funktionieren
+
+## Phase 9 – Breite und Feinschliff
+- [ ] Musik · SyncPlay · Chromecast · Trakt · Webhooks/Benachrichtigungen · Dashboard · Backups · History-Import · OIDC · Unraid-CA-Template · Hörbücher/Fotos/DLNA
