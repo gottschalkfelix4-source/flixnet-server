@@ -230,11 +230,25 @@ async fn start_playback(
     State(state): State<AppState>,
     Json(report): Json<PlaybackReport>,
 ) -> ApiResult<Json<PlaybackSessionDto>> {
-    validate(&report)?;
-    ensure_playable(&state, &user, report.item_id).await?;
-    let id = flixnet_core::auth::new_token().token[..32].to_owned();
-    let session = open_session(&state, &user, id, &report).await?;
+    let session = start_session(&state, &user, None, &report).await?;
     Ok(Json(PlaybackSessionDto { id: session.id }))
+}
+
+/// Registers a playback start. `id` is a caller-chosen session id (32 lowercase hex
+/// characters, e.g. derived from a Jellyfin play session); a random one otherwise.
+pub async fn start_session(
+    state: &AppState,
+    user: &AuthUser,
+    id: Option<String>,
+    report: &PlaybackReport,
+) -> ApiResult<ActiveSession> {
+    validate(report)?;
+    if id.as_deref().is_some_and(|id| !is_playback_session_id(id)) {
+        return Err(ApiError::validation("Ungültige Wiedergabe-Sitzung."));
+    }
+    ensure_playable(state, user, report.item_id).await?;
+    let id = id.unwrap_or_else(|| flixnet_core::auth::new_token().token[..32].to_owned());
+    open_session(state, user, id, report).await
 }
 
 /// Looks a session up for its owner; an unknown (expired, or lost in a restart) id is
@@ -284,10 +298,21 @@ async fn report_playback_progress(
     Path(id): Path<String>,
     Json(report): Json<PlaybackReport>,
 ) -> ApiResult<StatusCode> {
-    validate(&report)?;
-    let duration_ms = duration(&state, &report).await?;
-    let session = match owned_session(&state, &user, &id, &report).await? {
-        Some(_) => state.playback.update(&id, |s| {
+    progress_session(&state, &user, &id, &report).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Records progress of session `id` (re-opened from the report if it is unknown).
+pub async fn progress_session(
+    state: &AppState,
+    user: &AuthUser,
+    id: &str,
+    report: &PlaybackReport,
+) -> ApiResult<()> {
+    validate(report)?;
+    let duration_ms = duration(state, report).await?;
+    let session = match owned_session(state, user, id, report).await? {
+        Some(_) => state.playback.update(id, |s| {
             s.position_ms = report.position_ms;
             s.duration_ms = duration_ms;
             s.play_method = report.play_method;
@@ -295,11 +320,11 @@ async fn report_playback_progress(
             s.is_paused = report.is_paused;
             s.last_report_at = flixnet_db::now_ms();
         }),
-        None => Some(open_session(&state, &user, id.clone(), &report).await?),
+        None => Some(open_session(state, user, id.to_owned(), report).await?),
     };
     let Some(session) = session else {
         // Stopped concurrently; nothing left to update.
-        return Ok(StatusCode::NO_CONTENT);
+        return Ok(());
     };
     playstate::save_progress(
         &state.db,
@@ -311,10 +336,10 @@ async fn report_playback_progress(
     .await?;
     let quartile = playstate::quartile(report.position_ms, duration_ms);
     if quartile > session.milestone {
-        state.playback.update(&id, |s| s.milestone = quartile);
-        event(&state, &session, "progress", false).await;
+        state.playback.update(id, |s| s.milestone = quartile);
+        event(state, &session, "progress", false).await;
     }
-    Ok(StatusCode::NO_CONTENT)
+    Ok(())
 }
 
 /// Playback ended (player closed, item finished or switched).
@@ -338,15 +363,26 @@ async fn stop_playback(
     Path(id): Path<String>,
     Json(report): Json<PlaybackReport>,
 ) -> ApiResult<Json<PlaybackStopDto>> {
-    validate(&report)?;
-    let duration_ms = duration(&state, &report).await?;
-    let known = owned_session(&state, &user, &id, &report).await?;
+    stop_session(&state, &user, &id, &report).await.map(Json)
+}
+
+/// Ends session `id`: resume point or watched, plus the history entry. An unknown
+/// session is finished from the report alone.
+pub async fn stop_session(
+    state: &AppState,
+    user: &AuthUser,
+    id: &str,
+    report: &PlaybackReport,
+) -> ApiResult<PlaybackStopDto> {
+    validate(report)?;
+    let duration_ms = duration(state, report).await?;
+    let known = owned_session(state, user, id, report).await?;
     let now = flixnet_db::now_ms();
-    let mut session = match known.and_then(|_| state.playback.remove(&id)) {
+    let mut session = match known.and_then(|_| state.playback.remove(id)) {
         Some(session) => session,
         // Unknown (or just expired): finish it from the report alone.
         None => ActiveSession {
-            id: id.clone(),
+            id: id.to_owned(),
             user_id: user.user_id,
             user_name: user.name.clone(),
             device_id: user.device_id,
@@ -370,10 +406,10 @@ async fn stop_playback(
     let resume_position_ms = userdata::get(&state.db, user.user_id, report.item_id)
         .await?
         .position_ms;
-    Ok(Json(PlaybackStopDto {
+    Ok(PlaybackStopDto {
         played: progress == Progress::Played,
         resume_position_ms,
-    }))
+    })
 }
 
 #[derive(Debug, Serialize, ToSchema)]

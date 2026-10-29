@@ -177,19 +177,32 @@ async fn login(
     State(state): State<AppState>,
     Json(body): Json<Credentials>,
 ) -> ApiResult<Json<SessionDto>> {
-    validate_device(&body.device)?;
-    let name = body.name.trim();
+    login_with_password(&state, &body.name, &body.password, &body.device)
+        .await
+        .map(Json)
+}
+
+/// Password sign-in with the login rate limit; issues a device token on success.
+/// Shared with the Jellyfin compatibility layer (`Users/AuthenticateByName`).
+pub async fn login_with_password(
+    state: &AppState,
+    name: &str,
+    password: &str,
+    device: &DeviceInfo,
+) -> ApiResult<SessionDto> {
+    validate_device(device)?;
+    let name = name.trim();
     let limit_key = format!("login:{}", name.to_lowercase());
     state.limits.login.check(&limit_key)?;
 
     let user = users::find_by_name(&state.db, name).await?;
     let stored = user.as_ref().and_then(|u| u.password_hash.clone());
-    let valid = verify_secret(body.password.clone(), stored).await?;
+    let valid = verify_secret(password.to_owned(), stored).await?;
 
     match user {
         Some(user) if valid => {
             state.limits.login.reset(&limit_key);
-            issue_session(&state, user, &body.device).await.map(Json)
+            issue_session(state, user, device).await
         }
         _ => {
             state.limits.login.record_failure(&limit_key);

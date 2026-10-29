@@ -98,7 +98,8 @@ async fn get_person(
     }))
 }
 
-pub(crate) async fn ensure_visible(state: &AppState, user: &AuthUser, id: i64) -> ApiResult<()> {
+/// 404 unless the item lies in a library the user may see and within their age limit.
+pub async fn ensure_visible(state: &AppState, user: &AuthUser, id: i64) -> ApiResult<()> {
     let library_ids = visible_libraries(state, user, None).await?;
     if browse::is_visible(&state.db, id, &library_ids, user.max_age_rating).await? {
         Ok(())
@@ -418,7 +419,7 @@ pub struct ItemDetailDto {
 }
 
 /// Libraries the user may see, optionally narrowed to one.
-pub(crate) async fn visible_libraries(
+pub async fn visible_libraries(
     state: &AppState,
     user: &AuthUser,
     only: Option<i64>,

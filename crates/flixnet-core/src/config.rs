@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 
 /// Default HTTP port. Chosen next to Jellyfin's 8096 without clashing with it.
 pub const DEFAULT_PORT: u16 = 8097;
+/// Default port of the Jellyfin-compatible API (off unless `jellyfin.enabled`).
+pub const DEFAULT_JELLYFIN_PORT: u16 = 8098;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -21,6 +23,30 @@ pub struct Config {
     pub paths: PathsConfig,
     pub media: MediaConfig,
     pub log: LogConfig,
+    pub jellyfin: JellyfinConfig,
+}
+
+/// The Jellyfin-compatible API for existing Jellyfin clients (Infuse, Swiftfin, …),
+/// served on its own listener so a parallel Jellyfin keeps its port.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct JellyfinConfig {
+    /// Off by default.
+    pub enabled: bool,
+    /// Address of the second listener.
+    pub bind: SocketAddr,
+    /// Server name shown in the clients (`Flixnet` when unset).
+    pub server_name: Option<String>,
+}
+
+impl Default for JellyfinConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            bind: SocketAddr::from((Ipv4Addr::UNSPECIFIED, DEFAULT_JELLYFIN_PORT)),
+            server_name: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -144,6 +170,8 @@ mod tests {
             let config = Config::load(Path::new("missing.toml")).expect("load");
             assert_eq!(config, Config::default());
             assert_eq!(config.server.bind.port(), DEFAULT_PORT);
+            assert!(!config.jellyfin.enabled, "Jellyfin API is opt-in");
+            assert_eq!(config.jellyfin.bind.port(), DEFAULT_JELLYFIN_PORT);
             Ok(())
         });
     }
@@ -163,11 +191,13 @@ mod tests {
             )?;
             jail.set_env("FLIXNET_SERVER__BIND", "127.0.0.1:9100");
             jail.set_env("FLIXNET_PATHS__CONFIG_DIR", "/config");
+            jail.set_env("FLIXNET_JELLYFIN__ENABLED", "true");
 
             let config = Config::load(Path::new("flixnet.toml")).expect("load");
             assert_eq!(config.server.bind, "127.0.0.1:9100".parse().unwrap());
             assert_eq!(config.paths.config_dir, PathBuf::from("/config"));
             assert_eq!(config.log.level, "debug");
+            assert!(config.jellyfin.enabled);
             Ok(())
         });
     }

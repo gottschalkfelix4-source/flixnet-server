@@ -37,30 +37,36 @@ impl FromRequestParts<AppState> for AuthUser {
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, ApiError> {
         let token = token_from_parts(parts).ok_or_else(ApiError::unauthorized)?;
-        let hash = flixnet_core::auth::hash_token(&token);
-        let session = sessions::find_by_token_hash(&state.db, &hash)
-            .await?
-            .ok_or_else(ApiError::unauthorized)?;
-
-        if flixnet_db::now_ms() - session.last_used_at > TOUCH_INTERVAL_MS {
-            let db = state.db.clone();
-            let (token_id, device_id) = (session.token_id, session.device_id);
-            tokio::spawn(async move {
-                if let Err(err) = sessions::touch(&db, token_id, device_id).await {
-                    tracing::warn!(%err, "recording token use failed");
-                }
-            });
-        }
-
-        Ok(AuthUser {
-            user_id: session.user_id,
-            name: session.user_name,
-            is_admin: session.is_admin,
-            max_age_rating: session.max_age_rating,
-            token_id: session.token_id,
-            device_id: session.device_id,
-        })
+        authenticate_token(state, &token).await
     }
+}
+
+/// Resolves a device token to its user (401 for unknown or revoked tokens). Shared
+/// with the Jellyfin compatibility layer, which reads tokens from other headers.
+pub async fn authenticate_token(state: &AppState, token: &str) -> Result<AuthUser, ApiError> {
+    let hash = flixnet_core::auth::hash_token(token);
+    let session = sessions::find_by_token_hash(&state.db, &hash)
+        .await?
+        .ok_or_else(ApiError::unauthorized)?;
+
+    if flixnet_db::now_ms() - session.last_used_at > TOUCH_INTERVAL_MS {
+        let db = state.db.clone();
+        let (token_id, device_id) = (session.token_id, session.device_id);
+        tokio::spawn(async move {
+            if let Err(err) = sessions::touch(&db, token_id, device_id).await {
+                tracing::warn!(%err, "recording token use failed");
+            }
+        });
+    }
+
+    Ok(AuthUser {
+        user_id: session.user_id,
+        name: session.user_name,
+        is_admin: session.is_admin,
+        max_age_rating: session.max_age_rating,
+        token_id: session.token_id,
+        device_id: session.device_id,
+    })
 }
 
 /// `Option<AuthUser>`: `None` when the request carries no valid token (for routes

@@ -71,7 +71,17 @@ async fn get_image(
         }
     }
 
-    let variant = state.images.variant(&image, query.w).await.map_err(|err| {
+    serve_image(&state, &image, query.w).await
+}
+
+/// The image resized to (about) `width`, from the cache (access already checked).
+pub async fn serve_image(
+    state: &AppState,
+    image: &metadata::Image,
+    width: Option<u32>,
+) -> ApiResult<Response> {
+    let id = image.id;
+    let variant = state.images.variant(image, width).await.map_err(|err| {
         tracing::warn!(image = id, %err, "image unavailable");
         ApiError::not_found("Bild nicht verfügbar.")
     })?;
