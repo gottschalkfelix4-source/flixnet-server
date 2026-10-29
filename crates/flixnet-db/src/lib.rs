@@ -19,6 +19,7 @@ pub mod items;
 pub mod jobs;
 pub mod libraries;
 pub mod media;
+pub mod metadata;
 pub mod sessions;
 pub mod settings;
 pub mod users;

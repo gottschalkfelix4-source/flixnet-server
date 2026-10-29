@@ -111,6 +111,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .register(maintenance::CleanupJobs)
         .register(library_jobs::ScanLibrary)
         .register(library_jobs::ScanAllLibraries)
+        .register(library_jobs::RefreshMetadata)
         .register(library_jobs::ProbeFile { ffprobe });
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;

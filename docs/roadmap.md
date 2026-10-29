@@ -24,7 +24,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 2.1 Dateinamen-Parser (360+ Testfälle: Release-Namen, Plex/Jellyfin-Ordner, ID-Hinweise, S01E02/1x02/Doppelfolgen/Staffel-Folge/Datum/Anime-absolut, Extras, Samples, Mehrteiler, Untertitel-Sidecars)
 - [x] 2.2 Job-Runtime + Jobs-API – *fertig wenn* Kill während der Queue → Neustart setzt fort (Test `crash_mid_queue_resumes_after_restart`); Pools, Prioritäten, Dedupe, Retry mit Backoff, Abbruch, Scheduler, Admin-UI „Aufgaben“
 - [x] 2.3 FS-Diff → media_files → ffprobe-Jobs – *fertig wenn* Rescan ohne Änderung null Probes macht (Test `scan_builds_items_and_rescan_is_a_no_op`); Bibliotheken-API + UI mit Ordner-Browser, Bibliotheksrechte pro Nutzer, Sidecar-Untertitel, Mehrteiler, Extras, unerreichbare Ordner markieren nichts als fehlend
-- [ ] 2.4 NFO + lokale Artworks
+- [x] 2.4 NFO + lokale Artworks (Kodi-NFO für Film/Serie/Episode, Poster/Fanart/Logo/Banner/Thumbs, Staffel-Poster; NFO-Felder gesperrt gegen Provider; Genres, Studios, Darsteller/Regie)
 - [ ] 2.5 TMDB-Client, Matching mit Confidence, Identify, Bild-Cache + Blurhash
 - [ ] 2.6 Items-API (Filter-DSL, Sortierung, Paging, A–Z, FTS5) – *fertig wenn* p95 < 50 ms bei 50k Items
 - [ ] 2.7 Watcher, Rename-Erkennung – *fertig wenn* Watch-State nach Rename erhalten bleibt

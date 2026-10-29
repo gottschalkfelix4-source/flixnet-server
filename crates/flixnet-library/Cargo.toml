@@ -10,6 +10,7 @@ flixnet-db.workspace = true
 flixnet-media.workspace = true
 
 anyhow.workspace = true
+quick-xml.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true

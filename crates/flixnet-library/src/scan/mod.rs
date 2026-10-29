@@ -19,7 +19,7 @@ use serde::Serialize;
 pub use mapping::{normalize_key, sort_title};
 pub use walk::{FoundFile, walk};
 
-use crate::jobs::{ProbeFile, ProbePayload};
+use crate::jobs::{ProbeFile, ProbePayload, queue_refresh};
 use crate::parse::{FileRole, classify};
 
 /// Files missing for longer than this are removed (with their orphaned items).
@@ -38,6 +38,7 @@ pub struct ScanReport {
     pub skipped: usize,
     pub removed: u64,
     pub probes_queued: usize,
+    pub refreshes_queued: usize,
     /// Library folders that could not be read (their files were left untouched).
     pub unreachable: Vec<String>,
 }
@@ -112,20 +113,24 @@ pub async fn scan_library(
 
     // 3. Write in short batches.
     let mut to_probe: Vec<(i64, i64)> = Vec::new(); // (file id, priority)
+    let mut to_refresh: Vec<i64> = Vec::new(); // items that got new files
     let mut item_ids: HashMap<String, i64> = HashMap::new();
     for chunk in new_files.chunks(BATCH) {
         let mut tx = db.writer().begin().await?;
         for file in chunk {
             match import_file(&mut tx, library_id, &library.kind, file, &mut item_ids).await? {
-                Some(file_id) => {
+                Some((file_id, chain)) => {
                     report.added += 1;
                     to_probe.push((file_id, priority::NEW));
+                    to_refresh.extend(chain);
                 }
                 None => report.skipped += 1,
             }
         }
         tx.commit().await?;
     }
+    to_refresh.sort_unstable();
+    to_refresh.dedup();
     for chunk in changed.chunks(BATCH) {
         let mut tx = db.writer().begin().await?;
         for (id, file) in chunk {
@@ -167,20 +172,30 @@ pub async fn scan_library(
             report.probes_queued += 1;
         }
     }
+    // 6. Metadata (NFO, artwork, later providers) for items that gained files.
+    for item_id in to_refresh {
+        if queue_refresh(queue, item_id, priority::NEW)
+            .await?
+            .is_some()
+        {
+            report.refreshes_queued += 1;
+        }
+    }
 
     libraries::mark_scanned(db, library_id).await?;
     tracing::info!(library = %library.name, ?report, "library scanned");
     Ok(report)
 }
 
-/// Creates the item chain for a new file and inserts the file. `None` = not imported.
+/// Creates the item chain for a new file and inserts the file.
+/// Returns the file id and the ids of the item chain; `None` = not imported.
 async fn import_file(
     conn: &mut flixnet_db::SqliteConnection,
     library_id: i64,
     library_kind: &str,
     file: &FoundFile,
     item_ids: &mut HashMap<String, i64>,
-) -> anyhow::Result<Option<i64>> {
+) -> anyhow::Result<Option<(i64, Vec<i64>)>> {
     let role = classify(&file.relative);
     let (role_name, extra_kind) = match role {
         FileRole::Main => ("main", None),
@@ -212,6 +227,7 @@ async fn import_file(
     let mut series_id = None;
     let mut parent_id = None;
     let mut leaf_id = None;
+    let mut chain_ids = Vec::with_capacity(chain.len());
     for spec in &chain {
         let id = match item_ids.get(&spec.key) {
             Some(id) => *id,
@@ -247,6 +263,7 @@ async fn import_file(
         }
         parent_id = Some(id);
         leaf_id = Some(id);
+        chain_ids.push(id);
     }
 
     let path = file.path.to_string_lossy();
@@ -267,5 +284,5 @@ async fn import_file(
         },
     )
     .await?;
-    Ok(Some(file_id))
+    Ok(Some((file_id, chain_ids)))
 }

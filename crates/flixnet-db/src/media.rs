@@ -165,6 +165,23 @@ pub async fn files_for_item(db: &Db, item_id: i64) -> Result<Vec<MediaFile>> {
     Ok(files)
 }
 
+/// A present main file of the item or, for series/seasons, of one of its episodes
+/// (used to locate folders for NFO and artwork lookup).
+pub async fn representative_file(db: &Db, item_id: i64) -> Result<Option<MediaFile>> {
+    let file = sqlx::query_as(concat!(
+        "SELECT ",
+        file_columns!(),
+        " FROM media_files
+          WHERE missing_since IS NULL AND role = 'main'
+            AND item_id IN (SELECT id FROM items WHERE id = ?1 OR parent_id = ?1 OR series_id = ?1)
+          ORDER BY path LIMIT 1"
+    ))
+    .bind(item_id)
+    .fetch_optional(db.reader())
+    .await?;
+    Ok(file)
+}
+
 #[derive(Debug, Clone, Default, PartialEq, sqlx::FromRow)]
 pub struct Stream {
     pub idx: i64,

@@ -87,6 +87,46 @@ pub fn tasks() -> Vec<TaskDef> {
     )]
 }
 
+// ---- Metadata refresh -------------------------------------------------------------
+
+pub struct RefreshMetadata;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RefreshPayload {
+    pub item_id: i64,
+}
+
+impl JobHandler for RefreshMetadata {
+    const KIND: &'static str = "metadata.refresh";
+    const POOL: Pool = Pool::Io;
+    type Payload = RefreshPayload;
+
+    async fn run(&self, ctx: JobContext, payload: RefreshPayload) -> anyhow::Result<()> {
+        if flixnet_db::items::get(ctx.db(), payload.item_id)
+            .await?
+            .is_none()
+        {
+            return Ok(()); // removed meanwhile
+        }
+        crate::refresh::refresh_local(ctx.db(), payload.item_id).await?;
+        Ok(())
+    }
+}
+
+/// Queues a metadata refresh for an item (deduplicated while pending).
+pub async fn queue_refresh(
+    queue: &JobQueue,
+    item_id: i64,
+    prio: i64,
+) -> Result<Option<i64>, DbError> {
+    queue
+        .enqueue::<RefreshMetadata>(
+            &RefreshPayload { item_id },
+            JobOptions::priority(prio).dedupe(format!("refresh:{item_id}")),
+        )
+        .await
+}
+
 // ---- Probe one file ---------------------------------------------------------------
 
 pub struct ProbeFile {
