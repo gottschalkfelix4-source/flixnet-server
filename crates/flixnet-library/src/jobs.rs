@@ -178,6 +178,9 @@ pub async fn probe_file(db: &Db, ffprobe: &Ffprobe, file_id: i64) -> anyhow::Res
     };
     let mut data = to_probe_data(&info);
     data.streams.extend(sidecar_subtitles(path).await);
+    // Downloaded subtitles in the config store are not next to the file.
+    let downloaded = flixnet_db::subtitles::for_file(db, file_id).await?;
+    crate::subtitles::attach_downloaded(&mut data.streams, &downloaded);
     media::store_probe(db, file_id, &data).await?;
     Ok(())
 }

@@ -16,7 +16,9 @@ use std::path::{Component, Path};
 use serde::Serialize;
 
 pub use episode::AirDate;
-pub use files::{ExtraKind, FileRole, classify, is_subtitle_file, is_video_file, subtitle_info};
+pub use files::{
+    ExtraKind, FileRole, classify, is_subtitle_file, is_video_file, language_code, subtitle_info,
+};
 pub use hints::ProviderHints;
 pub use tags::{ReleaseTags, Source};
 

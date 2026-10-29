@@ -53,7 +53,11 @@ pub async fn app() -> TestApp {
             2,
         ),
     };
-    let router = router(AppState::new(Config::default(), db.clone(), services));
+    // Files the server writes into its config dir (e.g. downloaded subtitles) stay
+    // in the temp dir.
+    let mut config = Config::default();
+    config.paths.config_dir = dir.path().to_path_buf();
+    let router = router(AppState::new(config, db.clone(), services));
     TestApp { dir, router, db }
 }
 

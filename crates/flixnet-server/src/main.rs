@@ -114,13 +114,17 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .register(library_jobs::ScanLibrary)
         .register(library_jobs::ScanAllLibraries)
         .register(library_jobs::RefreshMetadata)
-        .register(library_jobs::ProbeFile { ffprobe });
+        .register(library_jobs::ProbeFile { ffprobe })
+        .register(flixnet_library::subtitles::AutoDownloadSubtitles {
+            store_dir: config.paths.config_dir.join("subtitles"),
+        });
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
     let tasks = TaskRegistry::new(
         maintenance::tasks()
             .into_iter()
             .chain(library_jobs::tasks())
+            .chain(flixnet_library::subtitles::tasks())
             .collect(),
     );
     let stop_scheduler = CancellationToken::new();

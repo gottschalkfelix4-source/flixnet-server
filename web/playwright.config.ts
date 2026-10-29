@@ -7,6 +7,7 @@ import { defineConfig, devices } from '@playwright/test'
 // with a throwaway config dir so every run starts from an empty database.
 // FLIXNET_E2E_PORT lets several checkouts run their E2E suites at the same time.
 const port = Number(process.env.FLIXNET_E2E_PORT ?? 18097)
+const stubPort = port + 1000
 const configDir = mkdtempSync(join(tmpdir(), 'flixnet-e2e-'))
 
 export default defineConfig({
@@ -34,16 +35,26 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'cargo run -q -p flixnet-server -- serve',
-    cwd: '..',
-    url: `http://127.0.0.1:${port}/api/v1/system/info`,
-    timeout: 300_000,
-    reuseExistingServer: false,
-    env: {
-      FLIXNET_SERVER__BIND: `127.0.0.1:${port}`,
-      FLIXNET_PATHS__CONFIG_DIR: configDir,
-      FLIXNET_CONFIG: join(configDir, 'flixnet.toml'),
+  webServer: [
+    {
+      // Stand-in for OpenSubtitles.com (e2e/subtitles.spec.ts).
+      command: 'node e2e/opensubtitles-stub.mjs',
+      url: `http://127.0.0.1:${stubPort}/health`,
+      reuseExistingServer: false,
+      env: { STUB_PORT: String(stubPort) },
     },
-  },
+    {
+      command: 'cargo run -q -p flixnet-server -- serve',
+      cwd: '..',
+      url: `http://127.0.0.1:${port}/api/v1/system/info`,
+      timeout: 300_000,
+      reuseExistingServer: false,
+      env: {
+        FLIXNET_SERVER__BIND: `127.0.0.1:${port}`,
+        FLIXNET_PATHS__CONFIG_DIR: configDir,
+        FLIXNET_CONFIG: join(configDir, 'flixnet.toml'),
+        FLIXNET_OPENSUBTITLES_URL: `http://127.0.0.1:${stubPort}/api/v1`,
+      },
+    },
+  ],
 })

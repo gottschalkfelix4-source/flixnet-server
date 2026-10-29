@@ -2,6 +2,7 @@
 
 pub mod collections;
 pub mod fanart;
+pub mod opensubtitles;
 pub mod tmdb;
 
 use flixnet_db::metadata::{self, Authority, CreditInput, ItemFields, NewImage};

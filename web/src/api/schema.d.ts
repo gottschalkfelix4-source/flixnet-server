@@ -506,6 +506,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/subtitles/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Download a subtitle from OpenSubtitles for a movie or episode (administrators).
+         * @description Saved next to the media file when its folder is writable, otherwise in the config
+         *     directory; either way it is a subtitle track of the file right away.
+         */
+        post: operations["downloadSubtitle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/subtitles/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search OpenSubtitles for subtitles of a movie or episode (administrators). */
+        get: operations["searchSubtitles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs": {
         parameters: {
             query?: never;
@@ -815,6 +853,24 @@ export interface paths {
         get: operations["getMetadataSettings"];
         /** Change metadata provider settings. A new TMDB key is checked against TMDB. */
         put: operations["updateMetadataSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/subtitles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** OpenSubtitles settings. */
+        get: operations["getSubtitleSettings"];
+        /** Change OpenSubtitles settings. A new key or login is checked against OpenSubtitles. */
+        put: operations["updateSubtitleSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1482,6 +1538,45 @@ export interface components {
             /** @description The listed folder (`null` for the roots). */
             path?: string | null;
         };
+        DownloadSubtitleRequest: {
+            /**
+             * Format: int64
+             * @description Version of the item (media file id); default: the first main file.
+             */
+            file_id?: number | null;
+            forced?: boolean;
+            hearing_impaired?: boolean;
+            /** @description ISO 639-1 language of the subtitle (`de`). */
+            language: string;
+            /** @description Release name from the search, kept for reference. */
+            release?: string | null;
+            /**
+             * Format: int64
+             * @description `subtitle_file_id` from the search.
+             */
+            subtitle_file_id: number;
+        };
+        DownloadedSubtitleDto: {
+            /** Format: int64 */
+            file_id: number;
+            file_name: string;
+            language: string;
+            /**
+             * Format: int64
+             * @description Downloads left today, if OpenSubtitles said.
+             */
+            remaining_downloads?: number | null;
+            /**
+             * @description `true`: saved next to the media file; `false`: in Flixnet's subtitle store
+             *     (the library folder is not writable).
+             */
+            saved_in_library: boolean;
+            /**
+             * Format: int64
+             * @description The new subtitle track (`subtitle_stream_index` in playback info).
+             */
+            stream_index: number;
+        };
         /**
          * @description Which encoder a session runs.
          * @enum {string}
@@ -2018,12 +2113,74 @@ export interface components {
         SmartSort: "title" | "date_added" | "year" | "rating" | "premiere_date";
         /** @enum {string} */
         StreamAction: "copy" | "transcode";
+        SubtitleCandidateDto: {
+            /** Format: int64 */
+            download_count: number;
+            file_name?: string | null;
+            /** @description Translates only foreign-language parts. */
+            foreign_parts_only: boolean;
+            /** Format: double */
+            fps?: number | null;
+            from_trusted: boolean;
+            hd: boolean;
+            hearing_impaired: boolean;
+            language?: string | null;
+            /** @description Machine or AI translated. */
+            machine_translated: boolean;
+            /**
+             * Format: int64
+             * @description How well the release fits the file, 0–100 (100 = hash match).
+             */
+            match_score: number;
+            /** @description Made for exactly this file (same OpenSubtitles hash). */
+            moviehash_match: boolean;
+            /**
+             * Format: double
+             * @description Rating 0–10 (0 = none yet).
+             */
+            rating: number;
+            /** @description Release the subtitle was made for. */
+            release?: string | null;
+            /**
+             * Format: int64
+             * @description OpenSubtitles file id, for `downloadSubtitle`.
+             */
+            subtitle_file_id: number;
+            upload_date?: string | null;
+            uploader?: string | null;
+            /** Format: int64 */
+            votes: number;
+        };
         /** @enum {string} */
         SubtitleDelivery: "external" | "burn_in";
         SubtitlePlan: {
             delivery: components["schemas"]["SubtitleDelivery"];
             /** Format: int64 */
             stream_index: number;
+        };
+        SubtitleSearchDto: {
+            /**
+             * Format: int64
+             * @description The media file searched for.
+             */
+            file_id: number;
+            file_name: string;
+            /** @description OpenSubtitles hash of the file, if it could be read. */
+            moviehash?: string | null;
+            /** @description Best matches first. */
+            results: components["schemas"]["SubtitleCandidateDto"][];
+        };
+        SubtitleSettingsDto: {
+            /** @description Download subtitles for new movies and episodes automatically. */
+            auto_download: boolean;
+            /** @description Whether an OpenSubtitles API key is stored (the key itself is never returned). */
+            has_api_key: boolean;
+            /** @description Whether a password for the account is stored. */
+            has_password: boolean;
+            /** @description Languages for automatic downloads (ISO 639-1, e.g. `de`). */
+            languages: string[];
+            /** @description OpenSubtitles account (more downloads per day). */
+            username?: string | null;
         };
         SubtitleStreamDto: {
             codec?: string | null;
@@ -2174,6 +2331,17 @@ export interface components {
             name?: string | null;
             shared?: boolean | null;
             smart_filter?: components["schemas"]["SmartFilterDto"] | null;
+        };
+        UpdateSubtitleSettings: {
+            /** @description OpenSubtitles.com API key (consumer key); `null` removes it. */
+            api_key?: string | null;
+            auto_download?: boolean | null;
+            /** @description ISO 639-1 codes (`de`, `en`, `pt-br`), at most 10. */
+            languages?: string[] | null;
+            /** @description `null` removes it. */
+            password?: string | null;
+            /** @description `null` removes the account. */
+            username?: string | null;
         };
         UpdateTaskRequest: {
             enabled?: boolean | null;
@@ -3942,6 +4110,187 @@ export interface operations {
             };
         };
     };
+    downloadSubtitle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Movie or episode id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DownloadSubtitleRequest"];
+            };
+        };
+        responses: {
+            /** @description Downloaded and added as a track */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DownloadedSubtitleDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such movie/episode with a file */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No OpenSubtitles key configured */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid language */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Rate limit or daily download quota reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description OpenSubtitles failed or rejected the key */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    searchSubtitles: {
+        parameters: {
+            query: {
+                /** @description ISO 639-1 language (`de`, `en`, `pt-br`). */
+                language: string;
+                /** @description Version of the item (media file id); default: the first main file. */
+                file_id?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Movie or episode id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching subtitles, best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubtitleSearchDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such movie/episode with a file */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No OpenSubtitles key configured */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid language */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description OpenSubtitles rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description OpenSubtitles failed or rejected the key */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     listJobs: {
         parameters: {
             query?: {
@@ -5131,6 +5480,95 @@ export interface operations {
                 };
             };
             /** @description Invalid key, language or country */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getSubtitleSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubtitleSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateSubtitleSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSubtitleSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubtitleSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid key, login or languages */
             422: {
                 headers: {
                     [name: string]: unknown;

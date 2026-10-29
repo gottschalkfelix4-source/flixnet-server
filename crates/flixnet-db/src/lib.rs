@@ -27,6 +27,7 @@ pub mod playlists;
 pub mod playstate;
 pub mod sessions;
 pub mod settings;
+pub mod subtitles;
 pub mod userdata;
 pub mod users;
 

@@ -38,6 +38,7 @@ mod playstate;
 mod session;
 mod settings;
 pub mod signing;
+mod subtitle_search;
 mod system;
 mod tracks;
 mod transcode;
@@ -173,6 +174,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, transcode::router())
         .nest(API_PREFIX, tracks::router())
         .nest(API_PREFIX, settings::router())
+        .nest(API_PREFIX, subtitle_search::router())
         .split_for_parts()
 }
 
