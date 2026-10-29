@@ -12,6 +12,7 @@ publish = false
 flixnet-core = { path = "crates/flixnet-core" }
 flixnet-api = { path = "crates/flixnet-api" }
 flixnet-db = { path = "crates/flixnet-db" }
+flixnet-library = { path = "crates/flixnet-library" }
 
 anyhow = "1"
 argon2 = "0.6"
@@ -21,6 +22,7 @@ axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
 figment = { version = "0.10", features = ["toml", "env"] }
 hex = "0.4"
+regex = "1"
 http-body-util = "0.1"
 rust-embed = { version = "8.13", features = ["mime-guess"] }
 serde = { version = "1", features = ["derive"] }
