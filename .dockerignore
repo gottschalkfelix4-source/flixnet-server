@@ -1,0 +1,13 @@
+target
+dev-config
+fixtures
+web/node_modules
+web/dist
+web/playwright-report
+web/test-results
+.git
+.github
+docs
+*.db
+*.db-shm
+*.db-wal

@@ -85,9 +85,11 @@ fn init_tracing(default_level: &str) {
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_level));
     // Logs go to stderr so stdout stays clean for command output (e.g. `openapi`).
+    // Colors only on a real terminal, so `docker logs` / Unraid show plain text.
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_writer(std::io::stderr)
+        .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()))
         .init();
 }
 

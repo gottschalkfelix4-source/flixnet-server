@@ -11,7 +11,8 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 0.2 flixnet-db: Migrationen, WAL, Writer-/Read-Pool, Settings – *fertig wenn* Migrationstest auf Temp-DB grün
 - [x] 0.3 OpenAPI (utoipa 6) + Scalar-UI unter `/api/v1/docs`, `flixnet-server openapi --output web/openapi.json` – Redocly-Lint ohne Fehler
 - [x] 0.4 Web-Shell (React/Vite, Theme, Sidebar, generierter Client), per rust-embed ausgeliefert – *fertig wenn* Playwright-Smoke grün
-- [ ] 0.5 `xtask fixtures`, Dockerfile, GitHub Actions, Unraid – *fertig wenn* Container auf Unraid die UI zeigt
+- [x] 0.5 `xtask fixtures` (8 Testmedien inkl. HDR10, AV1, VP9, MPEG-2 interlaced, Staffel mit gemeinsamem Intro), Dockerfile (jellyfin-ffmpeg 7.1, PUID/PGID, tini), GitHub Actions (Rust, Web, E2E, GHCR), Unraid-Template – lokal im Container verifiziert
+- [ ] 0.5b Container auf Unraid installieren (`docker/unraid-template.xml`) – braucht Felix (GHCR-Paket ist privat → Login auf Unraid oder Paket öffentlich machen)
 
 ## Phase 1 – Auth und Nutzer
 - [ ] 1.1 Setup-Assistent, argon2, Login → Device-Token, Auth-Extractor – *fertig wenn* jede OpenAPI-Operation ohne Token 401 liefert
