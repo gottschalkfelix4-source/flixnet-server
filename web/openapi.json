@@ -1,0 +1,89 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Flixnet API",
+    "description": "API of the Flixnet media server. Used by the web UI and future native apps.",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "The Flixnet server serving this document"
+    }
+  ],
+  "paths": {
+    "/api/v1/system/info": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get server information.",
+        "description": "Public endpoint; needs no authentication.",
+        "operationId": "getSystemInfo",
+        "responses": {
+          "200": {
+            "description": "Server information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemInfo"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "SystemInfo": {
+        "type": "object",
+        "description": "Public server information used by clients to discover and identify the server.",
+        "required": [
+          "name",
+          "version",
+          "api_version",
+          "os",
+          "arch"
+        ],
+        "properties": {
+          "api_version": {
+            "type": "string",
+            "description": "API version that the routes are served under.",
+            "example": "v1"
+          },
+          "arch": {
+            "type": "string",
+            "description": "CPU architecture.",
+            "example": "x86_64"
+          },
+          "name": {
+            "type": "string",
+            "description": "Product name, always `Flixnet`.",
+            "example": "Flixnet"
+          },
+          "os": {
+            "type": "string",
+            "description": "Operating system the server runs on.",
+            "example": "linux"
+          },
+          "version": {
+            "type": "string",
+            "description": "Server version.",
+            "example": "0.1.0"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "system",
+      "description": "Server information"
+    }
+  ]
+}

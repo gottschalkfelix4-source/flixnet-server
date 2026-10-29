@@ -27,6 +27,9 @@ tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+utoipa = "6"
+utoipa-axum = "0.3"
+utoipa-scalar = { version = "0.4", features = ["axum"] }
 
 [workspace.lints.rust]
 unsafe_code = "deny"

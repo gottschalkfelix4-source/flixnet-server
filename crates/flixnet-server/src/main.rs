@@ -24,6 +24,11 @@ enum Command {
     Serve,
     /// Apply pending database migrations and exit.
     Migrate,
+    /// Print the OpenAPI spec as JSON (to stdout, or to a UTF-8 file with --output).
+    Openapi {
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+    },
 }
 
 #[tokio::main]
@@ -40,7 +45,25 @@ async fn main() -> anyhow::Result<()> {
             tracing::info!("database is up to date");
             Ok(())
         }
+        Command::Openapi { output } => write_openapi(output.as_deref()),
     }
+}
+
+fn write_openapi(output: Option<&std::path::Path>) -> anyhow::Result<()> {
+    let mut json = flixnet_api::openapi().to_pretty_json()?;
+    json.push('\n');
+    match output {
+        Some(path) => {
+            if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(path, json)
+                .with_context(|| format!("cannot write {}", path.display()))?;
+            tracing::info!(path = %path.display(), "OpenAPI spec written");
+        }
+        None => print!("{json}"),
+    }
+    Ok(())
 }
 
 /// Opens `<config_dir>/flixnet.db`, creating the directory and applying migrations.
@@ -59,7 +82,11 @@ async fn open_db(config: &Config) -> anyhow::Result<Db> {
 fn init_tracing(default_level: &str) {
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_level));
-    tracing_subscriber::fmt().with_env_filter(filter).init();
+    // Logs go to stderr so stdout stays clean for command output (e.g. `openapi`).
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .init();
 }
 
 async fn serve(config: Config) -> anyhow::Result<()> {
