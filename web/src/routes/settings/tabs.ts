@@ -1,4 +1,4 @@
-export type SettingsTab = 'account' | 'libraries' | 'metadata' | 'users' | 'invitations' | 'jobs'
+export type SettingsTab = 'account' | 'libraries' | 'metadata' | 'users' | 'invitations' | 'jobs' | 'sessions'
 
 export const SETTINGS_TABS: { id: SettingsTab; label: string; admin: boolean }[] = [
   { id: 'account', label: 'Mein Konto', admin: false },
@@ -7,4 +7,5 @@ export const SETTINGS_TABS: { id: SettingsTab; label: string; admin: boolean }[]
   { id: 'users', label: 'Nutzer', admin: true },
   { id: 'invitations', label: 'Einladungen', admin: true },
   { id: 'jobs', label: 'Aufgaben', admin: true },
+  { id: 'sessions', label: 'Wiedergaben', admin: true },
 ]

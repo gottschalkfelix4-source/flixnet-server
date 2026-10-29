@@ -1,9 +1,12 @@
-import { Link, useParams, useRouter } from '@tanstack/react-router'
+import { Link, useParams, useRouter, useSearch } from '@tanstack/react-router'
 import { ArrowLeft, TriangleAlert } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useItem } from '@/api/queries/items'
 import { REASON_LABELS, usePlaybackInfo } from '@/api/queries/playback'
+import { ResumeToast } from '@/components/media/ResumeToast'
 import { episodeLabel } from '@/lib/media'
+import { usePlaybackReporting } from '@/lib/usePlaybackReporting'
+import { locate, partTimeline, useStartPosition } from '@/lib/useResumePosition'
 import { useVideoSource } from '@/lib/useVideoSource'
 
 /**
@@ -13,17 +16,29 @@ import { useVideoSource } from '@/lib/useVideoSource'
  */
 export function PlayerPage() {
   const { id } = useParams({ from: '/play/$id' })
+  const { start: explicitStart } = useSearch({ from: '/play/$id' })
   const itemId = Number(id)
   const item = useItem(itemId)
   const playback = usePlaybackInfo(itemId)
   const router = useRouter()
   const video = useRef<HTMLVideoElement>(null)
-  const [part, setPart] = useState(0)
+  const [chosenPart, setPart] = useState<number | null>(null)
   const [failed, setFailed] = useState(false)
 
   const sources = playback.data?.sources ?? []
-  const source = sources[part]
-  const streamError = useVideoSource(video, source)
+  // Resume: the saved position unless the link asks for one (`?start=0`: from the start).
+  const timeline = partTimeline(sources)
+  const startMs = useStartPosition(explicitStart, item.data?.position_ms ?? (item.isError ? 0 : undefined))
+  const startAt = startMs !== null && sources.length > 0 ? locate(timeline, startMs) : null
+  const part = chosenPart ?? startAt?.part ?? 0
+  const source = startMs === null ? undefined : sources[part]
+  const streamError = useVideoSource(video, source, chosenPart === null && startAt ? startAt.withinMs / 1000 : 0)
+  usePlaybackReporting(video, { itemId, source, offsetMs: timeline.offsets[part] ?? 0, totalMs: timeline.totalMs })
+  const resumedAt = explicitStart === undefined && startMs ? startMs : 0
+  const restart = () => {
+    if (part === 0 && video.current) video.current.currentTime = 0
+    else setPart(0)
+  }
   const error = playback.isError
     ? 'Für diesen Eintrag gibt es keine abspielbare Datei.'
     : (streamError ?? (failed ? 'Die Datei ließ sich nicht abspielen.' : null))
@@ -70,6 +85,7 @@ export function PlayerPage() {
         onEnded={() => part + 1 < sources.length && setPart(part + 1)}
         onError={() => setFailed(true)}
       />
+      {resumedAt > 0 && !error && <ResumeToast positionMs={resumedAt} onRestart={restart} />}
 
       {error && (
         <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center" role="alert">

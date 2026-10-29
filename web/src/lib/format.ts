@@ -25,6 +25,15 @@ export const AGE_OPTIONS: { value: number | null; label: string }[] = [
   { value: 18, label: 'Ab 18 (FSK 18)' },
 ]
 
+/** Player position: "1:23:45", "4:05". */
+export function formatTimecode(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = String(total % 60).padStart(2, '0')
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${seconds}` : `${minutes}:${seconds}`
+}
+
 export function ageLabel(age: number | null | undefined): string {
   return AGE_OPTIONS.find((o) => o.value === (age ?? null))?.label ?? `Ab ${age}`
 }

@@ -106,6 +106,11 @@ const playRoute = createRoute({
   path: '/play/$id',
   component: PlayerPage,
   beforeLoad: requireSession,
+  // `start` (ms) overrides the resume point; `start=0` plays from the beginning.
+  validateSearch: (search: Record<string, unknown>): { start?: number } => {
+    const start = Number(search.start)
+    return search.start !== undefined && Number.isInteger(start) && start >= 0 ? { start } : {}
+  },
 })
 
 /** Public invitation landing page. */

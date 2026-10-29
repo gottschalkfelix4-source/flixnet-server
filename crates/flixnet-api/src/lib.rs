@@ -20,6 +20,7 @@ use utoipa::{Modify, OpenApi};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
+pub mod active_sessions;
 pub mod auth;
 mod browse;
 pub mod error;
@@ -30,6 +31,7 @@ mod jobs;
 mod libraries;
 pub mod limiter;
 mod playback;
+mod playstate;
 mod session;
 mod settings;
 pub mod signing;
@@ -55,6 +57,8 @@ pub struct AppState {
     pub watcher: Option<LibraryWatcher>,
     pub transcoder: TranscodeManager,
     pub ffprobe: Ffprobe,
+    /// Active playback sessions (dashboard, resume bookkeeping).
+    pub playback: active_sessions::ActiveSessions,
 }
 
 /// Long-lived services the API talks to.
@@ -73,6 +77,8 @@ pub struct Services {
 
 impl AppState {
     pub fn new(config: Config, db: Db, services: Services) -> Self {
+        let playback = active_sessions::ActiveSessions::default();
+        playback.spawn_reaper(db.clone());
         Self {
             config: Arc::new(config),
             db,
@@ -85,6 +91,7 @@ impl AppState {
             watcher: services.watcher,
             transcoder: services.transcoder,
             ffprobe: services.ffprobe,
+            playback,
         }
     }
 }
@@ -150,6 +157,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, items::router())
         .nest(API_PREFIX, browse::router())
         .nest(API_PREFIX, playback::router())
+        .nest(API_PREFIX, playstate::router())
         .nest(API_PREFIX, transcode::router())
         .nest(API_PREFIX, settings::router())
         .split_for_parts()

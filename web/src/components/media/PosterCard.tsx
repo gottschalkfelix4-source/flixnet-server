@@ -15,6 +15,10 @@ interface PosterCardProps {
 /** Poster (2:3) or landscape (16:9) card with title, progress and watched state. */
 export function PosterCard({ item, wide = false, className }: PosterCardProps) {
   const label = episodeLabel(item)
+  // Episodes read "Serie" / "S1 · F2 · Folgentitel" so rows mixing series stay clear.
+  const episodeOfSeries = item.kind === 'episode' && item.series_title
+  const heading = episodeOfSeries ? item.series_title : item.title
+  const caption = episodeOfSeries ? [label, item.title].filter(Boolean).join(' · ') : (label ?? item.year ?? ' ')
   const image = wide ? (item.backdrop_url ?? item.poster_url) : item.poster_url
   const progress =
     item.position_ms > 0 && item.runtime_ms ? Math.min(1, item.position_ms / item.runtime_ms) : null
@@ -47,16 +51,17 @@ export function PosterCard({ item, wide = false, className }: PosterCardProps) {
             <Check className="size-4" strokeWidth={3} aria-label="Gesehen" />
           </span>
         )}
-        {progress !== null && !item.played && (
+        {/* Also on watched items being watched again. */}
+        {progress !== null && (
           <div className="absolute inset-x-2 bottom-2 h-1 overflow-hidden rounded-full bg-black/60">
             <div className="h-full bg-accent" style={{ width: `${Math.round(progress * 100)}%` }} />
           </div>
         )}
       </div>
       <div className="mt-2 px-0.5">
-        <p className="truncate text-sm font-semibold text-fg group-hover:text-white">{item.title}</p>
+        <p className="truncate text-sm font-semibold text-fg group-hover:text-white">{heading}</p>
         <p className="truncate text-xs text-subtle">
-          {label ?? item.year ?? ' '}
+          {caption}
           {item.kind === 'series' && item.child_count > 0 &&
             ` · ${item.child_count} ${item.child_count === 1 ? 'Staffel' : 'Staffeln'}`}
         </p>

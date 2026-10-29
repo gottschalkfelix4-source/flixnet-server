@@ -5,12 +5,12 @@
 //! closes them and are reaped after a minute without requests.
 
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use flixnet_media::transcode::{TranscodeError, is_session_id};
-use serde::Serialize;
-use utoipa::ToSchema;
+use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
@@ -66,6 +66,14 @@ async fn file_response(
         .into_response())
 }
 
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct PlaylistQuery {
+    /// Where the player will start (resume position, ms): the first ffmpeg run begins
+    /// there instead of at 0.
+    pub start_ms: Option<i64>,
+}
+
 /// The session's VOD playlist (all segments, so players can seek anywhere).
 #[utoipa::path(
     get,
@@ -73,7 +81,7 @@ async fn file_response(
     operation_id = "getTranscodePlaylist",
     tag = "playback",
     security(()),
-    params(("session" = String, Path, description = "Session id from playback info")),
+    params(("session" = String, Path, description = "Session id from playback info"), PlaylistQuery),
     responses(
         (status = OK, description = "HLS playlist", content_type = "application/vnd.apple.mpegurl", body = String),
         (status = NOT_FOUND, description = "Unknown or expired session", body = ErrorBody),
@@ -82,11 +90,13 @@ async fn file_response(
 async fn get_playlist(
     State(state): State<AppState>,
     Path(session): Path<String>,
+    Query(query): Query<PlaylistQuery>,
 ) -> ApiResult<Response> {
-    let playlist = state
-        .transcoder
-        .playlist(session_id(&session)?)
-        .map_err(map_error)?;
+    let id = session_id(&session)?;
+    let playlist = state.transcoder.playlist(id).map_err(map_error)?;
+    if let Some(start) = query.start_ms.filter(|ms| *ms > 0) {
+        state.transcoder.hint_start(id, start);
+    }
     Ok((
         [
             (

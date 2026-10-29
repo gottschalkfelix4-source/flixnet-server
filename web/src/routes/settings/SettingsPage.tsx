@@ -7,6 +7,7 @@ import { InvitationsSettings } from './InvitationsSettings'
 import { JobsSettings } from './JobsSettings'
 import { LibrariesSettings } from './LibrariesSettings'
 import { MetadataSettings } from './MetadataSettings'
+import { SessionsSettings } from './SessionsSettings'
 import { SETTINGS_TABS as TABS } from './tabs'
 import { UsersSettings } from './UsersSettings'
 
@@ -42,6 +43,7 @@ export function SettingsPage() {
         {active === 'users' && <UsersSettings />}
         {active === 'invitations' && <InvitationsSettings />}
         {active === 'jobs' && <JobsSettings />}
+        {active === 'sessions' && <SessionsSettings />}
       </div>
     </div>
   )

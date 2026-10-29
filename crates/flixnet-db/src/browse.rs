@@ -56,6 +56,8 @@ pub struct ItemSummary {
     pub parent_id: Option<i64>,
     pub series_id: Option<i64>,
     pub title: String,
+    /// Title of the series (seasons and episodes).
+    pub series_title: Option<String>,
     pub year: Option<i64>,
     pub index_number: Option<i64>,
     pub index_end: Option<i64>,
@@ -106,7 +108,7 @@ fn push_from(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
     }
 }
 
-fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
+pub(crate) fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
     qb.push(" WHERE i.library_id IN (");
     {
         let mut ids = qb.separated(", ");
@@ -264,8 +266,13 @@ pub async fn list(db: &Db, f: &ItemFilter) -> Result<(Vec<ItemSummary>, i64)> {
 /// Card details (poster, backdrop, child count, the viewer's state) for specific items.
 pub async fn summaries(db: &Db, ids: &[i64], user_id: Option<i64>) -> Result<Vec<ItemSummary>> {
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(
-        "SELECT i.id, i.library_id, i.kind, i.parent_id, i.series_id, i.title, i.year,
-                i.index_number, i.index_end, i.parent_index_number, i.premiere_date, i.runtime_ms,
+        "SELECT i.id, i.library_id, i.kind, i.parent_id, i.series_id, i.title,
+                (SELECT s.title FROM items s WHERE s.id = i.series_id AND s.id != i.id) AS series_title,
+                i.year,
+                i.index_number, i.index_end, i.parent_index_number, i.premiere_date,
+                -- Unmatched items have no runtime from metadata; the probed file has one.
+                COALESCE(i.runtime_ms, (SELECT MAX(f.duration_ms) FROM media_files f
+                   WHERE f.item_id = i.id AND f.role = 'main')) AS runtime_ms,
                 i.community_rating, i.official_rating, i.overview, i.date_added,
                 (SELECT im.id FROM images im WHERE im.item_id = i.id
                    AND im.kind = CASE i.kind WHEN 'episode' THEN 'thumb' ELSE 'poster' END

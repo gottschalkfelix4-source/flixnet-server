@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Library } from 'lucide-react'
 import { useItems } from '@/api/queries/items'
 import { useLibraries } from '@/api/queries/libraries'
+import { useNextUp, useResumeItems } from '@/api/queries/playstate'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Hero } from '@/components/media/Hero'
 import { Row } from '@/components/media/Row'
@@ -11,7 +12,8 @@ export function HomePage() {
   const session = useSession()
   const libraries = useLibraries()
   const featured = useItems({ kind: 'movie,series', sort: 'date_added', order: 'desc', limit: 12 })
-  const continueWatching = useItems({ kind: 'movie,episode', sort: 'date_added', order: 'desc', limit: 20 })
+  const resume = useResumeItems()
+  const nextUp = useNextUp()
   const newMovies = useItems({ kind: 'movie', sort: 'date_added', order: 'desc', limit: 20 })
   const newSeries = useItems({ kind: 'series', sort: 'date_added', order: 'desc', limit: 20 })
   const favorites = useItems({ kind: 'movie,series', favorite: true, limit: 20 })
@@ -37,13 +39,13 @@ export function HomePage() {
   }
 
   const heroItems = (featured.data?.items ?? []).filter((item) => item.backdrop_url).slice(0, 6)
-  const resume = continueWatching.data?.items.filter((i) => i.position_ms > 0 && !i.played)
 
   return (
     <div className="pb-16">
       {heroItems.length > 0 ? <Hero items={heroItems} /> : <div className="h-16" />}
       <div className={heroItems.length > 0 ? '-mt-8 relative' : ''}>
-        <Row title="Weiterschauen" items={resume} wide />
+        <Row title="Weiterschauen" items={resume.data} wide />
+        <Row title="Nächste Folge" items={nextUp.data} wide />
         <Row title="Neu: Filme" items={newMovies.data?.items} loading={newMovies.isPending} />
         <Row title="Neu: Serien" items={newSeries.data?.items} loading={newSeries.isPending} />
         <Row title="Favoriten" items={favorites.data?.items} />

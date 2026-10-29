@@ -261,3 +261,29 @@ async fn remux_segments_follow_the_keyframe_index() {
     }
     manager.stop_all().await;
 }
+
+#[tokio::test]
+async fn a_start_hint_begins_the_first_run_at_the_resume_point() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = clip(dir.path());
+    let manager = TranscodeManager::new(
+        "ffmpeg",
+        dir.path().join("transcode"),
+        TranscodeSettings::default(),
+    );
+    let id = manager.create(spec(input));
+    // Resume at 19 s: inside segment 3 (18–24 s).
+    manager.hint_start(&id, 19_000);
+
+    // Players fetch the init segment first; ffmpeg must not start at 0 for it.
+    let init = manager.init(&id).await.unwrap();
+    let segment = manager.segment(&id, 3).await.unwrap();
+    let start = segment_start(&init, &segment, dir.path());
+    assert!((start - 18.0).abs() < 0.1, "segment 3 starts at {start}");
+    let session_dir = segment.parent().unwrap().to_owned();
+    assert!(
+        !session_dir.join("0.m4s").exists(),
+        "nothing was transcoded from the beginning"
+    );
+    manager.stop(&id).await;
+}

@@ -1044,6 +1044,98 @@
         }
       }
     },
+    "/api/v1/items/next-up": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "\"Nächste Folge\": the next unwatched episode of series watched recently.",
+        "operationId": "listNextUp",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–100, default 20.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Next episodes, most recently watched series first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemCardDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/resume": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "\"Weiterschauen\": movies and episodes with a resume point, most recent first.",
+        "operationId": "listResumeItems",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–100, default 20.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Items to continue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemCardDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/items/{id}": {
       "get": {
         "tags": [
@@ -1344,6 +1436,118 @@
           },
           "409": {
             "description": "No TMDB key configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/next-episode": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "The episode after an episode in broadcast order, watched or not (autoplay).",
+        "operationId": "getNextEpisode",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Episode id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The following episode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemCardDto"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "This is the last episode"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/next-up": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "The episode a series' play button starts: the next one after the furthest watched\nepisode (with its resume point), else the first; when everything is watched, the\nfirst episode again.",
+        "operationId": "getSeriesNextUp",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Series id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The episode to play",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemCardDto"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "The series has no episodes"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) series",
             "content": {
               "application/json": {
                 "schema": {
@@ -2199,6 +2403,248 @@
         }
       }
     },
+    "/api/v1/playback/sessions": {
+      "post": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Playback started.",
+        "operationId": "startPlayback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaybackReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Session registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackSessionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/playback/sessions/{id}/progress": {
+      "post": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Progress while playing: every ~10 s and on pause, resume and seek.",
+        "operationId": "reportPlaybackProgress",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Session id from startPlayback",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaybackReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Recorded"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Someone else's session, or no such item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/playback/sessions/{id}/stop": {
+      "post": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Playback ended (player closed, item finished or switched).",
+        "operationId": "stopPlayback",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Session id from startPlayback",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaybackReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The item's state afterwards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackStopDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Someone else's session, or no such item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/active": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Playback sessions that reported recently (administrators).",
+        "operationId": "listActiveSessions",
+        "responses": {
+          "200": {
+            "description": "Active sessions, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActiveSessionDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/metadata": {
       "get": {
         "tags": [
@@ -2830,6 +3276,16 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "description": "Where the player will start (resume position, ms): the first ffmpeg run begins\nthere instead of at 0.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
             }
           }
         ],
@@ -3546,6 +4002,96 @@
   },
   "components": {
     "schemas": {
+      "ActiveSessionDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "user_name",
+          "position_ms",
+          "play_method",
+          "transcoding",
+          "ffmpeg_running",
+          "is_paused",
+          "started_at",
+          "last_report_at"
+        ],
+        "properties": {
+          "client": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "device_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "ffmpeg_running": {
+            "type": "boolean",
+            "description": "An ffmpeg process currently works for this session."
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_paused": {
+            "type": "boolean"
+          },
+          "item": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ItemCardDto",
+                "description": "What is playing (`None` if it vanished from the library meanwhile)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_report_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "play_method": {
+            "$ref": "#/components/schemas/PlayMethod"
+          },
+          "position_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "started_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "transcode_session_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transcoding": {
+            "type": "boolean",
+            "description": "The video is re-encoded (`play_method` = transcode)."
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "user_name": {
+            "type": "string",
+            "description": "Profile name."
+          }
+        }
+      },
       "ArtworkDto": {
         "type": "object",
         "properties": {
@@ -4266,7 +4812,8 @@
               "integer",
               "null"
             ],
-            "format": "int64"
+            "format": "int64",
+            "description": "Runtime from metadata, else the duration of the main file."
           },
           "series_id": {
             "type": [
@@ -4274,6 +4821,13 @@
               "null"
             ],
             "format": "int64"
+          },
+          "series_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Title of the series (seasons and episodes)."
           },
           "title": {
             "type": "string"
@@ -4355,12 +4909,6 @@
                 }
               },
               "season_title": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "series_title": {
                 "type": [
                   "string",
                   "null"
@@ -4992,6 +5540,77 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "PlaybackReport": {
+        "type": "object",
+        "description": "What a player reports (the same shape for start, progress and stop).",
+        "required": [
+          "item_id",
+          "play_method"
+        ],
+        "properties": {
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Total duration as the player sees it; the file's duration when omitted."
+          },
+          "is_paused": {
+            "type": "boolean"
+          },
+          "item_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The movie or episode being played."
+          },
+          "play_method": {
+            "$ref": "#/components/schemas/PlayMethod"
+          },
+          "position_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Current position in milliseconds (multi-part movies: across all parts)."
+          },
+          "transcode_session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Transcode session from playback info, for Remux/Transcode."
+          }
+        }
+      },
+      "PlaybackSessionDto": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Id for the following progress and stop reports."
+          }
+        }
+      },
+      "PlaybackStopDto": {
+        "type": "object",
+        "required": [
+          "played",
+          "resume_position_ms"
+        ],
+        "properties": {
+          "played": {
+            "type": "boolean",
+            "description": "The item now counts as watched."
+          },
+          "resume_position_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Where the item resumes from now (0 = from the start)."
           }
         }
       },
