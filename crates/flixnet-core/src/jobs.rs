@@ -135,6 +135,10 @@ impl JobContext {
     pub fn db(&self) -> &Db {
         &self.db
     }
+
+    pub fn events(&self) -> &EventBus {
+        &self.events
+    }
 }
 
 #[derive(Debug, Clone, Default)]

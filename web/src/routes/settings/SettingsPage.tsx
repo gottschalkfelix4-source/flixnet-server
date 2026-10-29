@@ -5,6 +5,7 @@ import { useSession } from '@/lib/session'
 import { AccountSettings } from './AccountSettings'
 import { InvitationsSettings } from './InvitationsSettings'
 import { JobsSettings } from './JobsSettings'
+import { LibrariesSettings } from './LibrariesSettings'
 import { SETTINGS_TABS as TABS } from './tabs'
 import { UsersSettings } from './UsersSettings'
 
@@ -35,6 +36,7 @@ export function SettingsPage() {
       </nav>
       <div className="max-w-4xl px-6 md:px-10">
         {active === 'account' && <AccountSettings />}
+        {active === 'libraries' && <LibrariesSettings />}
         {active === 'users' && <UsersSettings />}
         {active === 'invitations' && <InvitationsSettings />}
         {active === 'jobs' && <JobsSettings />}

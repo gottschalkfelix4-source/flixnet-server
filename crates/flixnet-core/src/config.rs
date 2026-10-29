@@ -19,7 +19,26 @@ pub const DEFAULT_PORT: u16 = 8097;
 pub struct Config {
     pub server: ServerConfig,
     pub paths: PathsConfig,
+    pub media: MediaConfig,
     pub log: LogConfig,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MediaConfig {
+    /// ffmpeg binary (name on PATH or full path). Docker ships jellyfin-ffmpeg.
+    pub ffmpeg: PathBuf,
+    /// ffprobe binary (name on PATH or full path).
+    pub ffprobe: PathBuf,
+}
+
+impl Default for MediaConfig {
+    fn default() -> Self {
+        Self {
+            ffmpeg: PathBuf::from("ffmpeg"),
+            ffprobe: PathBuf::from("ffprobe"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

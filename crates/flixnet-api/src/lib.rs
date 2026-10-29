@@ -20,6 +20,7 @@ pub mod auth;
 pub mod error;
 mod invitations;
 mod jobs;
+mod libraries;
 pub mod limiter;
 mod session;
 mod system;
@@ -76,6 +77,7 @@ impl AppState {
         (name = "users", description = "User accounts and household profiles"),
         (name = "invitations", description = "Invitation links for new accounts"),
         (name = "jobs", description = "Background jobs and scheduled tasks (administrators)"),
+        (name = "libraries", description = "Media libraries and folder browsing"),
     )
 )]
 struct ApiDoc;
@@ -112,6 +114,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(&format!("{API_PREFIX}/invitations"), invitations::router())
         .nest(API_PREFIX, session::router())
         .nest(API_PREFIX, jobs::router())
+        .nest(API_PREFIX, libraries::router())
         .split_for_parts()
 }
 

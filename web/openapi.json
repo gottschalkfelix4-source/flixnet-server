@@ -206,6 +206,68 @@
         }
       }
     },
+    "/api/v1/fs/directories": {
+      "get": {
+        "tags": [
+          "libraries"
+        ],
+        "summary": "Browse server folders to pick library paths (administrators only).",
+        "operationId": "listDirectories",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "description": "Folder to list; empty lists the file system roots (drives on Windows).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sub-folders of the given folder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryListing"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Folder does not exist or is not readable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/invitations": {
       "get": {
         "tags": [
@@ -700,6 +762,350 @@
           },
           "409": {
             "description": "An equal job is already pending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/libraries": {
+      "get": {
+        "tags": [
+          "libraries"
+        ],
+        "summary": "Libraries the signed-in user may see.",
+        "operationId": "listLibraries",
+        "responses": {
+          "200": {
+            "description": "Visible libraries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "libraries"
+        ],
+        "summary": "Create a library and start its first scan (administrators only).",
+        "operationId": "createLibrary",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLibraryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Library created; scan queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid name or folders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/libraries/{id}": {
+      "get": {
+        "tags": [
+          "libraries"
+        ],
+        "summary": "One library.",
+        "operationId": "getLibrary",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Library id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "libraries"
+        ],
+        "summary": "Delete a library and everything in it from Flixnet (files on disk stay untouched).",
+        "operationId": "deleteLibrary",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Library id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Library removed"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "libraries"
+        ],
+        "summary": "Rename a library or change its folders (administrators only).",
+        "operationId": "updateLibrary",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Library id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLibraryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid name or folders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/libraries/{id}/scan": {
+      "post": {
+        "tags": [
+          "libraries"
+        ],
+        "summary": "Scan a library for new, changed and removed files (administrators only).",
+        "operationId": "scanLibrary",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Library id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Scan queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanQueued"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such library",
             "content": {
               "application/json": {
                 "schema": {
@@ -1484,6 +1890,140 @@
           }
         }
       }
+    },
+    "/api/v1/users/{id}/libraries": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "A user's library access (administrators only).",
+        "operationId": "getLibraryAccess",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "User id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Library access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryAccess"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Set a user's library access (administrators only).",
+        "operationId": "setLibraryAccess",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "User id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryAccess"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated library access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryAccess"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1528,6 +2068,29 @@
             ],
             "format": "int64",
             "description": "Days until the link expires (1–30, default 7)."
+          }
+        }
+      },
+      "CreateLibraryRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "paths"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/LibraryKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Absolute folder paths on the server."
           }
         }
       },
@@ -1662,6 +2225,49 @@
             "type": "string",
             "description": "Human-readable device name.",
             "example": "Chrome · Windows"
+          }
+        }
+      },
+      "DirectoryEntry": {
+        "type": "object",
+        "required": [
+          "name",
+          "path"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "DirectoryListing": {
+        "type": "object",
+        "required": [
+          "directories"
+        ],
+        "properties": {
+          "directories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectoryEntry"
+            }
+          },
+          "parent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Parent folder (`null` at a root)."
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The listed folder (`null` for the roots)."
           }
         }
       },
@@ -1816,6 +2422,109 @@
           }
         }
       },
+      "LibraryAccess": {
+        "type": "object",
+        "description": "Which libraries a user may see.",
+        "required": [
+          "all_libraries",
+          "library_ids"
+        ],
+        "properties": {
+          "all_libraries": {
+            "type": "boolean",
+            "description": "All current and future libraries."
+          },
+          "library_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Granted libraries when `all_libraries` is false."
+          }
+        }
+      },
+      "LibraryCountsDto": {
+        "type": "object",
+        "required": [
+          "movies",
+          "series",
+          "episodes",
+          "files",
+          "unprobed"
+        ],
+        "properties": {
+          "episodes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "files": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "movies": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "series": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "unprobed": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Files whose technical details are still being read."
+          }
+        }
+      },
+      "LibraryDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "counts"
+        ],
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/LibraryCountsDto"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "last_scan_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "paths": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Folder paths on the server (administrators only)."
+          }
+        }
+      },
+      "LibraryKind": {
+        "type": "string",
+        "enum": [
+          "movies",
+          "shows"
+        ]
+      },
       "PoolSummary": {
         "type": "object",
         "required": [
@@ -1873,6 +2582,19 @@
           },
           "unlock": {
             "$ref": "#/components/schemas/Unlock"
+          }
+        }
+      },
+      "ScanQueued": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Job id, or `null` if a scan of this library is already pending."
           }
         }
       },
@@ -2032,6 +2754,26 @@
           "password"
         ]
       },
+      "UpdateLibraryRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "paths": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "UpdateTaskRequest": {
         "type": "object",
         "properties": {
@@ -2180,6 +2922,10 @@
     {
       "name": "jobs",
       "description": "Background jobs and scheduled tasks (administrators)"
+    },
+    {
+      "name": "libraries",
+      "description": "Media libraries and folder browsing"
     }
   ]
 }

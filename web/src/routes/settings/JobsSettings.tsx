@@ -9,6 +9,9 @@ import { formatDateTime, relativeTime } from '@/lib/format'
 /** Human labels for job kinds; unknown kinds show their technical name. */
 const KIND_LABELS: Record<string, string> = {
   'maintenance.cleanup_jobs': 'Aufgabenverlauf aufräumen',
+  'library.scan': 'Bibliothek scannen',
+  'library.scan_all': 'Alle Bibliotheken scannen',
+  'media.probe': 'Mediendatei analysieren',
 }
 
 const STATE_STYLES: Record<string, { label: string; className: string }> = {

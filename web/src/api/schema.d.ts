@@ -76,6 +76,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/fs/directories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Browse server folders to pick library paths (administrators only). */
+        get: operations["listDirectories"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invitations": {
         parameters: {
             query?: never;
@@ -191,6 +208,60 @@ export interface paths {
         put?: never;
         /** Run a failed or cancelled job again. */
         post: operations["retryJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Libraries the signed-in user may see. */
+        get: operations["listLibraries"];
+        put?: never;
+        /** Create a library and start its first scan (administrators only). */
+        post: operations["createLibrary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One library. */
+        get: operations["getLibrary"];
+        put?: never;
+        post?: never;
+        /** Delete a library and everything in it from Flixnet (files on disk stay untouched). */
+        delete: operations["deleteLibrary"];
+        options?: never;
+        head?: never;
+        /** Rename a library or change its folders (administrators only). */
+        patch: operations["updateLibrary"];
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Scan a library for new, changed and removed files (administrators only). */
+        post: operations["scanLibrary"];
         delete?: never;
         options?: never;
         head?: never;
@@ -426,6 +497,24 @@ export interface paths {
         patch: operations["updateUser"];
         trace?: never;
     };
+    "/api/v1/users/{id}/libraries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A user's library access (administrators only). */
+        get: operations["getLibraryAccess"];
+        /** Set a user's library access (administrators only). */
+        put: operations["setLibraryAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -447,6 +536,12 @@ export interface components {
              * @description Days until the link expires (1–30, default 7).
              */
             valid_days?: number | null;
+        };
+        CreateLibraryRequest: {
+            kind: components["schemas"]["LibraryKind"];
+            name: string;
+            /** @description Absolute folder paths on the server. */
+            paths: string[];
         };
         CreateUserRequest: {
             is_admin?: boolean;
@@ -498,6 +593,17 @@ export interface components {
              * @example Chrome · Windows
              */
             name: string;
+        };
+        DirectoryEntry: {
+            name: string;
+            path: string;
+        };
+        DirectoryListing: {
+            directories: components["schemas"]["DirectoryEntry"][];
+            /** @description Parent folder (`null` at a root). */
+            parent?: string | null;
+            /** @description The listed folder (`null` for the roots). */
+            path?: string | null;
         };
         /** @description Error body returned by every failing API call. */
         ErrorBody: {
@@ -552,6 +658,41 @@ export interface components {
             started_at?: number | null;
             state: string;
         };
+        /** @description Which libraries a user may see. */
+        LibraryAccess: {
+            /** @description All current and future libraries. */
+            all_libraries: boolean;
+            /** @description Granted libraries when `all_libraries` is false. */
+            library_ids: number[];
+        };
+        LibraryCountsDto: {
+            /** Format: int64 */
+            episodes: number;
+            /** Format: int64 */
+            files: number;
+            /** Format: int64 */
+            movies: number;
+            /** Format: int64 */
+            series: number;
+            /**
+             * Format: int64
+             * @description Files whose technical details are still being read.
+             */
+            unprobed: number;
+        };
+        LibraryDto: {
+            counts: components["schemas"]["LibraryCountsDto"];
+            /** Format: int64 */
+            id: number;
+            kind: string;
+            /** Format: int64 */
+            last_scan_at?: number | null;
+            name: string;
+            /** @description Folder paths on the server (administrators only). */
+            paths?: string[] | null;
+        };
+        /** @enum {string} */
+        LibraryKind: "movies" | "shows";
         PoolSummary: {
             /** Format: int64 */
             done: number;
@@ -571,6 +712,13 @@ export interface components {
             is_current: boolean;
             name: string;
             unlock: components["schemas"]["Unlock"];
+        };
+        ScanQueued: {
+            /**
+             * Format: int64
+             * @description Job id, or `null` if a scan of this library is already pending.
+             */
+            job_id?: number | null;
         };
         /** @description A newly issued device token plus the signed-in user. */
         SessionDto: {
@@ -639,6 +787,10 @@ export interface components {
          * @enum {string}
          */
         Unlock: "none" | "pin" | "password";
+        UpdateLibraryRequest: {
+            name?: string | null;
+            paths?: string[] | null;
+        };
         UpdateTaskRequest: {
             enabled?: boolean | null;
             /**
@@ -842,6 +994,56 @@ export interface operations {
             };
             /** @description Too many failed attempts */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listDirectories: {
+        parameters: {
+            query?: {
+                /** @description Folder to list; empty lists the file system roots (drives on Windows). */
+                path?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sub-folders of the given folder */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryListing"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Folder does not exist or is not readable */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1242,6 +1444,288 @@ export interface operations {
             };
             /** @description An equal job is already pending */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listLibraries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Visible libraries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLibraryRequest"];
+            };
+        };
+        responses: {
+            /** @description Library created; scan queued */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid name or folders */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Library id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The library */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) library */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deleteLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Library id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Library removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such library */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Library id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLibraryRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated library */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such library */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid name or folders */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    scanLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Library id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scan queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanQueued"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such library */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1895,6 +2379,110 @@ export interface operations {
             };
             /** @description Invalid input */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getLibraryAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Library access */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryAccess"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    setLibraryAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryAccess"];
+            };
+        };
+        responses: {
+            /** @description Updated library access */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryAccess"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such user */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,6 +1,7 @@
 import { EyeOff, Lock, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import type { Schemas } from '@/api/client'
+import { useLibraries, useLibraryAccess, useSetLibraryAccess } from '@/api/queries/libraries'
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '@/api/queries/users'
 import { FormError } from '@/components/layout/AuthLayout'
 import { Avatar } from '@/components/ui/Avatar'
@@ -76,8 +77,14 @@ function UserDialog({ user, onClose }: { user: User | null; onClose: () => void 
   const [isHidden, setIsHidden] = useState(user?.is_hidden ?? false)
   const [age, setAge] = useState<string>(user?.max_age_rating?.toString() ?? '')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Library access: loaded values until the admin changes something.
+  const libraries = useLibraries()
+  const loadedAccess = useLibraryAccess(user?.id ?? null)
+  const [accessDraft, setAccessDraft] = useState<Schemas['LibraryAccess'] | null>(null)
+  const access = accessDraft ?? loadedAccess.data
+  const setAccess = useSetLibraryAccess()
   const isSelf = user?.id === session?.user.id
-  const error = create.error ?? update.error ?? remove.error
+  const error = create.error ?? update.error ?? remove.error ?? setAccess.error
 
   function submit(event: FormEvent) {
     event.preventDefault()
@@ -93,7 +100,12 @@ function UserDialog({ user, onClose }: { user: User | null; onClose: () => void 
           ...(password ? { password } : {}),
           ...(pin ? { pin } : {}),
         },
-        { onSuccess: onClose },
+        {
+          onSuccess: () =>
+            accessDraft
+              ? setAccess.mutate({ id: user.id, ...accessDraft }, { onSuccess: onClose })
+              : onClose(),
+        },
       )
     } else {
       create.mutate(
@@ -149,6 +161,33 @@ function UserDialog({ user, onClose }: { user: User | null; onClose: () => void 
           checked={isHidden}
           onChange={setIsHidden}
         />
+        {user && access && !isAdmin && (libraries.data?.length ?? 0) > 0 && (
+          <fieldset className="flex flex-col gap-2 rounded-lg border border-line p-3">
+            <legend className="px-1 text-sm font-semibold text-muted">Bibliotheken</legend>
+            <Checkbox
+              label="Alle Bibliotheken"
+              hint="Auch solche, die später hinzukommen."
+              checked={access.all_libraries}
+              onChange={(all) => setAccessDraft({ ...access, all_libraries: all })}
+            />
+            {!access.all_libraries &&
+              libraries.data?.map((library) => (
+                <Checkbox
+                  key={library.id}
+                  label={library.name}
+                  checked={access.library_ids.includes(library.id)}
+                  onChange={(on) =>
+                    setAccessDraft({
+                      ...access,
+                      library_ids: on
+                        ? [...access.library_ids, library.id]
+                        : access.library_ids.filter((id) => id !== library.id),
+                    })
+                  }
+                />
+              ))}
+          </fieldset>
+        )}
         <FormError error={error} />
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           {user && !isSelf ? (
@@ -170,7 +209,12 @@ function UserDialog({ user, onClose }: { user: User | null; onClose: () => void 
           ) : (
             <span />
           )}
-          <Button type="submit" variant="accent" loading={create.isPending || update.isPending} disabled={!name.trim()}>
+          <Button
+            type="submit"
+            variant="accent"
+            loading={create.isPending || update.isPending || setAccess.isPending}
+            disabled={!name.trim()}
+          >
             Speichern
           </Button>
         </div>

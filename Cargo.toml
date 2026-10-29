@@ -13,6 +13,7 @@ flixnet-core = { path = "crates/flixnet-core" }
 flixnet-api = { path = "crates/flixnet-api" }
 flixnet-db = { path = "crates/flixnet-db" }
 flixnet-library = { path = "crates/flixnet-library" }
+flixnet-media = { path = "crates/flixnet-media" }
 
 anyhow = "1"
 argon2 = "0.6"
@@ -36,6 +37,7 @@ tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace", "compression-br", "compression-gzip"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+walkdir = "2"
 utoipa = "6"
 utoipa-axum = "0.3"
 utoipa-scalar = { version = "0.4", features = ["axum"] }

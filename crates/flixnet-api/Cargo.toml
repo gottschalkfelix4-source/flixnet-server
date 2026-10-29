@@ -7,6 +7,7 @@ publish.workspace = true
 [dependencies]
 flixnet-core.workspace = true
 flixnet-db.workspace = true
+flixnet-library.workspace = true
 
 axum.workspace = true
 serde.workspace = true

@@ -15,6 +15,8 @@ pub enum ServerEvent {
         state: String,
         progress: Option<f64>,
     },
+    /// Items of a library were added, changed or removed.
+    LibraryChanged { library_id: i64 },
 }
 
 /// Cheap to clone; slow subscribers miss old events (`Lagged`) instead of blocking producers.

@@ -9,12 +9,16 @@
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+pub use sqlx::SqliteConnection;
 use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
 pub mod invitations;
+pub mod items;
 pub mod jobs;
+pub mod libraries;
+pub mod media;
 pub mod sessions;
 pub mod settings;
 pub mod users;

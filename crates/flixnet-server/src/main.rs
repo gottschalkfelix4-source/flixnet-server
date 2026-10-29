@@ -10,6 +10,7 @@ use flixnet_core::jobs::JobRuntime;
 use flixnet_core::maintenance;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
+use flixnet_library::jobs as library_jobs;
 use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
@@ -105,10 +106,20 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     let events = EventBus::new();
 
     // Background work: job workers plus the scheduler for recurring tasks.
-    let runtime = JobRuntime::new(db.clone(), events.clone()).register(maintenance::CleanupJobs);
+    let ffprobe = flixnet_media::Ffprobe::new(&config.media.ffprobe);
+    let runtime = JobRuntime::new(db.clone(), events.clone())
+        .register(maintenance::CleanupJobs)
+        .register(library_jobs::ScanLibrary)
+        .register(library_jobs::ScanAllLibraries)
+        .register(library_jobs::ProbeFile { ffprobe });
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
-    let tasks = TaskRegistry::new(maintenance::tasks());
+    let tasks = TaskRegistry::new(
+        maintenance::tasks()
+            .into_iter()
+            .chain(library_jobs::tasks())
+            .collect(),
+    );
     let stop_scheduler = CancellationToken::new();
     let scheduler = tasks
         .clone()

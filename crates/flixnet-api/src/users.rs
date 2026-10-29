@@ -25,6 +25,75 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(sign_out_device))
         .routes(routes!(list_users, create_user))
         .routes(routes!(update_user, delete_user))
+        .routes(routes!(get_library_access, set_library_access))
+}
+
+/// Which libraries a user may see.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct LibraryAccess {
+    /// All current and future libraries.
+    pub all_libraries: bool,
+    /// Granted libraries when `all_libraries` is false.
+    pub library_ids: Vec<i64>,
+}
+
+/// A user's library access (administrators only).
+#[utoipa::path(
+    get,
+    path = "/{id}/libraries",
+    operation_id = "getLibraryAccess",
+    tag = "users",
+    params(("id" = i64, Path, description = "User id")),
+    responses(
+        (status = OK, description = "Library access", body = LibraryAccess),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Not an administrator", body = ErrorBody),
+        (status = NOT_FOUND, description = "No such user", body = ErrorBody),
+    )
+)]
+async fn get_library_access(
+    _: AdminUser,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<Json<LibraryAccess>> {
+    let user = users::get(&state.db, id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("Nutzer nicht gefunden."))?;
+    Ok(Json(LibraryAccess {
+        all_libraries: user.all_libraries,
+        library_ids: flixnet_db::libraries::granted_library_ids(&state.db, id).await?,
+    }))
+}
+
+/// Set a user's library access (administrators only).
+#[utoipa::path(
+    put,
+    path = "/{id}/libraries",
+    operation_id = "setLibraryAccess",
+    tag = "users",
+    params(("id" = i64, Path, description = "User id")),
+    request_body = LibraryAccess,
+    responses(
+        (status = OK, description = "Updated library access", body = LibraryAccess),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Not an administrator", body = ErrorBody),
+        (status = NOT_FOUND, description = "No such user", body = ErrorBody),
+    )
+)]
+async fn set_library_access(
+    _: AdminUser,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(body): Json<LibraryAccess>,
+) -> ApiResult<Json<LibraryAccess>> {
+    if users::get(&state.db, id).await?.is_none() {
+        return Err(ApiError::not_found("Nutzer nicht gefunden."));
+    }
+    flixnet_db::libraries::set_access(&state.db, id, body.all_libraries, &body.library_ids).await?;
+    Ok(Json(LibraryAccess {
+        all_libraries: body.all_libraries,
+        library_ids: flixnet_db::libraries::granted_library_ids(&state.db, id).await?,
+    }))
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

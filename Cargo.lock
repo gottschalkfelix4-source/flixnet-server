@@ -605,6 +605,7 @@ dependencies = [
  "axum",
  "flixnet-core",
  "flixnet-db",
+ "flixnet-library",
  "http-body-util",
  "serde",
  "serde_json",
@@ -654,8 +655,28 @@ dependencies = [
 name = "flixnet-library"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "flixnet-core",
+ "flixnet-db",
+ "flixnet-media",
  "regex",
  "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "walkdir",
+]
+
+[[package]]
+name = "flixnet-media"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -668,6 +689,8 @@ dependencies = [
  "flixnet-api",
  "flixnet-core",
  "flixnet-db",
+ "flixnet-library",
+ "flixnet-media",
  "hex",
  "rust-embed",
  "tokio",
