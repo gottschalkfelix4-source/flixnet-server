@@ -17,7 +17,8 @@ import { NotFoundPage } from '@/routes/NotFoundPage'
 import { PlaceholderPage } from '@/routes/PlaceholderPage'
 import { ProfilesPage } from '@/routes/ProfilesPage'
 import { SetupPage } from '@/routes/SetupPage'
-import { type SettingsTab, SettingsPage } from '@/routes/settings/SettingsPage'
+import { SettingsPage } from '@/routes/settings/SettingsPage'
+import { SETTINGS_TABS, type SettingsTab } from '@/routes/settings/tabs'
 
 interface RouterContext {
   queryClient: QueryClient
@@ -100,7 +101,7 @@ const inviteRoute = createRoute({
   component: InvitePage,
 })
 
-const settingsTabs: SettingsTab[] = ['account', 'users', 'invitations']
+const settingsTabs: SettingsTab[] = SETTINGS_TABS.map((t) => t.id)
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/settings',

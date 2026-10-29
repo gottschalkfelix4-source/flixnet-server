@@ -14,6 +14,7 @@ use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
 pub mod invitations;
+pub mod jobs;
 pub mod sessions;
 pub mod settings;
 pub mod users;

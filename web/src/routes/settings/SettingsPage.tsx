@@ -4,15 +4,9 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { useSession } from '@/lib/session'
 import { AccountSettings } from './AccountSettings'
 import { InvitationsSettings } from './InvitationsSettings'
+import { JobsSettings } from './JobsSettings'
+import { SETTINGS_TABS as TABS } from './tabs'
 import { UsersSettings } from './UsersSettings'
-
-export type SettingsTab = 'account' | 'users' | 'invitations'
-
-const TABS: { id: SettingsTab; label: string; admin: boolean }[] = [
-  { id: 'account', label: 'Mein Konto', admin: false },
-  { id: 'users', label: 'Nutzer', admin: true },
-  { id: 'invitations', label: 'Einladungen', admin: true },
-]
 
 export function SettingsPage() {
   const { tab = 'account' } = useSearch({ from: '/app/settings' })
@@ -43,6 +37,7 @@ export function SettingsPage() {
         {active === 'account' && <AccountSettings />}
         {active === 'users' && <UsersSettings />}
         {active === 'invitations' && <InvitationsSettings />}
+        {active === 'jobs' && <JobsSettings />}
       </div>
     </div>
   )

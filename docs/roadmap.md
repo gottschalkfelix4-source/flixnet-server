@@ -22,7 +22,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 
 ## Phase 2 – Scannen und Metadaten
 - [x] 2.1 Dateinamen-Parser (360+ Testfälle: Release-Namen, Plex/Jellyfin-Ordner, ID-Hinweise, S01E02/1x02/Doppelfolgen/Staffel-Folge/Datum/Anime-absolut, Extras, Samples, Mehrteiler, Untertitel-Sidecars)
-- [ ] 2.2 Job-Runtime + Jobs-API – *fertig wenn* Kill während der Queue → Neustart setzt fort
+- [x] 2.2 Job-Runtime + Jobs-API – *fertig wenn* Kill während der Queue → Neustart setzt fort (Test `crash_mid_queue_resumes_after_restart`); Pools, Prioritäten, Dedupe, Retry mit Backoff, Abbruch, Scheduler, Admin-UI „Aufgaben“
 - [ ] 2.3 FS-Diff → media_files → ffprobe-Jobs – *fertig wenn* Rescan ohne Änderung null Probes macht
 - [ ] 2.4 NFO + lokale Artworks
 - [ ] 2.5 TMDB-Client, Matching mit Confidence, Identify, Bild-Cache + Blurhash

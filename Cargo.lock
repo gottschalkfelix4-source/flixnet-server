@@ -622,12 +622,19 @@ dependencies = [
 name = "flixnet-core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "argon2",
  "figment",
+ "flixnet-db",
  "getrandom 0.3.4",
  "hex",
  "serde",
+ "serde_json",
  "sha2 0.11.1",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
 ]
 
 [[package]]
@@ -664,6 +671,7 @@ dependencies = [
  "hex",
  "rust-embed",
  "tokio",
+ "tokio-util",
  "tower",
  "tower-http",
  "tracing",

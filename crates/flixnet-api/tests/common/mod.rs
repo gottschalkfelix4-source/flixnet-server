@@ -4,8 +4,11 @@
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode, header};
-use flixnet_api::{AppState, router};
+use flixnet_api::{AppState, Services, router};
 use flixnet_core::Config;
+use flixnet_core::events::EventBus;
+use flixnet_core::jobs::JobRuntime;
+use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
@@ -24,7 +27,15 @@ pub struct TestApp {
 pub async fn app() -> TestApp {
     let dir = tempfile::tempdir().unwrap();
     let db = Db::open(&dir.path().join("flixnet.db")).await.unwrap();
-    let router = router(AppState::new(Config::default(), db.clone()));
+    // Jobs are queued but no workers run in API tests.
+    let events = EventBus::new();
+    let runtime = JobRuntime::new(db.clone(), events.clone());
+    let services = Services {
+        events,
+        jobs: runtime.handle(),
+        tasks: TaskRegistry::new(flixnet_core::maintenance::tasks()),
+    };
+    let router = router(AppState::new(Config::default(), db.clone(), services));
     TestApp {
         _dir: dir,
         router,

@@ -3,6 +3,10 @@
 
 pub mod auth;
 pub mod config;
+pub mod events;
+pub mod jobs;
+pub mod maintenance;
+pub mod scheduler;
 
 pub use config::Config;
 

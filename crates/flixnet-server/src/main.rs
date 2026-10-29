@@ -1,10 +1,16 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use flixnet_api::AppState;
+use flixnet_api::{AppState, Services};
 use flixnet_core::Config;
+use flixnet_core::events::EventBus;
+use flixnet_core::jobs::JobRuntime;
+use flixnet_core::maintenance;
+use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
+use tokio_util::sync::CancellationToken;
 use tracing_subscriber::EnvFilter;
 
 mod web;
@@ -96,8 +102,31 @@ fn init_tracing(default_level: &str) {
 async fn serve(config: Config) -> anyhow::Result<()> {
     let bind = config.server.bind;
     let db = open_db(&config).await?;
-    let app =
-        flixnet_api::router(AppState::new(config, db.clone())).fallback_service(web::router());
+    let events = EventBus::new();
+
+    // Background work: job workers plus the scheduler for recurring tasks.
+    let runtime = JobRuntime::new(db.clone(), events.clone()).register(maintenance::CleanupJobs);
+    let jobs = runtime.handle();
+    let running_jobs = runtime.start().await?;
+    let tasks = TaskRegistry::new(maintenance::tasks());
+    let stop_scheduler = CancellationToken::new();
+    let scheduler = tasks
+        .clone()
+        .start(
+            db.clone(),
+            jobs.queue().clone(),
+            Duration::from_secs(30),
+            stop_scheduler.clone(),
+        )
+        .await?;
+
+    let services = Services {
+        events,
+        jobs,
+        tasks,
+    };
+    let app = flixnet_api::router(AppState::new(config, db.clone(), services))
+        .fallback_service(web::router());
 
     let listener = tokio::net::TcpListener::bind(bind)
         .await
@@ -108,6 +137,9 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .with_graceful_shutdown(shutdown_signal())
         .await?;
 
+    stop_scheduler.cancel();
+    let _ = scheduler.await;
+    running_jobs.shutdown(Duration::from_secs(10)).await;
     db.close().await;
     tracing::info!("Flixnet stopped");
     Ok(())

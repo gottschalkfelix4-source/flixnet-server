@@ -6,6 +6,9 @@ use std::sync::Arc;
 use axum::routing::get;
 use axum::{Json, Router};
 use flixnet_core::Config;
+use flixnet_core::events::EventBus;
+use flixnet_core::jobs::JobsHandle;
+use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use tower_http::trace::TraceLayer;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme};
@@ -16,6 +19,7 @@ use utoipa_scalar::{Scalar, Servable};
 pub mod auth;
 pub mod error;
 mod invitations;
+mod jobs;
 pub mod limiter;
 mod session;
 mod system;
@@ -31,14 +35,27 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub db: Db,
     pub limits: Arc<limiter::Limits>,
+    pub events: EventBus,
+    pub jobs: JobsHandle,
+    pub tasks: TaskRegistry,
+}
+
+/// Long-lived services the API talks to.
+pub struct Services {
+    pub events: EventBus,
+    pub jobs: JobsHandle,
+    pub tasks: TaskRegistry,
 }
 
 impl AppState {
-    pub fn new(config: Config, db: Db) -> Self {
+    pub fn new(config: Config, db: Db, services: Services) -> Self {
         Self {
             config: Arc::new(config),
             db,
             limits: Arc::default(),
+            events: services.events,
+            jobs: services.jobs,
+            tasks: services.tasks,
         }
     }
 }
@@ -58,6 +75,7 @@ impl AppState {
         (name = "auth", description = "First-run setup, sign-in, sign-out and profile switching"),
         (name = "users", description = "User accounts and household profiles"),
         (name = "invitations", description = "Invitation links for new accounts"),
+        (name = "jobs", description = "Background jobs and scheduled tasks (administrators)"),
     )
 )]
 struct ApiDoc;
@@ -93,6 +111,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(&format!("{API_PREFIX}/users"), users::router())
         .nest(&format!("{API_PREFIX}/invitations"), invitations::router())
         .nest(API_PREFIX, session::router())
+        .nest(API_PREFIX, jobs::router())
         .split_for_parts()
 }
 
