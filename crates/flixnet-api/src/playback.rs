@@ -119,16 +119,7 @@ async fn get_playback_info(
         let hls_url = if plan.method == PlayMethod::DirectPlay {
             None
         } else {
-            let (session_plan, segments) = session_layout(&state, &file, &plan).await?;
-            let session = state.transcoder.create(SessionSpec {
-                user_id: user.user_id,
-                item_id: id,
-                file_id: file.id,
-                input: PathBuf::from(&file.path),
-                segments,
-                plan: session_plan,
-                source_video: source.video.clone(),
-            });
+            let session = start_transcode(&state, &user, id, &file, &source, &plan).await?;
             Some(format!("/api/v1/transcode/{session}/main.m3u8"))
         };
         sources.push(MediaSourceDto {
@@ -157,6 +148,28 @@ async fn get_playback_info(
     Ok(Json(PlaybackInfoDto {
         item_id: id,
         sources,
+    }))
+}
+
+/// Registers a transcode session (Remux/Transcode) for a file and returns its id;
+/// ffmpeg starts with the first segment request.
+pub async fn start_transcode(
+    state: &AppState,
+    user: &AuthUser,
+    item_id: i64,
+    file: &media::MediaFile,
+    source: &SourceMedia,
+    plan: &PlaybackPlan,
+) -> ApiResult<String> {
+    let (session_plan, segments) = session_layout(state, file, plan).await?;
+    Ok(state.transcoder.create(SessionSpec {
+        user_id: user.user_id,
+        item_id,
+        file_id: file.id,
+        input: PathBuf::from(&file.path),
+        segments,
+        plan: session_plan,
+        source_video: source.video.clone(),
     }))
 }
 
@@ -206,7 +219,7 @@ async fn session_layout(
 const COVER_CODECS: &[&str] = &["mjpeg", "png", "bmp", "gif", "webp"];
 
 /// The decision engine's view of a probed file.
-fn source_media(file: &media::MediaFile, streams: &[media::Stream]) -> SourceMedia {
+pub fn source_media(file: &media::MediaFile, streams: &[media::Stream]) -> SourceMedia {
     let codec = |s: &media::Stream| s.codec.clone().unwrap_or_default();
     SourceMedia {
         container: FsPath::new(&file.path)
@@ -257,7 +270,7 @@ fn file_name(path: &str) -> String {
 /// The file a media request may read. `signed_user` is the user a verified URL
 /// signature was issued to: the signature proves who it was, but that user's access
 /// is checked again on every request. Without one, a signed-in user must see the item.
-pub(crate) async fn accessible_file(
+pub async fn accessible_file(
     state: &AppState,
     user: Option<&AuthUser>,
     signed_user: Option<i64>,
@@ -326,7 +339,6 @@ async fn stream_file(
     Query(query): Query<StreamQuery>,
     request: Request,
 ) -> ApiResult<Response> {
-    let not_found = || ApiError::not_found("Datei nicht gefunden.");
     let signed_user = match (query.u, query.exp, query.sig.as_deref()) {
         (Some(u), Some(exp), Some(sig)) if state.signer.verify_stream(file_id, u, exp, sig) => {
             Some(u)
@@ -334,13 +346,18 @@ async fn stream_file(
         _ => None,
     };
     let file = accessible_file(&state, user.as_ref(), signed_user, file_id).await?;
+    serve_file(&file, request).await
+}
 
+/// Serves a media file with range support (`file` must come from [`accessible_file`]).
+pub async fn serve_file(file: &media::MediaFile, request: Request) -> ApiResult<Response> {
+    let not_found = || ApiError::not_found("Datei nicht gefunden.");
     // The path comes from the database, never from the request.
     let response = ServeFile::new(&file.path)
         .try_call(request)
         .await
         .map_err(|err| {
-            tracing::warn!(file = file_id, %err, "stream unavailable");
+            tracing::warn!(file = file.id, %err, "stream unavailable");
             not_found()
         })?;
     if response.status() == StatusCode::NOT_FOUND {

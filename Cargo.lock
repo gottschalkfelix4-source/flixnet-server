@@ -943,6 +943,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "flixnet-jellyfin"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "flixnet-api",
+ "flixnet-core",
+ "flixnet-db",
+ "flixnet-library",
+ "flixnet-media",
+ "hex",
+ "http-body-util",
+ "image",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+]
+
+[[package]]
 name = "flixnet-library"
 version = "0.1.0"
 dependencies = [
@@ -995,6 +1018,7 @@ dependencies = [
  "flixnet-api",
  "flixnet-core",
  "flixnet-db",
+ "flixnet-jellyfin",
  "flixnet-library",
  "flixnet-media",
  "hex",

@@ -59,7 +59,7 @@ pub struct SubtitleTrackDto {
     pub burn_in: bool,
 }
 
-pub(crate) fn audio_tracks(streams: &[media::Stream]) -> Vec<AudioTrackDto> {
+pub fn audio_tracks(streams: &[media::Stream]) -> Vec<AudioTrackDto> {
     streams
         .iter()
         .filter(|s| s.kind == "audio")
@@ -75,7 +75,7 @@ pub(crate) fn audio_tracks(streams: &[media::Stream]) -> Vec<AudioTrackDto> {
         .collect()
 }
 
-pub(crate) fn subtitle_tracks(
+pub fn subtitle_tracks(
     signer: &UrlSigner,
     file_id: i64,
     user_id: i64,
@@ -143,6 +143,33 @@ async fn get_subtitle_vtt(
         .strip_suffix(".vtt")
         .and_then(|n| n.parse().ok())
         .ok_or_else(no_track)?;
+    let path = webvtt(&state, file, index).await?;
+    let bytes = tokio::fs::read(&path).await.map_err(ApiError::internal)?;
+    Ok((
+        [
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("text/vtt; charset=utf-8"),
+            ),
+            (
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("private, max-age=86400"),
+            ),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
+/// A text subtitle track of a file (from [`accessible_file`]) converted to WebVTT;
+/// returns the cached file. 404 for unknown or picture-based tracks.
+pub async fn webvtt(
+    state: &AppState,
+    file: media::MediaFile,
+    index: i64,
+) -> ApiResult<std::path::PathBuf> {
+    let no_track = || ApiError::not_found("Untertitelspur nicht gefunden.");
+    let file_id = file.id;
     let streams = media::streams(&state.db, file_id).await?;
     let stream = streams
         .into_iter()
@@ -174,19 +201,5 @@ async fn get_subtitle_vtt(
             ),
             other => ApiError::internal(other),
         })?;
-    let bytes = tokio::fs::read(&path).await.map_err(ApiError::internal)?;
-    Ok((
-        [
-            (
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("text/vtt; charset=utf-8"),
-            ),
-            (
-                header::CACHE_CONTROL,
-                HeaderValue::from_static("private, max-age=86400"),
-            ),
-        ],
-        bytes,
-    )
-        .into_response())
+    Ok(path)
 }

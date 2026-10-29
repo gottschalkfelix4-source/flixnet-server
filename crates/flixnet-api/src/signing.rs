@@ -54,6 +54,21 @@ impl UrlSigner {
             && bytes.len() == 16
     }
 
+    /// A non-expiring tag for `scope` and `id` (32 hex characters). Used where clients
+    /// cache URLs indefinitely, e.g. Jellyfin image tags; a tag only unlocks that one
+    /// resource, and rotating the secret revokes all of them.
+    pub fn tag(&self, scope: &str, id: i64) -> String {
+        let tag = self.mac(scope, id, 0).finalize().into_bytes();
+        hex::encode(&tag[..16])
+    }
+
+    pub fn verify_tag(&self, scope: &str, id: i64, tag: &str) -> bool {
+        let Ok(bytes) = hex::decode(tag) else {
+            return false;
+        };
+        bytes.len() == 16 && self.mac(scope, id, 0).verify_truncated_left(&bytes).is_ok()
+    }
+
     /// `/api/v1/stream/{file_id}?u=…&exp=…&sig=…`, bound to the user it was issued to.
     pub fn stream_url(&self, file_id: i64, user_id: i64) -> String {
         let (expires, sig) = self.sign(&format!("stream:{user_id}"), file_id);
@@ -129,6 +144,19 @@ mod tests {
             !signer.verify_stream(7, 3, exp, &sig),
             "not a stream signature"
         );
+    }
+
+    #[test]
+    fn tags_are_stable_and_scoped() {
+        let signer = UrlSigner::new(b"secret".to_vec());
+        let tag = signer.tag("jfimg", 5);
+        assert_eq!(tag.len(), 32);
+        assert_eq!(tag, signer.tag("jfimg", 5));
+        assert!(signer.verify_tag("jfimg", 5, &tag));
+        assert!(!signer.verify_tag("jfimg", 6, &tag), "other id");
+        assert!(!signer.verify_tag("img", 5, &tag), "other scope");
+        assert!(!signer.verify_tag("jfimg", 5, &tag[..30]), "truncated");
+        assert!(!UrlSigner::new(b"other".to_vec()).verify_tag("jfimg", 5, &tag));
     }
 
     #[test]

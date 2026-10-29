@@ -179,17 +179,50 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             2,
         ),
     };
-    let app = flixnet_api::router(AppState::new(config, db.clone(), services))
-        .fallback_service(web::router());
+    let jellyfin = config.jellyfin.clone();
+    let state = AppState::new(config, db.clone(), services);
+    let app = flixnet_api::router(state.clone()).fallback_service(web::router());
 
     let listener = tokio::net::TcpListener::bind(bind)
         .await
         .with_context(|| format!("cannot listen on {bind}"))?;
     tracing::info!(%bind, version = flixnet_core::VERSION, "Flixnet is listening");
 
+    let shutdown = CancellationToken::new();
+    tokio::spawn({
+        let shutdown = shutdown.clone();
+        async move {
+            shutdown_signal().await;
+            shutdown.cancel();
+        }
+    });
+
+    // Jellyfin-compatible API for existing Jellyfin clients, on its own port.
+    let jellyfin_server = if jellyfin.enabled {
+        let listener = tokio::net::TcpListener::bind(jellyfin.bind)
+            .await
+            .with_context(|| format!("cannot listen on {} (jellyfin.bind)", jellyfin.bind))?;
+        tracing::info!(bind = %jellyfin.bind, "Jellyfin-compatible API is listening");
+        let router = flixnet_jellyfin::router(state);
+        let shutdown = shutdown.clone();
+        Some(tokio::spawn(async move {
+            axum::serve(listener, router)
+                .with_graceful_shutdown(shutdown.cancelled_owned())
+                .await
+        }))
+    } else {
+        None
+    };
+
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(shutdown.clone().cancelled_owned())
         .await?;
+    shutdown.cancel();
+    if let Some(server) = jellyfin_server
+        && let Err(err) = server.await?
+    {
+        tracing::warn!(%err, "Jellyfin-compatible API stopped with an error");
+    }
 
     transcoder.stop_all().await;
     stop_scheduler.cancel();

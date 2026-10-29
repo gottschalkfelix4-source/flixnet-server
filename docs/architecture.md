@@ -69,6 +69,7 @@ Der Projektordner `D:\Ai Projekte\Claude Code\Flixnet-Server` ist leer; Flixnet 
   - hls.js, embla-carousel, framer-motion
   - openapi-typescript-Client; die SPA wird per rust-embed ins Binary eingebettet
 - **Ports:** 8097 für Flixnet, 8098 für die Jellyfin-Compat-Schicht (standardmäßig aus). So gibt es keinen Konflikt mit einem parallel laufenden Jellyfin.
+  - Die Compat-Schicht ist `crates/flixnet-jellyfin` (`jellyfin.enabled`, `jellyfin.bind`); sie übersetzt nur und nutzt Flixnets Auth, Rechte, Decision-Engine, Transcode-Sitzungen, Bild-Cache und Playstate. Einrichtung der Clients: `docs/jellyfin-compat.md`.
 
 ### Projektstruktur
 
@@ -83,8 +84,9 @@ crates/
   flixnet-media/     ffprobe/ffmpeg-Wrapper, HW-Erkennung, Decision-Engine, TranscodeManager,
                      HLS, Untertitel, Trickplay, Kapitelbilder, Intro/Credits-Erkennung
   flixnet-api/       axum-Router /api/v1, Auth-Extractor, DTOs, WebSocket
+  flixnet-jellyfin/  Jellyfin-kompatible API auf eigenem Listener (Port 8098)
   flixnet-server/    Binary (serve | openapi | migrate | admin), Verdrahtung, eingebettete SPA
-  später: flixnet-ai/ (Feature-Flag), flixnet-livetv/, flixnet-jellyfin/
+  später: flixnet-ai/ (Feature-Flag), flixnet-livetv/
 xtask/               fixtures | openapi | dev | docker | seed  (plattformunabhängig, kein Bash)
 web/src/             api/ app/ routes/ components/{ui,media}/ player/ features/ lib/ styles/  e2e/
 docker/              Dockerfile, unraid-template.xml

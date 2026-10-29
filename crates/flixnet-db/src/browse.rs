@@ -49,6 +49,16 @@ pub struct ItemFilter {
     pub genres: Vec<String>,
     /// Minimum community rating (0–10).
     pub min_rating: Option<f64>,
+    /// Only these items (empty = no restriction).
+    pub ids: Vec<i64>,
+    /// Never these items.
+    pub exclude_ids: Vec<i64>,
+    /// Any of these years (empty = no restriction).
+    pub years: Vec<i64>,
+    /// Items any of these people are credited on.
+    pub person_ids: Vec<i64>,
+    /// Only items with (`true`) or without (`false`) a resume point of the viewer.
+    pub is_resumable: Option<bool>,
 }
 
 /// One row of a grid: enough to draw a poster card.
@@ -159,6 +169,44 @@ pub(crate) fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
             names.push_bind(genre.clone());
         }
         qb.push("))");
+    }
+    if !f.ids.is_empty() {
+        qb.push(" AND i.id IN (");
+        let mut ids = qb.separated(", ");
+        for id in &f.ids {
+            ids.push_bind(*id);
+        }
+        qb.push(")");
+    }
+    if !f.exclude_ids.is_empty() {
+        qb.push(" AND i.id NOT IN (");
+        let mut ids = qb.separated(", ");
+        for id in &f.exclude_ids {
+            ids.push_bind(*id);
+        }
+        qb.push(")");
+    }
+    if !f.years.is_empty() {
+        qb.push(" AND i.year IN (");
+        let mut years = qb.separated(", ");
+        for year in &f.years {
+            years.push_bind(*year);
+        }
+        qb.push(")");
+    }
+    if !f.person_ids.is_empty() {
+        qb.push(" AND i.id IN (SELECT c.item_id FROM credits c WHERE c.person_id IN (");
+        let mut people = qb.separated(", ");
+        for person in &f.person_ids {
+            people.push_bind(*person);
+        }
+        qb.push("))");
+    }
+    if let (Some(user), Some(resumable)) = (f.user_id, f.is_resumable) {
+        qb.push(if resumable { " AND " } else { " AND NOT " })
+            .push("EXISTS (SELECT 1 FROM user_item_data ud WHERE ud.user_id = ")
+            .push_bind(user)
+            .push(" AND ud.identity_key = i.identity_key AND ud.position_ms > 0)");
     }
     if let Some(min) = f.min_rating {
         qb.push(" AND i.community_rating >= ").push_bind(min);
@@ -365,6 +413,95 @@ pub async fn genres(db: &Db, library_ids: &[i64]) -> Result<Vec<(String, i64)>> 
     }
     qb.push(") GROUP BY g.id ORDER BY g.name");
     Ok(qb.build_query_as().fetch_all(db.reader()).await?)
+}
+
+/// Genres used in the given libraries: (genre id, name, item count), by name.
+pub async fn genres_with_ids(db: &Db, library_ids: &[i64]) -> Result<Vec<(i64, String, i64)>> {
+    let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(
+        "SELECT g.id, g.name, COUNT(*) AS n FROM genres g
+         JOIN item_genres ig ON ig.genre_id = g.id
+         JOIN items i ON i.id = ig.item_id
+         WHERE i.library_id IN (",
+    );
+    {
+        let mut ids = qb.separated(", ");
+        for id in library_ids {
+            ids.push_bind(*id);
+        }
+        if library_ids.is_empty() {
+            ids.push("NULL");
+        }
+    }
+    qb.push(") GROUP BY g.id ORDER BY g.name");
+    Ok(qb.build_query_as().fetch_all(db.reader()).await?)
+}
+
+/// Name of a genre by id.
+pub async fn genre_name(db: &Db, genre_id: i64) -> Result<Option<String>> {
+    let row: Option<(String,)> = sqlx::query_as("SELECT name FROM genres WHERE id = ?")
+        .bind(genre_id)
+        .fetch_optional(db.reader())
+        .await?;
+    Ok(row.map(|(name,)| name))
+}
+
+/// A person credited on visible items.
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
+pub struct PersonRow {
+    pub id: i64,
+    pub name: String,
+    pub image_url: Option<String>,
+}
+
+/// People credited on items in the given libraries, by name; optionally only names
+/// containing `search` (case-insensitive). Returns one page plus the total.
+pub async fn people(
+    db: &Db,
+    library_ids: &[i64],
+    search: Option<&str>,
+    limit: i64,
+    offset: i64,
+) -> Result<(Vec<PersonRow>, i64)> {
+    let push_where = |qb: &mut QueryBuilder<Sqlite>| {
+        qb.push(
+            " FROM people p WHERE EXISTS (SELECT 1 FROM credits c JOIN items i ON i.id = c.item_id
+               WHERE c.person_id = p.id AND i.library_id IN (",
+        );
+        {
+            let mut ids = qb.separated(", ");
+            for id in library_ids {
+                ids.push_bind(*id);
+            }
+            if library_ids.is_empty() {
+                ids.push("NULL");
+            }
+        }
+        qb.push("))");
+        if let Some(search) = search.filter(|s| !s.trim().is_empty()) {
+            let pattern = format!(
+                "%{}%",
+                search
+                    .trim()
+                    .replace('\\', "\\\\")
+                    .replace('%', "\\%")
+                    .replace('_', "\\_")
+            );
+            qb.push(" AND p.name LIKE ")
+                .push_bind(pattern)
+                .push(" ESCAPE '\\'");
+        }
+    };
+    let mut page: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT p.id, p.name, p.image_url");
+    push_where(&mut page);
+    page.push(" ORDER BY p.name COLLATE NOCASE, p.id LIMIT ")
+        .push_bind(limit)
+        .push(" OFFSET ")
+        .push_bind(offset);
+    let rows: Vec<PersonRow> = page.build_query_as().fetch_all(db.reader()).await?;
+    let mut count: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT COUNT(*)");
+    push_where(&mut count);
+    let (total,): (i64,) = count.build_query_as().fetch_one(db.reader()).await?;
+    Ok((rows, total))
 }
 
 /// Is a single item visible under the given restrictions?
