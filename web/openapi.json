@@ -2081,6 +2081,59 @@
         }
       }
     },
+    "/api/v1/people/{id}": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "A person and their movies/series in the library.",
+        "operationId": "getPerson",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Person id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The person",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such person",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/metadata": {
       "get": {
         "tags": [
@@ -4166,6 +4219,7 @@
         "type": "object",
         "required": [
           "has_tmdb_api_key",
+          "has_fanart_api_key",
           "language",
           "country"
         ],
@@ -4174,6 +4228,10 @@
             "type": "string",
             "description": "Country for age ratings, e.g. `DE`."
           },
+          "has_fanart_api_key": {
+            "type": "boolean",
+            "description": "Whether a fanart.tv API key is stored."
+          },
           "has_tmdb_api_key": {
             "type": "boolean",
             "description": "Whether a TMDB API key is stored (the key itself is never returned)."
@@ -4181,6 +4239,64 @@
           "language": {
             "type": "string",
             "description": "Metadata language, e.g. `de-DE`."
+          }
+        }
+      },
+      "PersonCreditDto": {
+        "type": "object",
+        "required": [
+          "item",
+          "role"
+        ],
+        "properties": {
+          "character": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "item": {
+            "$ref": "#/components/schemas/ItemCardDto"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      },
+      "PersonDetailDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "credits"
+        ],
+        "properties": {
+          "credits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonCreditDto"
+            },
+            "description": "Everything in the visible libraries this person worked on."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "tmdb_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       },
@@ -4521,6 +4637,13 @@
               "string",
               "null"
             ]
+          },
+          "fanart_api_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "fanart.tv personal API key; `null` removes it."
           },
           "language": {
             "type": [

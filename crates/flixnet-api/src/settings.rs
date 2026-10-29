@@ -22,6 +22,8 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
 pub struct MetadataSettingsDto {
     /// Whether a TMDB API key is stored (the key itself is never returned).
     pub has_tmdb_api_key: bool,
+    /// Whether a fanart.tv API key is stored.
+    pub has_fanart_api_key: bool,
     /// Metadata language, e.g. `de-DE`.
     pub language: String,
     /// Country for age ratings, e.g. `DE`.
@@ -34,12 +36,17 @@ pub struct UpdateMetadataSettings {
     #[serde(default, deserialize_with = "validate::double_option")]
     #[schema(value_type = Option<String>, nullable)]
     pub tmdb_api_key: Option<Option<String>>,
+    /// fanart.tv personal API key; `null` removes it.
+    #[serde(default, deserialize_with = "validate::double_option")]
+    #[schema(value_type = Option<String>, nullable)]
+    pub fanart_api_key: Option<Option<String>>,
     pub language: Option<String>,
     pub country: Option<String>,
 }
 
 fn to_dto(s: &MetadataSettings) -> MetadataSettingsDto {
     MetadataSettingsDto {
+        has_fanart_api_key: s.fanart_api_key.as_deref().is_some_and(|k| !k.is_empty()),
         has_tmdb_api_key: s.tmdb_api_key.as_deref().is_some_and(|k| !k.is_empty()),
         language: s.language.clone().unwrap_or_else(|| "de-DE".to_owned()),
         country: s.country.clone().unwrap_or_else(|| "DE".to_owned()),
@@ -123,6 +130,13 @@ async fn update_metadata_settings(
             current.tmdb_api_key = Some(key);
         }
         Some(None) => current.tmdb_api_key = None,
+        None => {}
+    }
+    match body.fanart_api_key {
+        Some(Some(key)) if !key.trim().is_empty() => {
+            current.fanart_api_key = Some(key.trim().to_owned())
+        }
+        Some(_) => current.fanart_api_key = None,
         None => {}
     }
     settings::set(&state.db, providers::SETTINGS_KEY, &current).await?;

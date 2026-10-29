@@ -176,7 +176,7 @@ async fn metadata_settings_and_identify_without_key() {
     let current = app.get("/api/v1/settings/metadata", Some(&admin)).await;
     assert_eq!(
         current.json,
-        json!({ "has_tmdb_api_key": false, "language": "de-DE", "country": "DE" })
+        json!({ "has_tmdb_api_key": false, "has_fanart_api_key": false, "language": "de-DE", "country": "DE" })
     );
 
     let bad = app

@@ -112,6 +112,13 @@ impl JobHandler for RefreshMetadata {
         {
             crate::providers::refresh_remote(ctx.db(), &tmdb, item.id).await?;
         }
+        // Optional extra artwork; never fails the refresh.
+        if matches!(item.kind.as_str(), "movie" | "series")
+            && let Some(fanart) = crate::providers::fanart_from_settings(ctx.db()).await?
+            && let Err(err) = crate::providers::apply_fanart(ctx.db(), &fanart, item.id).await
+        {
+            tracing::warn!(item = item.id, %err, "fanart.tv lookup failed");
+        }
         // Provider ids may have changed: user data follows the new identity.
         flixnet_db::userdata::update_identity(ctx.db(), item.id).await?;
         Ok(())

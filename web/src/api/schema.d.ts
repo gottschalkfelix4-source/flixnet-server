@@ -427,6 +427,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/people/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A person and their movies/series in the library. */
+        get: operations["getPerson"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/metadata": {
         parameters: {
             query?: never;
@@ -1034,10 +1051,27 @@ export interface components {
         MetadataSettingsDto: {
             /** @description Country for age ratings, e.g. `DE`. */
             country: string;
+            /** @description Whether a fanart.tv API key is stored. */
+            has_fanart_api_key: boolean;
             /** @description Whether a TMDB API key is stored (the key itself is never returned). */
             has_tmdb_api_key: boolean;
             /** @description Metadata language, e.g. `de-DE`. */
             language: string;
+        };
+        PersonCreditDto: {
+            character?: string | null;
+            item: components["schemas"]["ItemCardDto"];
+            role: string;
+        };
+        PersonDetailDto: {
+            /** @description Everything in the visible libraries this person worked on. */
+            credits: components["schemas"]["PersonCreditDto"][];
+            /** Format: int64 */
+            id: number;
+            image_url?: string | null;
+            name: string;
+            /** Format: int64 */
+            tmdb_id?: number | null;
         };
         PersonDto: {
             character?: string | null;
@@ -1160,6 +1194,8 @@ export interface components {
         };
         UpdateMetadataSettings: {
             country?: string | null;
+            /** @description fanart.tv personal API key; `null` removes it. */
+            fanart_api_key?: string | null;
             language?: string | null;
             /** @description TMDB v3 API key or v4 read access token; `null` removes it. */
             tmdb_api_key?: string | null;
@@ -2680,6 +2716,47 @@ export interface operations {
                 };
             };
             /** @description No such library */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getPerson: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Person id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The person */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PersonDetailDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such person */
             404: {
                 headers: {
                     [name: string]: unknown;

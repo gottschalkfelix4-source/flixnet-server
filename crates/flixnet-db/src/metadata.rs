@@ -368,6 +368,34 @@ pub async fn credits(db: &Db, item_id: i64) -> Result<Vec<Credit>> {
     Ok(rows)
 }
 
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
+pub struct Person {
+    pub id: i64,
+    pub name: String,
+    pub tmdb_id: Option<i64>,
+    pub image_url: Option<String>,
+}
+
+pub async fn person(db: &Db, id: i64) -> Result<Option<Person>> {
+    let row = sqlx::query_as("SELECT id, name, tmdb_id, image_url FROM people WHERE id = ?")
+        .bind(id)
+        .fetch_optional(db.reader())
+        .await?;
+    Ok(row)
+}
+
+/// A person's credits: (item id, role, character), newest items first.
+pub async fn person_credits(db: &Db, person_id: i64) -> Result<Vec<(i64, String, Option<String>)>> {
+    let rows = sqlx::query_as(
+        "SELECT c.item_id, c.role, c.character FROM credits c JOIN items i ON i.id = c.item_id
+         WHERE c.person_id = ? ORDER BY i.year DESC, i.sort_title",
+    )
+    .bind(person_id)
+    .fetch_all(db.reader())
+    .await?;
+    Ok(rows)
+}
+
 // ---- Images ----------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Default, PartialEq)]

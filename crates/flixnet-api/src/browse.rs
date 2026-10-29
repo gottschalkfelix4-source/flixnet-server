@@ -25,6 +25,77 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(list_genres))
         .routes(routes!(mark_played, mark_unplayed))
         .routes(routes!(add_favorite, remove_favorite))
+        .routes(routes!(get_person))
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PersonCreditDto {
+    pub item: ItemCardDto,
+    pub role: String,
+    pub character: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct PersonDetailDto {
+    pub id: i64,
+    pub name: String,
+    pub image_url: Option<String>,
+    pub tmdb_id: Option<i64>,
+    /// Everything in the visible libraries this person worked on.
+    pub credits: Vec<PersonCreditDto>,
+}
+
+/// A person and their movies/series in the library.
+#[utoipa::path(
+    get,
+    path = "/people/{id}",
+    operation_id = "getPerson",
+    tag = "items",
+    params(("id" = i64, Path, description = "Person id")),
+    responses(
+        (status = OK, description = "The person", body = PersonDetailDto),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = NOT_FOUND, description = "No such person", body = ErrorBody),
+    )
+)]
+async fn get_person(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<Json<PersonDetailDto>> {
+    let person = metadata::person(&state.db, id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("Person nicht gefunden."))?;
+    let library_ids = visible_libraries(&state, &user, None).await?;
+    let mut credits = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for (item_id, role, character) in metadata::person_credits(&state.db, id).await? {
+        // One entry per item (an actor-director appears once, as actor first).
+        if !seen.insert(item_id)
+            || !browse::is_visible(&state.db, item_id, &library_ids, user.max_age_rating).await?
+        {
+            continue;
+        }
+        if let Some(summary) = browse::summaries(&state.db, &[item_id], Some(user.user_id))
+            .await?
+            .pop()
+        {
+            credits.push(PersonCreditDto {
+                item: card(&state, summary),
+                role,
+                character,
+            });
+        }
+    }
+    Ok(Json(PersonDetailDto {
+        id: person.id,
+        name: person.name,
+        image_url: person
+            .image_url
+            .map(|u| u.replace("/t/p/original/", "/t/p/w342/")),
+        tmdb_id: person.tmdb_id,
+        credits,
+    }))
 }
 
 async fn ensure_visible(state: &AppState, user: &AuthUser, id: i64) -> ApiResult<()> {

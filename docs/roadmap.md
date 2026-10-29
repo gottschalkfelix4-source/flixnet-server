@@ -30,7 +30,8 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 2.6 Items-API (Filter-DSL, Sortierung, Paging, A–Z, FTS5) – *fertig wenn* p95 < 50 ms bei 50k Items → gemessen p95 ≈ 10–13 ms (Test `p95_under_50ms_on_50k_items`); Altersgrenze (unbewertet = verborgen, Folgen erben von der Serie) und Bibliotheksrechte überall; Detail-API mit Personen, Artwork, Dateien/Streams/Kapiteln
   - Offen: Personenbilder kommen noch direkt von TMDB (später über den Bild-Cache)
 - [x] 2.7 Watcher, Rename-Erkennung – *fertig wenn* Watch-State nach Rename erhalten bleibt (Test `watch_state_survives_renames_moves_and_matching`); stabile Identität (Provider-ID bzw. Content-Key, Folgen erben von der Serie), Verschiebe-Erkennung über Größe+mtime, notify-Watcher mit Debounce, Gesehen/Favoriten-API und -Filter
-- [ ] 2.8 TVDB, fanart.tv, Personen/Credits
+- [x] 2.8 fanart.tv (HD-Logos, Banner, Hintergründe; optionaler Schlüssel), Personen/Credits inkl. Personen-API mit Filmografie
+  - TVDB v4 verschoben nach Phase 9 (braucht kostenpflichtiges Abo/PIN; TMDB deckt Serien ab, TVDB bringt v. a. alternative Anime-Reihenfolgen)
 
 ## Phase 3 – Browsing-UI
 - [ ] 3.1 Home (Hero, Reihen), Bibliotheks-Grid, Detailseiten, Suche

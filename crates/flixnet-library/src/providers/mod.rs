@@ -1,5 +1,6 @@
 //! Online metadata providers: matching items to provider entries and applying data.
 
+pub mod fanart;
 pub mod tmdb;
 
 use flixnet_db::metadata::{self, Authority, CreditInput, ItemFields, NewImage};
@@ -8,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::nfo::age_from_certification;
 use crate::scan::{normalize_key, sort_title};
+pub use fanart::Fanart;
 pub use tmdb::{Tmdb, TmdbConfig, TmdbError};
 
 /// Admin-editable provider settings (stored as JSON setting `metadata`).
@@ -15,6 +17,8 @@ pub use tmdb::{Tmdb, TmdbConfig, TmdbError};
 #[serde(default)]
 pub struct MetadataSettings {
     pub tmdb_api_key: Option<String>,
+    /// Optional: fanart.tv for curated logos, clear art and banners.
+    pub fanart_api_key: Option<String>,
     /// Metadata language, e.g. `de-DE`.
     pub language: Option<String>,
     /// Country for age ratings, e.g. `DE`.
@@ -43,6 +47,45 @@ pub async fn tmdb_from_settings(db: &Db) -> anyhow::Result<Option<Tmdb>> {
             }
             Tmdb::new(config, db.clone())
         }))
+}
+
+/// A fanart.tv client if an API key is configured.
+pub async fn fanart_from_settings(db: &Db) -> anyhow::Result<Option<Fanart>> {
+    let settings = load_settings(db).await?;
+    let language = settings
+        .language
+        .clone()
+        .unwrap_or_else(|| "de-DE".to_owned());
+    Ok(settings
+        .fanart_api_key
+        .filter(|k| !k.trim().is_empty())
+        .map(|key| Fanart::new(key.trim(), &language, db.clone())))
+}
+
+/// Adds fanart.tv artwork to a matched movie (by TMDB id) or series (by TVDB id).
+pub async fn apply_fanart(db: &Db, fanart: &Fanart, item_id: i64) -> anyhow::Result<usize> {
+    let Some(item) = items::get(db, item_id).await? else {
+        return Ok(0);
+    };
+    let ids = items::provider_ids(db, item_id).await?;
+    let id_of = |p: &str| {
+        ids.iter()
+            .find(|(provider, _)| provider == p)
+            .and_then(|(_, v)| v.parse::<i64>().ok())
+    };
+    let images = match item.kind.as_str() {
+        "movie" => match id_of("tmdb") {
+            Some(id) => fanart.movie_images(id).await?,
+            None => return Ok(0),
+        },
+        "series" => match id_of("tvdb") {
+            Some(id) => fanart.series_images(id).await?,
+            None => return Ok(0),
+        },
+        _ => return Ok(0),
+    };
+    metadata::replace_images(db, item_id, "fanart", &images).await?;
+    Ok(images.len())
 }
 
 // ---- Matching -------------------------------------------------------------------------

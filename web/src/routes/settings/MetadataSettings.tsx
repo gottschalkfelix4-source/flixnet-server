@@ -21,6 +21,52 @@ const COUNTRIES = [
   { value: 'GB', label: 'Großbritannien (BBFC)' },
 ]
 
+function FanartSection({ hasKey }: { hasKey: boolean }) {
+  const update = useUpdateMetadataSettings()
+  const [key, setKey] = useState('')
+
+  return (
+    <Section
+      title="fanart.tv (optional)"
+      description="Liefert besonders schöne Titel-Logos, Banner und Hintergründe. Benötigt einen kostenlosen persönlichen Schlüssel."
+    >
+      <form
+        onSubmit={(e: FormEvent) => {
+          e.preventDefault()
+          update.mutate({ fanart_api_key: key.trim() }, { onSuccess: () => setKey('') })
+        }}
+        className="flex max-w-xl flex-wrap items-end gap-3"
+      >
+        <TextField
+          className="min-w-64 flex-1"
+          label={hasKey ? 'Neuer Schlüssel (gespeichert)' : 'Persönlicher API-Schlüssel'}
+          type="password"
+          autoComplete="off"
+          value={key}
+          onChange={(e) => setKey(e.target.value)}
+        />
+        <Button type="submit" loading={update.isPending && !!key} disabled={!key.trim()}>
+          Speichern
+        </Button>
+        {hasKey && (
+          <Button type="button" variant="ghost" onClick={() => update.mutate({ fanart_api_key: null })}>
+            Entfernen
+          </Button>
+        )}
+      </form>
+      <a
+        href="https://fanart.tv/get-an-api-key/"
+        target="_blank"
+        rel="noreferrer"
+        className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:text-accent-hover"
+      >
+        Schlüssel bei fanart.tv holen
+        <ExternalLink className="size-3.5" aria-hidden="true" />
+      </a>
+    </Section>
+  )
+}
+
 export function MetadataSettings() {
   const settings = useMetadataSettings()
   const update = useUpdateMetadataSettings()
@@ -91,6 +137,8 @@ export function MetadataSettings() {
           <ExternalLink className="size-3.5" aria-hidden="true" />
         </a>
       </Section>
+
+      <FanartSection hasKey={settings.data.has_fanart_api_key} />
 
       <Section title="Sprache & Region">
         <div className="grid max-w-xl gap-4 md:grid-cols-2">
