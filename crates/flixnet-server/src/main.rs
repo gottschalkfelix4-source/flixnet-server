@@ -11,6 +11,7 @@ use flixnet_core::maintenance;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use flixnet_library::jobs as library_jobs;
+use flixnet_livetv::jobs as livetv_jobs;
 use flixnet_media::hardware::{HardwareMode, HardwareOptions};
 use flixnet_media::transcode::{TranscodeManager, TranscodeSettings};
 use tokio_util::sync::CancellationToken;
@@ -114,13 +115,21 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .register(library_jobs::ScanLibrary)
         .register(library_jobs::ScanAllLibraries)
         .register(library_jobs::RefreshMetadata)
-        .register(library_jobs::ProbeFile { ffprobe });
+        .register(library_jobs::ProbeFile { ffprobe })
+        .register(livetv_jobs::ImportChannels {
+            http: flixnet_livetv::http::client(),
+        })
+        .register(livetv_jobs::RefreshGuide {
+            http: flixnet_livetv::http::client(),
+            cache_dir: config.paths.config_dir.join("cache").join("epg"),
+        });
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
     let tasks = TaskRegistry::new(
         maintenance::tasks()
             .into_iter()
             .chain(library_jobs::tasks())
+            .chain(livetv_jobs::tasks())
             .collect(),
     );
     let stop_scheduler = CancellationToken::new();
@@ -160,6 +169,13 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         async move { transcoder.detect_hardware(options).await }
     });
 
+    let livetv = flixnet_livetv::LiveTvManager::new(
+        &config.media.ffmpeg,
+        &config.media.ffprobe,
+        config.paths.transcode_dir().join("live"),
+        flixnet_livetv::LiveSettings::default(),
+    );
+
     let services = Services {
         events,
         jobs,
@@ -178,6 +194,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             Duration::from_secs(600),
             2,
         ),
+        livetv: livetv.clone(),
     };
     let app = flixnet_api::router(AppState::new(config, db.clone(), services))
         .fallback_service(web::router());
@@ -192,6 +209,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .await?;
 
     transcoder.stop_all().await;
+    livetv.stop_all().await;
     stop_scheduler.cancel();
     let _ = scheduler.await;
     running_jobs.shutdown(Duration::from_secs(10)).await;

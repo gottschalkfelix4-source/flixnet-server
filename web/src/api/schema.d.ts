@@ -628,6 +628,353 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/livetv/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Channels in guide order, with what is on now and next. */
+        get: operations["listChannels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/channels/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runs the automatic matcher over all channels without a manual assignment. */
+        post: operations["rematchChannels"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/channels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Shows or hides a channel (administrators). */
+        patch: operations["updateChannel"];
+        trace?: never;
+    };
+    "/api/v1/livetv/channels/{id}/epg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Assigns a guide channel by hand, or hands the channel back to the matcher. */
+        put: operations["setChannelEpg"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/channels/{id}/watch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Starts watching a channel: joins its running stream or starts one (if a tuner is
+         *     free) and answers once the first segments exist.
+         */
+        post: operations["watchChannel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/epg-channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guide channels of the enabled sources, for assigning them by hand (administrators). */
+        get: operations["listEpgChannels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/epg-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guide sources (administrators). */
+        get: operations["listEpgSources"];
+        put?: never;
+        /** Adds an XMLTV guide source and loads it in the background. */
+        post: operations["createEpgSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/epg-sources/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes a guide source with its programs. */
+        delete: operations["deleteEpgSource"];
+        options?: never;
+        head?: never;
+        /** Changes a guide source; a new address reloads it. */
+        patch: operations["updateEpgSource"];
+        trace?: never;
+    };
+    "/api/v1/livetv/epg-sources/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reloads a guide source now (background job). */
+        post: operations["refreshEpgSource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/guide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Programs of a page of channels within a time window (for the guide grid). */
+        get: operations["getGuide"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/programs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Searches programs that have not ended yet, soonest first. */
+        get: operations["searchPrograms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/programs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One program. */
+        get: operations["getProgram"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/sessions/{session}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Ends a viewer session (the player closed); the stream stops with its last viewer. */
+        delete: operations["stopLiveSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/sessions/{session}/live.m3u8": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The live HLS playlist of a viewer session (rolling window). */
+        get: operations["getLivePlaylist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/sessions/{session}/{segment}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One MPEG-TS segment (`seg{n}.ts`) of a viewer session. */
+        get: operations["getLiveSegment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/streams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Running live streams with their viewers (administrators). */
+        get: operations["listLiveStreams"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/tuners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Configured tuners (administrators). */
+        get: operations["listTuners"];
+        put?: never;
+        /** Adds a tuner and imports its channels in the background. */
+        post: operations["createTuner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/tuners/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finds HDHomeRun devices: UDP broadcast in the local network, or one address. */
+        post: operations["discoverTuners"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/tuners/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes a tuner with its channels. */
+        delete: operations["deleteTuner"];
+        options?: never;
+        head?: never;
+        /** Changes a tuner; a changed address or account re-imports its channels. */
+        patch: operations["updateTuner"];
+        trace?: never;
+    };
+    "/api/v1/livetv/tuners/{id}/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-imports a tuner's channels (background job). */
+        post: operations["importTunerChannels"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/people/{id}": {
         parameters: {
             query?: never;
@@ -1323,6 +1670,36 @@ export interface components {
             current_password: string;
             new_password: string;
         };
+        ChannelDto: {
+            enabled: boolean;
+            epg?: components["schemas"]["ChannelEpgDto"] | null;
+            /** @description An administrator decided this channel has no guide. */
+            epg_disabled: boolean;
+            group?: string | null;
+            /** Format: int64 */
+            id: number;
+            is_hd: boolean;
+            logo_url?: string | null;
+            name: string;
+            next?: components["schemas"]["ProgramDto"] | null;
+            now?: components["schemas"]["ProgramDto"] | null;
+            number?: string | null;
+            /** Format: int64 */
+            tuner_id: number;
+            /** @description `tvg-id` from the playlist (administrators). */
+            tvg_id?: string | null;
+        };
+        ChannelEpgDto: {
+            epg_channel_id: string;
+            /** Format: int64 */
+            epg_source_id: number;
+            kind: components["schemas"]["EpgMatchKind"];
+            /**
+             * Format: double
+             * @description Matcher confidence (0–1) for automatic matches.
+             */
+            score?: number | null;
+        };
         ChapterDto: {
             /** Format: int64 */
             end_ms: number;
@@ -1371,6 +1748,11 @@ export interface components {
             name: string;
             overview?: string | null;
         };
+        CreateEpgSourceRequest: {
+            name: string;
+            /** @description XMLTV URL (http/https) or absolute file path; `.gz` files are unpacked. */
+            url: string;
+        };
         CreateInvitationRequest: {
             /**
              * Format: int64
@@ -1395,6 +1777,26 @@ export interface components {
             name: string;
             shared?: boolean;
             smart_filter?: components["schemas"]["SmartFilterDto"] | null;
+        };
+        CreateTunerRequest: {
+            kind: components["schemas"]["TunerKindDto"];
+            name: string;
+            /** @description Xtream Codes only. */
+            password?: string | null;
+            /**
+             * Format: int64
+             * @description Streams that may run at once; omit to use what the source reports.
+             */
+            tuner_count?: number | null;
+            /**
+             * @description M3U: playlist URL or absolute file path; Xtream: server URL; HDHomeRun: IP
+             *     address or URL of the device.
+             */
+            url: string;
+            /** @description Sent when fetching the playlist and streams (some providers require one). */
+            user_agent?: string | null;
+            /** @description Xtream Codes only. */
+            username?: string | null;
         };
         CreateUserRequest: {
             is_admin?: boolean;
@@ -1478,6 +1880,21 @@ export interface components {
             /** @description The listed folder (`null` for the roots). */
             path?: string | null;
         };
+        DiscoverRequest: {
+            /** @description Ask one device directly (IP address or URL) instead of broadcasting. */
+            address?: string | null;
+        };
+        DiscoveredTunerDto: {
+            /** @description A tuner with this device id is already set up. */
+            configured: boolean;
+            device_id: string;
+            model?: string | null;
+            name?: string | null;
+            /** Format: int64 */
+            tuner_count?: number | null;
+            /** @description Address to add the device with. */
+            url: string;
+        };
         /**
          * @description Which encoder a session runs.
          * @enum {string}
@@ -1508,6 +1925,33 @@ export interface components {
             /** @description Why GPU tone mapping does not work. */
             tonemap_error?: string | null;
         };
+        /** @enum {string} */
+        EpgAssignmentMode: "auto" | "manual" | "none";
+        EpgChannelDto: {
+            /** @description XMLTV channel id. */
+            channel_id: string;
+            /** Format: int64 */
+            epg_source_id: number;
+            icon_url?: string | null;
+            names: string[];
+        };
+        /** @enum {string} */
+        EpgMatchKind: "auto" | "manual";
+        EpgSourceDto: {
+            /** Format: int64 */
+            channel_count: number;
+            enabled: boolean;
+            /** Format: int64 */
+            id: number;
+            last_error?: string | null;
+            /** Format: int64 */
+            last_refresh_at?: number | null;
+            name: string;
+            /** Format: int64 */
+            program_count: number;
+            /** @description XMLTV URL or file path (gzip allowed). */
+            url: string;
+        };
         /** @description Error body returned by every failing API call. */
         ErrorBody: {
             /**
@@ -1525,6 +1969,26 @@ export interface components {
             /** Format: int64 */
             count: number;
             name: string;
+        };
+        GuideDto: {
+            /** Format: int64 */
+            end_ms: number;
+            /** Format: int64 */
+            offset: number;
+            /** @description One row per channel of this page, in guide order (same as `listChannels`). */
+            rows: components["schemas"]["GuideRowDto"][];
+            /** Format: int64 */
+            start_ms: number;
+            /**
+             * Format: int64
+             * @description Channels in the guide (all pages).
+             */
+            total: number;
+        };
+        GuideRowDto: {
+            /** Format: int64 */
+            channel_id: number;
+            programs: components["schemas"]["ProgramDto"][];
         };
         /**
          * @description `media.hardware_acceleration`.
@@ -1657,6 +2121,13 @@ export interface components {
             started_at?: number | null;
             state: string;
         };
+        JobQueuedDto: {
+            /**
+             * Format: int64
+             * @description Id of the queued job (`null` when the same job is already waiting).
+             */
+            job_id?: number | null;
+        };
         LetterDto: {
             /** Format: int64 */
             count: number;
@@ -1703,6 +2174,32 @@ export interface components {
         };
         /** @enum {string} */
         LibraryKind: "movies" | "shows";
+        LiveSessionDto: {
+            /** Format: int64 */
+            channel_id: number;
+            /** @description Copy or transcode, with the reasons. */
+            plan: components["schemas"]["PlaybackPlan"];
+            /** @description Live HLS playlist (the session id is the capability). */
+            playlist_url: string;
+            /** @description Viewer session; end it with `stopLiveSession`. */
+            session_id: string;
+            /** @description Joined a stream someone else started (no extra tuner used). */
+            shared: boolean;
+        };
+        LiveStreamDto: {
+            audio_copied: boolean;
+            /** Format: int64 */
+            channel_id: number;
+            channel_name?: string | null;
+            id: string;
+            /** Format: int64 */
+            started_at: number;
+            /** Format: int64 */
+            tuner_id: number;
+            video_copied: boolean;
+            /** @description User ids of the viewers (one entry per player). */
+            viewers: number[];
+        };
         MediaFileDto: {
             audio: components["schemas"]["AudioStreamDto"][];
             /** Format: int64 */
@@ -1925,11 +2422,43 @@ export interface components {
             name: string;
             unlock: components["schemas"]["Unlock"];
         };
+        ProgramDto: {
+            categories: string[];
+            /** Format: int64 */
+            channel_id: number;
+            description?: string | null;
+            /** Format: int64 */
+            end_ms: number;
+            /** Format: int64 */
+            episode?: number | null;
+            /** @description `S01E05` or as the guide writes it. */
+            episode_label?: string | null;
+            icon_url?: string | null;
+            /** Format: int64 */
+            id: number;
+            is_new: boolean;
+            rating?: string | null;
+            /** Format: int64 */
+            season?: number | null;
+            /** Format: int64 */
+            start_ms: number;
+            subtitle?: string | null;
+            title: string;
+            /** Format: int64 */
+            year?: number | null;
+        };
         /**
          * @description Why the file cannot simply be played as-is.
          * @enum {string}
          */
         Reason: "container_not_supported" | "video_codec_not_supported" | "video_resolution_not_supported" | "video_bit_depth_not_supported" | "video_range_not_supported" | "bitrate_too_high" | "audio_codec_not_supported" | "audio_channels_not_supported" | "audio_track_not_default" | "subtitle_burn_in";
+        RematchDto: {
+            /**
+             * Format: int64
+             * @description Channels that have a guide now.
+             */
+            matched: number;
+        };
         ScanQueued: {
             /**
              * Format: int64
@@ -1942,6 +2471,16 @@ export interface components {
             /** @description Send as `Authorization: Bearer <token>`. Valid until logout or re-login on this device. */
             token: string;
             user: components["schemas"]["UserDto"];
+        };
+        SetChannelEpgRequest: {
+            /** @description For `manual`: the XMLTV channel id. */
+            epg_channel_id?: string | null;
+            /**
+             * Format: int64
+             * @description For `manual`.
+             */
+            epg_source_id?: number | null;
+            mode: components["schemas"]["EpgAssignmentMode"];
         };
         SetPinRequest: {
             /** @description 4–8 digits, or `null` to remove the PIN. */
@@ -2144,15 +2683,57 @@ export interface components {
             /** @description How HDR is tone-mapped to SDR. */
             tonemap: components["schemas"]["Tonemap"];
         };
+        TunerDto: {
+            /** Format: int64 */
+            channel_count: number;
+            device_id?: string | null;
+            enabled: boolean;
+            /** @description Whether a password is stored (it is never returned). */
+            has_password: boolean;
+            /** Format: int64 */
+            id: number;
+            kind: components["schemas"]["TunerKindDto"];
+            last_error?: string | null;
+            /** Format: int64 */
+            last_import_at?: number | null;
+            name: string;
+            /**
+             * Format: int64
+             * @description Streams that may run at once (0 = unlimited).
+             */
+            tuner_count: number;
+            /** @description The count was set by an administrator (else it comes from the source). */
+            tuner_count_manual: boolean;
+            /**
+             * Format: int64
+             * @description Streams running right now.
+             */
+            tuners_in_use: number;
+            /** @description Playlist URL/path, server URL or device address. */
+            url: string;
+            user_agent?: string | null;
+            username?: string | null;
+        };
+        /** @enum {string} */
+        TunerKindDto: "m3u" | "xtream" | "hdhomerun";
         /**
          * @description What switching to a profile requires.
          * @enum {string}
          */
         Unlock: "none" | "pin" | "password";
+        UpdateChannelRequest: {
+            /** @description Hidden channels appear neither in the channel list nor in the guide. */
+            enabled?: boolean | null;
+        };
         UpdateCollectionRequest: {
             name?: string | null;
             /** @description `null` clears the description. */
             overview?: string | null;
+        };
+        UpdateEpgSourceRequest: {
+            enabled?: boolean | null;
+            name?: string | null;
+            url?: string | null;
         };
         UpdateLibraryRequest: {
             name?: string | null;
@@ -2178,6 +2759,20 @@ export interface components {
              * @description New interval (1 minute to 30 days).
              */
             interval_ms?: number | null;
+        };
+        UpdateTunerRequest: {
+            enabled?: boolean | null;
+            name?: string | null;
+            /** @description A new password; `null` removes it, omitted keeps it. */
+            password?: string | null;
+            /**
+             * Format: int64
+             * @description `null` hands the tuner count back to the source.
+             */
+            tuner_count?: number | null;
+            url?: string | null;
+            user_agent?: string | null;
+            username?: string | null;
         };
         /** @description Every field is optional; `null` clears nullable fields (password, PIN, age limit). */
         UpdateUserRequest: {
@@ -2253,6 +2848,10 @@ export interface components {
             profile?: string | null;
             /** Format: int64 */
             width?: number | null;
+        };
+        WatchChannelRequest: {
+            /** @description What the client plays; copied streams need its support for the codecs. */
+            device_profile: components["schemas"]["DeviceProfile"];
         };
     };
     responses: never;
@@ -4388,6 +4987,1135 @@ export interface operations {
                 };
             };
             /** @description No such library */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listChannels: {
+        parameters: {
+            query?: {
+                /** @description Also list disabled channels (administrators). */
+                include_disabled?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Channels */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    rematchChannels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching done */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RematchDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Channel id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateChannelRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown channel */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    setChannelEpg: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Channel id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetChannelEpgRequest"];
+            };
+        };
+        responses: {
+            /** @description The channel with its guide assignment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown channel */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown guide channel */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    watchChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Channel id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchChannelRequest"];
+            };
+        };
+        responses: {
+            /** @description Live session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveSessionDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown or hidden channel */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The channel cannot be received */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description All tuners are in use */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The stream did not start in time */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listEpgChannels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Guide channels */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EpgChannelDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listEpgSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Guide sources */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EpgSourceDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createEpgSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEpgSourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Source added; refresh queued */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EpgSourceDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deleteEpgSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Guide source id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown source */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateEpgSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Guide source id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEpgSourceRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated source */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EpgSourceDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown source */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    refreshEpgSource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Guide source id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Refresh queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobQueuedDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown source */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getGuide: {
+        parameters: {
+            query: {
+                /** @description Window start (unix ms). */
+                start_ms: number;
+                /** @description Window end (unix ms); at most 48 h after the start. */
+                end_ms: number;
+                /** @description First channel (in guide order). */
+                offset?: number;
+                /** @description Channels per page (1–200, default 50). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Guide rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuideDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid window */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    searchPrograms: {
+        parameters: {
+            query: {
+                /** @description Words in title, episode title or description. */
+                q: string;
+                /** @description Most results (1–100, default 30). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching programs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgramDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getProgram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Program id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The program */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProgramDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown program */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    stopLiveSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id from watchChannel */
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stopped (or already gone) */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Someone else's session */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getLivePlaylist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id from watchChannel */
+                session: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description HLS playlist */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.apple.mpegurl": string;
+                };
+            };
+            /** @description Unknown or expired session */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The stream ended */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getLiveSegment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id from watchChannel */
+                session: string;
+                /** @description Segment file name, e.g. `seg12.ts` */
+                segment: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Media segment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp2t": unknown;
+                };
+            };
+            /** @description Unknown session */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Segment no longer available */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listLiveStreams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Running streams */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveStreamDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listTuners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tuners */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TunerDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createTuner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTunerRequest"];
+            };
+        };
+        responses: {
+            /** @description Tuner added; channel import queued */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TunerDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    discoverTuners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DiscoverRequest"];
+            };
+        };
+        responses: {
+            /** @description Devices found (possibly none) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveredTunerDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The address answered no HDHomeRun request */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deleteTuner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tuner id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown tuner */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateTuner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tuner id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTunerRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated tuner */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TunerDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown tuner */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    importTunerChannels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Tuner id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobQueuedDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown tuner */
             404: {
                 headers: {
                     [name: string]: unknown;

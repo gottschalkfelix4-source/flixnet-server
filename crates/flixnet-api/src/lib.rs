@@ -32,6 +32,7 @@ mod items;
 mod jobs;
 mod libraries;
 pub mod limiter;
+mod livetv;
 mod playback;
 mod playlists;
 mod playstate;
@@ -64,6 +65,8 @@ pub struct AppState {
     pub subtitles: SubtitleCache,
     /// Active playback sessions (dashboard, resume bookkeeping).
     pub playback: active_sessions::ActiveSessions,
+    /// Live TV streams (shared per channel).
+    pub livetv: flixnet_livetv::LiveTvManager,
 }
 
 /// Long-lived services the API talks to.
@@ -80,6 +83,8 @@ pub struct Services {
     pub ffprobe: Ffprobe,
     /// WebVTT conversions of text subtitles (`<config_dir>/cache/subtitles`).
     pub subtitles: SubtitleCache,
+    /// Live TV streams (`<transcode_dir>/live`).
+    pub livetv: flixnet_livetv::LiveTvManager,
 }
 
 impl AppState {
@@ -99,6 +104,7 @@ impl AppState {
             transcoder: services.transcoder,
             ffprobe: services.ffprobe,
             subtitles: services.subtitles,
+            livetv: services.livetv,
             playback,
         }
     }
@@ -126,6 +132,7 @@ impl AppState {
         (name = "collections", description = "Movie collections (automatic from TMDB and manual)"),
         (name = "playlists", description = "Personal and smart playlists"),
         (name = "settings", description = "Server settings (administrators)"),
+        (name = "livetv", description = "Live TV: tuners, channels, guide and live playback"),
     )
 )]
 struct ApiDoc;
@@ -173,6 +180,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, transcode::router())
         .nest(API_PREFIX, tracks::router())
         .nest(API_PREFIX, settings::router())
+        .nest(API_PREFIX, livetv::router())
         .split_for_parts()
 }
 

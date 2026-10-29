@@ -8,6 +8,7 @@ publish.workspace = true
 flixnet-core.workspace = true
 flixnet-db.workspace = true
 flixnet-library.workspace = true
+flixnet-livetv.workspace = true
 flixnet-media.workspace = true
 
 axum.workspace = true
@@ -24,9 +25,11 @@ utoipa-axum.workspace = true
 utoipa-scalar.workspace = true
 
 [dev-dependencies]
+flate2.workspace = true
 http-body-util.workspace = true
 image.workspace = true
 tempfile.workspace = true
+tokio-util = { workspace = true, features = ["io"] }
 tower.workspace = true
 wiremock.workspace = true
 

@@ -2958,6 +2958,1443 @@
         }
       }
     },
+    "/api/v1/livetv/channels": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Channels in guide order, with what is on now and next.",
+        "operationId": "listChannels",
+        "parameters": [
+          {
+            "name": "include_disabled",
+            "in": "query",
+            "description": "Also list disabled channels (administrators).",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Channels",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChannelDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/channels/match": {
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Runs the automatic matcher over all channels without a manual assignment.",
+        "operationId": "rematchChannels",
+        "responses": {
+          "200": {
+            "description": "Matching done",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RematchDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/channels/{id}": {
+      "patch": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Shows or hides a channel (administrators).",
+        "operationId": "updateChannel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Channel id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateChannelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Updated"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/channels/{id}/epg": {
+      "put": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Assigns a guide channel by hand, or hands the channel back to the matcher.",
+        "operationId": "setChannelEpg",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Channel id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetChannelEpgRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The channel with its guide assignment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown guide channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/channels/{id}/watch": {
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Starts watching a channel: joins its running stream or starts one (if a tuner is\nfree) and answers once the first segments exist.",
+        "operationId": "watchChannel",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Channel id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WatchChannelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Live session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveSessionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or hidden channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The channel cannot be received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "All tuners are in use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The stream did not start in time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/epg-channels": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Guide channels of the enabled sources, for assigning them by hand (administrators).",
+        "operationId": "listEpgChannels",
+        "responses": {
+          "200": {
+            "description": "Guide channels",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EpgChannelDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/epg-sources": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Guide sources (administrators).",
+        "operationId": "listEpgSources",
+        "responses": {
+          "200": {
+            "description": "Guide sources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EpgSourceDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Adds an XMLTV guide source and loads it in the background.",
+        "operationId": "createEpgSource",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEpgSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Source added; refresh queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EpgSourceDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/epg-sources/{id}": {
+      "delete": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Removes a guide source with its programs.",
+        "operationId": "deleteEpgSource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Guide source id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Changes a guide source; a new address reloads it.",
+        "operationId": "updateEpgSource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Guide source id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEpgSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EpgSourceDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/epg-sources/{id}/refresh": {
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Reloads a guide source now (background job).",
+        "operationId": "refreshEpgSource",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Guide source id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Refresh queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueuedDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown source",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/guide": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Programs of a page of channels within a time window (for the guide grid).",
+        "operationId": "getGuide",
+        "parameters": [
+          {
+            "name": "start_ms",
+            "in": "query",
+            "description": "Window start (unix ms).",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "description": "Window end (unix ms); at most 48 h after the start.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "First channel (in guide order).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Channels per page (1–200, default 50).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Guide rows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid window",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/programs": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Searches programs that have not ended yet, soonest first.",
+        "operationId": "searchPrograms",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Words in title, episode title or description.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Most results (1–100, default 30).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching programs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProgramDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/programs/{id}": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "One program.",
+        "operationId": "getProgram",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Program id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The program",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgramDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown program",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/sessions/{session}": {
+      "delete": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Ends a viewer session (the player closed); the stream stops with its last viewer.",
+        "operationId": "stopLiveSession",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "description": "Session id from watchChannel",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Stopped (or already gone)"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Someone else's session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/sessions/{session}/live.m3u8": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "The live HLS playlist of a viewer session (rolling window).",
+        "operationId": "getLivePlaylist",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "description": "Session id from watchChannel",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HLS playlist",
+            "content": {
+              "application/vnd.apple.mpegurl": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or expired session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "The stream ended",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/livetv/sessions/{session}/{segment}": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "One MPEG-TS segment (`seg{n}.ts`) of a viewer session.",
+        "operationId": "getLiveSegment",
+        "parameters": [
+          {
+            "name": "session",
+            "in": "path",
+            "description": "Session id from watchChannel",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "segment",
+            "in": "path",
+            "description": "Segment file name, e.g. `seg12.ts`",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Media segment",
+            "content": {
+              "video/mp2t": {}
+            }
+          },
+          "404": {
+            "description": "Unknown session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Segment no longer available",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/livetv/streams": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Running live streams with their viewers (administrators).",
+        "operationId": "listLiveStreams",
+        "responses": {
+          "200": {
+            "description": "Running streams",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LiveStreamDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/tuners": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Configured tuners (administrators).",
+        "operationId": "listTuners",
+        "responses": {
+          "200": {
+            "description": "Tuners",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TunerDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Adds a tuner and imports its channels in the background.",
+        "operationId": "createTuner",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTunerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Tuner added; channel import queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TunerDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/tuners/discover": {
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Finds HDHomeRun devices: UDP broadcast in the local network, or one address.",
+        "operationId": "discoverTuners",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Devices found (possibly none)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DiscoveredTunerDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The address answered no HDHomeRun request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/tuners/{id}": {
+      "delete": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Removes a tuner with its channels.",
+        "operationId": "deleteTuner",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Tuner id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown tuner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Changes a tuner; a changed address or account re-imports its channels.",
+        "operationId": "updateTuner",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Tuner id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTunerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated tuner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TunerDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown tuner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/tuners/{id}/import": {
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Re-imports a tuner's channels (background job).",
+        "operationId": "importTunerChannels",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Tuner id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Import queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobQueuedDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown tuner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/people/{id}": {
       "get": {
         "tags": [
@@ -5621,6 +7058,125 @@
           }
         }
       },
+      "ChannelDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "tuner_id",
+          "name",
+          "is_hd",
+          "enabled",
+          "epg_disabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "epg": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChannelEpgDto",
+                "description": "The guide channel this channel shows (`null`: no guide)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "epg_disabled": {
+            "type": "boolean",
+            "description": "An administrator decided this channel has no guide."
+          },
+          "group": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "is_hd": {
+            "type": "boolean"
+          },
+          "logo_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "next": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProgramDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "now": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProgramDto",
+                "description": "What is on now and next."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tuner_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tvg_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`tvg-id` from the playlist (administrators)."
+          }
+        }
+      },
+      "ChannelEpgDto": {
+        "type": "object",
+        "required": [
+          "epg_source_id",
+          "epg_channel_id",
+          "kind"
+        ],
+        "properties": {
+          "epg_channel_id": {
+            "type": "string"
+          },
+          "epg_source_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EpgMatchKind"
+          },
+          "score": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Matcher confidence (0–1) for automatic matches."
+          }
+        }
+      },
       "ChapterDto": {
         "type": "object",
         "required": [
@@ -5772,6 +7328,22 @@
           }
         }
       },
+      "CreateEpgSourceRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "url"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "XMLTV URL (http/https) or absolute file path; `.gz` files are unpacked."
+          }
+        }
+      },
       "CreateInvitationRequest": {
         "type": "object",
         "properties": {
@@ -5845,6 +7417,55 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "CreateTunerRequest": {
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "url"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/TunerKindDto"
+          },
+          "name": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Xtream Codes only."
+          },
+          "tuner_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Streams that may run at once; omit to use what the source reports."
+          },
+          "url": {
+            "type": "string",
+            "description": "M3U: playlist URL or absolute file path; Xtream: server URL; HDHomeRun: IP\naddress or URL of the device."
+          },
+          "user_agent": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Sent when fetching the playlist and streams (some providers require one)."
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Xtream Codes only."
           }
         }
       },
@@ -6062,6 +7683,58 @@
           }
         }
       },
+      "DiscoverRequest": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Ask one device directly (IP address or URL) instead of broadcasting."
+          }
+        }
+      },
+      "DiscoveredTunerDto": {
+        "type": "object",
+        "required": [
+          "device_id",
+          "url",
+          "configured"
+        ],
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "description": "A tuner with this device id is already set up."
+          },
+          "device_id": {
+            "type": "string"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tuner_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "url": {
+            "type": "string",
+            "description": "Address to add the device with."
+          }
+        }
+      },
       "EncoderKind": {
         "type": "string",
         "description": "Which encoder a session runs.",
@@ -6138,6 +7811,99 @@
           }
         }
       },
+      "EpgAssignmentMode": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "manual",
+          "none"
+        ]
+      },
+      "EpgChannelDto": {
+        "type": "object",
+        "required": [
+          "epg_source_id",
+          "channel_id",
+          "names"
+        ],
+        "properties": {
+          "channel_id": {
+            "type": "string",
+            "description": "XMLTV channel id."
+          },
+          "epg_source_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "icon_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "EpgMatchKind": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "manual"
+        ]
+      },
+      "EpgSourceDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "enabled",
+          "channel_count",
+          "program_count"
+        ],
+        "properties": {
+          "channel_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_refresh_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "program_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "url": {
+            "type": "string",
+            "description": "XMLTV URL or file path (gzip allowed)."
+          }
+        }
+      },
       "ErrorBody": {
         "type": "object",
         "description": "Error body returned by every failing API call.",
@@ -6171,6 +7937,61 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "GuideDto": {
+        "type": "object",
+        "required": [
+          "start_ms",
+          "end_ms",
+          "total",
+          "offset",
+          "rows"
+        ],
+        "properties": {
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuideRowDto"
+            },
+            "description": "One row per channel of this page, in guide order (same as `listChannels`)."
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Channels in the guide (all pages)."
+          }
+        }
+      },
+      "GuideRowDto": {
+        "type": "object",
+        "required": [
+          "channel_id",
+          "programs"
+        ],
+        "properties": {
+          "channel_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "programs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgramDto"
+            }
           }
         }
       },
@@ -6602,6 +8423,19 @@
           }
         }
       },
+      "JobQueuedDto": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Id of the queued job (`null` when the same job is already waiting)."
+          }
+        }
+      },
       "LetterDto": {
         "type": "object",
         "required": [
@@ -6727,6 +8561,87 @@
           "movies",
           "shows"
         ]
+      },
+      "LiveSessionDto": {
+        "type": "object",
+        "required": [
+          "session_id",
+          "playlist_url",
+          "channel_id",
+          "plan",
+          "shared"
+        ],
+        "properties": {
+          "channel_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlaybackPlan",
+            "description": "Copy or transcode, with the reasons."
+          },
+          "playlist_url": {
+            "type": "string",
+            "description": "Live HLS playlist (the session id is the capability)."
+          },
+          "session_id": {
+            "type": "string",
+            "description": "Viewer session; end it with `stopLiveSession`."
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "Joined a stream someone else started (no extra tuner used)."
+          }
+        }
+      },
+      "LiveStreamDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "channel_id",
+          "tuner_id",
+          "started_at",
+          "video_copied",
+          "audio_copied",
+          "viewers"
+        ],
+        "properties": {
+          "audio_copied": {
+            "type": "boolean"
+          },
+          "channel_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "channel_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tuner_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "video_copied": {
+            "type": "boolean"
+          },
+          "viewers": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "User ids of the viewers (one entry per player)."
+          }
+        }
       },
       "MediaFileDto": {
         "type": "object",
@@ -7408,6 +9323,100 @@
           }
         }
       },
+      "ProgramDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "channel_id",
+          "start_ms",
+          "end_ms",
+          "title",
+          "categories",
+          "is_new"
+        ],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "channel_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "episode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "episode_label": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`S01E05` or as the guide writes it."
+          },
+          "icon_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "is_new": {
+            "type": "boolean"
+          },
+          "rating": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "season": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "subtitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "Reason": {
         "type": "string",
         "description": "Why the file cannot simply be played as-is.",
@@ -7423,6 +9432,19 @@
           "audio_track_not_default",
           "subtitle_burn_in"
         ]
+      },
+      "RematchDto": {
+        "type": "object",
+        "required": [
+          "matched"
+        ],
+        "properties": {
+          "matched": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Channels that have a guide now."
+          }
+        }
       },
       "ScanQueued": {
         "type": "object",
@@ -7451,6 +9473,32 @@
           },
           "user": {
             "$ref": "#/components/schemas/UserDto"
+          }
+        }
+      },
+      "SetChannelEpgRequest": {
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "epg_channel_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "For `manual`: the XMLTV channel id."
+          },
+          "epg_source_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "For `manual`."
+          },
+          "mode": {
+            "$ref": "#/components/schemas/EpgAssignmentMode"
           }
         }
       },
@@ -7933,6 +9981,101 @@
           }
         }
       },
+      "TunerDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "url",
+          "has_password",
+          "tuner_count",
+          "tuner_count_manual",
+          "tuners_in_use",
+          "enabled",
+          "channel_count"
+        ],
+        "properties": {
+          "channel_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "device_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "has_password": {
+            "type": "boolean",
+            "description": "Whether a password is stored (it is never returned)."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TunerKindDto"
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_import_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tuner_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Streams that may run at once (0 = unlimited)."
+          },
+          "tuner_count_manual": {
+            "type": "boolean",
+            "description": "The count was set by an administrator (else it comes from the source)."
+          },
+          "tuners_in_use": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Streams running right now."
+          },
+          "url": {
+            "type": "string",
+            "description": "Playlist URL/path, server URL or device address."
+          },
+          "user_agent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "TunerKindDto": {
+        "type": "string",
+        "enum": [
+          "m3u",
+          "xtream",
+          "hdhomerun"
+        ]
+      },
       "Unlock": {
         "type": "string",
         "description": "What switching to a profile requires.",
@@ -7941,6 +10084,18 @@
           "pin",
           "password"
         ]
+      },
+      "UpdateChannelRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Hidden channels appear neither in the channel list nor in the guide."
+          }
+        }
       },
       "UpdateCollectionRequest": {
         "type": "object",
@@ -7957,6 +10112,29 @@
               "null"
             ],
             "description": "`null` clears the description."
+          }
+        }
+      },
+      "UpdateEpgSourceRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -8055,6 +10233,56 @@
             ],
             "format": "int64",
             "description": "New interval (1 minute to 30 days)."
+          }
+        }
+      },
+      "UpdateTunerRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A new password; `null` removes it, omitted keeps it."
+          },
+          "tuner_count": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`null` hands the tuner count back to the source."
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "user_agent": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -8281,6 +10509,18 @@
             "format": "int64"
           }
         }
+      },
+      "WatchChannelRequest": {
+        "type": "object",
+        "required": [
+          "device_profile"
+        ],
+        "properties": {
+          "device_profile": {
+            "$ref": "#/components/schemas/DeviceProfile",
+            "description": "What the client plays; copied streams need its support for the codecs."
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -8348,6 +10588,10 @@
     {
       "name": "settings",
       "description": "Server settings (administrators)"
+    },
+    {
+      "name": "livetv",
+      "description": "Live TV: tuners, channels, guide and live playback"
     }
   ]
 }

@@ -13,6 +13,7 @@ flixnet-api.workspace = true
 flixnet-core.workspace = true
 flixnet-db.workspace = true
 flixnet-library.workspace = true
+flixnet-livetv.workspace = true
 flixnet-media.workspace = true
 
 anyhow.workspace = true
