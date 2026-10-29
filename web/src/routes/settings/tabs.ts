@@ -3,6 +3,7 @@ export type SettingsTab =
   | 'libraries'
   | 'metadata'
   | 'transcoding'
+  | 'livetv'
   | 'users'
   | 'invitations'
   | 'jobs'
@@ -13,6 +14,7 @@ export const SETTINGS_TABS: { id: SettingsTab; label: string; admin: boolean }[]
   { id: 'libraries', label: 'Bibliotheken', admin: true },
   { id: 'metadata', label: 'Metadaten', admin: true },
   { id: 'transcoding', label: 'Transcoding', admin: true },
+  { id: 'livetv', label: 'Live TV', admin: true },
   { id: 'users', label: 'Nutzer', admin: true },
   { id: 'invitations', label: 'Einladungen', admin: true },
   { id: 'jobs', label: 'Aufgaben', admin: true },

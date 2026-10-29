@@ -16,6 +16,8 @@ import { CollectionPage } from '@/routes/CollectionPage'
 import { CollectionsPage } from '@/routes/CollectionsPage'
 import { HomePage } from '@/routes/HomePage'
 import { ItemPage } from '@/routes/ItemPage'
+import { LivePlayerPage } from '@/routes/LivePlayerPage'
+import { LiveTvPage } from '@/routes/LiveTvPage'
 import { PersonPage } from '@/routes/PersonPage'
 import { PlaylistPage } from '@/routes/PlaylistPage'
 import { PlaylistsPage } from '@/routes/PlaylistsPage'
@@ -115,6 +117,20 @@ const playRoute = createRoute({
     const start = Number(search.start)
     return search.start !== undefined && Number.isInteger(start) && start >= 0 ? { start } : {}
   },
+})
+
+/** Full-screen live TV player (signed in, without the sidebar). */
+const livePlayRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/live/$channelId',
+  component: LivePlayerPage,
+  beforeLoad: requireSession,
+})
+
+const liveRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/live',
+  component: LiveTvPage,
 })
 
 /** Public invitation landing page. */
@@ -220,6 +236,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   profilesRoute,
   playRoute,
+  livePlayRoute,
   inviteRoute,
   appRoute.addChildren([
     settingsRoute,
@@ -233,8 +250,8 @@ const routeTree = rootRoute.addChildren([
     playlistsRoute,
     playlistRoute,
     searchRoute,
+    liveRoute,
     placeholder('/music', 'Musik', 'Musikbibliotheken folgen in Phase 9.'),
-    placeholder('/live', 'Live TV', 'Live TV und DVR folgen in Phase 7.'),
     placeholder('/for-you', 'Für dich', 'KI-Empfehlungen folgen in Phase 6.'),
   ]),
 ])
