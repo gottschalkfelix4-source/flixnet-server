@@ -164,6 +164,13 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         watcher,
         transcoder: transcoder.clone(),
         ffprobe: flixnet_media::Ffprobe::new(&config.media.ffprobe),
+        // Extracting one stream reads the whole file; allow that for long films on slow disks.
+        subtitles: flixnet_media::subtitles::SubtitleCache::new(
+            &config.media.ffmpeg,
+            config.paths.config_dir.join("cache").join("subtitles"),
+            Duration::from_secs(600),
+            2,
+        ),
     };
     let app = flixnet_api::router(AppState::new(config, db.clone(), services))
         .fallback_service(web::router());

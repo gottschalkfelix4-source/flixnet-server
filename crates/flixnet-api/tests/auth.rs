@@ -209,6 +209,9 @@ async fn every_protected_operation_requires_a_token() {
             "GET /api/v1/setup/status",
             // Signed URL bound to user + file, or a token (playback_api.rs).
             "GET /api/v1/stream/{file_id}",
+            // Signed URL bound to user + file for <track> elements, or a token
+            // (subtitles_api.rs).
+            "GET /api/v1/subtitles/{file_id}/{track}",
             "GET /api/v1/system/info",
             // The 128-bit session id is the capability (playback_api.rs).
             "GET /api/v1/transcode/{session}/init.mp4",

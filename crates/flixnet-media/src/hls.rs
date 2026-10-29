@@ -14,6 +14,11 @@
 //!   first frame at or after each multiple), so both cut at the same frames from any
 //!   starting point.
 //!
+//! * Picture subtitles chosen for burn-in come from the same input, so `-ss` and
+//!   `-copyts` move them with the video: they stay in sync after every restart. A
+//!   subtitle shown since before a run's start point appears only from the next one
+//!   on (the input seek skips its packet).
+//!
 //! Every argument is built from typed values and paths chosen by the server — never
 //! from request strings.
 
@@ -21,7 +26,7 @@ use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use crate::decision::{PlaybackPlan, StreamAction};
+use crate::decision::{PlaybackPlan, StreamAction, SubtitleDelivery, VideoPlan};
 
 /// Length of every segment except the last.
 pub const SEGMENT_SECS: u32 = 6;
@@ -159,7 +164,10 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
 
     match &job.plan.video {
         Some(video) => {
-            push(&["-map", &format!("0:{}", video.stream_index)]);
+            let burn_in = burn_in_stream(job.plan);
+            if burn_in.is_none() {
+                push(&["-map", &format!("0:{}", video.stream_index)]);
+            }
             match video.action {
                 StreamAction::Copy => {
                     push(&["-c:v", "copy"]);
@@ -185,8 +193,17 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
                         "23",
                         "-profile:v",
                         "high",
-                        "-vf",
-                        &filters,
+                    ]);
+                    match burn_in {
+                        Some(subtitle) => push(&[
+                            "-filter_complex",
+                            &burn_in_graph(video, subtitle, &filters),
+                            "-map",
+                            "[v]",
+                        ]),
+                        None => push(&["-vf", &filters]),
+                    }
+                    push(&[
                         // No keyframes of its own: they would add cuts.
                         "-x264-params",
                         "keyint=infinite:scenecut=0",
@@ -264,6 +281,29 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
     args
 }
 
+/// The picture subtitle stream to draw into the video, if the plan burns one in.
+/// Only transcodes can: copied video passes through untouched. Burn-in runs on the
+/// software encoder (the overlay is a CPU filter).
+pub fn burn_in_stream(plan: &PlaybackPlan) -> Option<i64> {
+    let video = plan.video.as_ref()?;
+    let subtitle = plan.subtitle?;
+    (subtitle.delivery == SubtitleDelivery::BurnIn && video.action == StreamAction::Transcode)
+        .then_some(subtitle.stream_index)
+}
+
+/// Filter graph for burn-in: the video through its usual filters (`video_filters`,
+/// ending in an 8-bit SDR format), the subtitle canvas scaled to the same output size
+/// (it covers the source picture) and laid over it. The output pad is `[v]`.
+fn burn_in_graph(video: &VideoPlan, subtitle_index: i64, video_filters: &str) -> String {
+    format!(
+        "[0:{v}]{video_filters}[main];[0:{subtitle_index}]scale={w}:{h}[sub];\
+         [main][sub]overlay=eof_action=pass,format=yuv420p[v]",
+        v = video.stream_index,
+        w = video.width,
+        h = video.height,
+    )
+}
+
 /// Segment numbers ffmpeg reports as complete in its own playlist.
 pub fn completed_segments(ffmpeg_playlist: &str) -> impl Iterator<Item = u32> + '_ {
     ffmpeg_playlist.lines().filter_map(|line| {
@@ -278,7 +318,7 @@ pub fn completed_segments(ffmpeg_playlist: &str) -> impl Iterator<Item = u32> + 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::decision::{AudioPlan, PlayMethod, VideoPlan};
+    use crate::decision::{AudioPlan, PlayMethod, SubtitlePlan};
 
     fn plan(tonemap: bool, audio: StreamAction) -> PlaybackPlan {
         PlaybackPlan {
@@ -380,6 +420,63 @@ mod tests {
         assert!(line.contains("-f hls -hls_time 0.001"));
         assert!(!line.contains("output_ts_offset"));
         assert!(line.contains("-start_number 2"));
+    }
+
+    #[test]
+    fn picture_subtitles_are_burned_in_on_the_absolute_timeline() {
+        let mut plan = plan(true, StreamAction::Copy);
+        plan.subtitle = Some(SubtitlePlan {
+            stream_index: 5,
+            delivery: SubtitleDelivery::BurnIn,
+        });
+        let segments = Segments::fixed(120_000);
+        let line = joined(&hls_args(&HlsJob {
+            input: Path::new("in.mkv"),
+            out_dir: Path::new("out"),
+            start_segment: 3,
+            segments: &segments,
+            plan: &plan,
+        }));
+        // Same input, same seek and timeline as the video: in sync after restarts.
+        assert!(line.contains("-ss 18.000 -copyts -start_at_zero -i in.mkv -c:v libx264"));
+        assert!(line.contains(&format!(
+            "-filter_complex [0:0]scale=1280:720,{TONEMAP}[main];[0:5]scale=1280:720[sub];\
+             [main][sub]overlay=eof_action=pass,format=yuv420p[v] -map [v] -x264-params"
+        )));
+        assert!(!line.contains("-vf "));
+        assert!(!line.contains("-map 0:0"));
+        assert!(line.contains("-force_key_frames expr:"));
+        assert!(line.contains("-map 0:2 -c:a copy"));
+        assert!(line.contains("-hls_time 0.001 -hls_segment_options movflags=+frag_discont"));
+
+        // Text subtitles are the player's business; copied video is never touched.
+        plan.subtitle = Some(SubtitlePlan {
+            stream_index: 5,
+            delivery: SubtitleDelivery::External,
+        });
+        let text = joined(&hls_args(&HlsJob {
+            input: Path::new("in.mkv"),
+            out_dir: Path::new("out"),
+            start_segment: 0,
+            segments: &segments,
+            plan: &plan,
+        }));
+        assert!(!text.contains("-filter_complex"));
+        assert!(text.contains("-map 0:0 -c:v libx264"));
+        plan.subtitle = Some(SubtitlePlan {
+            stream_index: 5,
+            delivery: SubtitleDelivery::BurnIn,
+        });
+        plan.video.as_mut().unwrap().action = StreamAction::Copy;
+        let copied = joined(&hls_args(&HlsJob {
+            input: Path::new("in.mkv"),
+            out_dir: Path::new("out"),
+            start_segment: 0,
+            segments: &segments,
+            plan: &plan,
+        }));
+        assert!(copied.contains("-map 0:0 -c:v copy"));
+        assert!(!copied.contains("overlay"));
     }
 
     #[test]

@@ -20,7 +20,8 @@ use tower::ServiceExt;
 pub const PASSWORD: &str = "sicheres-passwort";
 
 pub struct TestApp {
-    _dir: TempDir,
+    /// Config dir of the test server (database, caches).
+    pub dir: TempDir,
     pub router: Router,
     pub db: Db,
 }
@@ -45,13 +46,15 @@ pub async fn app() -> TestApp {
             TranscodeSettings::default(),
         ),
         ffprobe: flixnet_media::Ffprobe::new("ffprobe"),
+        subtitles: flixnet_media::subtitles::SubtitleCache::new(
+            "ffmpeg",
+            dir.path().join("cache/subtitles"),
+            std::time::Duration::from_secs(60),
+            2,
+        ),
     };
     let router = router(AppState::new(Config::default(), db.clone(), services));
-    TestApp {
-        _dir: dir,
-        router,
-        db,
-    }
+    TestApp { dir, router, db }
 }
 
 pub struct Response {

@@ -7,6 +7,7 @@ pub mod decision;
 pub mod hls;
 pub mod probe;
 mod process;
+pub mod subtitles;
 pub mod transcode;
 
 pub use probe::{Chapter, Ffprobe, MediaInfo, ProbeError, StreamInfo, StreamKind};
