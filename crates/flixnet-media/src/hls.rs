@@ -141,9 +141,15 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
 
     let start_ms = job.segments.start_ms(job.start_segment);
     if start_ms > 0 {
-        // Copying seeks to the keyframe at or before the position: aim 1 ms past the
-        // segment's keyframe so rounding can never land on the previous one.
-        let seek_ms = start_ms + i64::from(job.segments.is_keyframe_aligned());
+        // Copying starts at the keyframe at or before the seek position. ffmpeg up to
+        // 7 also seeks ~130 ms early for streams with decode delay, so aim a bit past
+        // the segment's keyframe (but well within its GOP).
+        let margin = if job.segments.is_keyframe_aligned() {
+            (job.segments.length_ms(job.start_segment) / 2).min(150)
+        } else {
+            0
+        };
+        let seek_ms = start_ms + margin;
         push(&["-ss", &seconds(seek_ms)]);
     }
     push(&["-copyts", "-start_at_zero"]);
@@ -367,8 +373,8 @@ mod tests {
             segments: &segments,
             plan: &plan,
         }));
-        // 1 ms past the keyframe, so the seek cannot fall back to the previous one.
-        assert!(line.contains("-ss 4.501 -copyts -start_at_zero -i in.mkv"));
+        // 150 ms past the keyframe, so the seek cannot fall back to the previous one.
+        assert!(line.contains("-ss 4.650 -copyts -start_at_zero -i in.mkv"));
         assert!(line.contains("-c:v copy -tag:v hvc1"));
         assert!(!line.contains("force_key_frames"));
         assert!(line.contains("-f hls -hls_time 0.001"));
