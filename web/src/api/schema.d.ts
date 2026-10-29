@@ -277,10 +277,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Sources of a movie or episode, with signed stream URLs. */
-        get: operations["getPlaybackInfo"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Sources of a movie or episode with a playback decision for the client's device. */
+        post: operations["getPlaybackInfo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -758,6 +758,23 @@ export interface components {
             poster_url?: string | null;
             thumb_url?: string | null;
         };
+        AudioCodecSupport: {
+            /** @description ffprobe codec name: `aac`, `ac3`, `eac3`, `opus`, `flac`, `mp3`, … */
+            codec: string;
+            /**
+             * Format: int64
+             * @description Most channels played without downmix (2 when omitted).
+             */
+            max_channels?: number | null;
+        };
+        AudioPlan: {
+            action: components["schemas"]["StreamAction"];
+            /** Format: int64 */
+            channels: number;
+            codec: string;
+            /** Format: int64 */
+            stream_index: number;
+        };
         AudioStreamDto: {
             channel_layout?: string | null;
             /** Format: int64 */
@@ -866,6 +883,26 @@ export interface components {
              * @example Chrome · Windows
              */
             name: string;
+        };
+        /**
+         * @description What a client can play directly. Web clients build it from `canPlayType` /
+         *     `MediaSource.isTypeSupported`; native apps send a fixed one.
+         */
+        DeviceProfile: {
+            audio_codecs?: components["schemas"]["AudioCodecSupport"][];
+            /** @description File containers the client plays as-is (file extensions: `mp4`, `webm`, `mkv`, …). */
+            containers?: string[];
+            /**
+             * Format: int64
+             * @description Upper bound for the total bitrate (bits/s), e.g. for slow connections.
+             */
+            max_bitrate?: number | null;
+            /**
+             * @description Whether the client can switch between audio tracks of one file. Browsers
+             *     cannot, so another track than the default one needs a remux.
+             */
+            multiple_audio_tracks?: boolean;
+            video_codecs?: components["schemas"]["VideoCodecSupport"][];
         };
         DirectoryEntry: {
             name: string;
@@ -1103,6 +1140,8 @@ export interface components {
              * @description Part number for multi-part movies (`cd1`, `part2`, …).
              */
             part?: number | null;
+            /** @description How this source would be played on the requesting device, and why. */
+            plan: components["schemas"]["PlaybackPlan"];
             /** Format: int64 */
             size: number;
         };
@@ -1141,11 +1180,40 @@ export interface components {
             /** @description actor | director | writer | creator | producer */
             role: string;
         };
+        /** @enum {string} */
+        PlayMethod: "direct_play" | "remux" | "transcode";
         PlaybackInfoDto: {
             /** Format: int64 */
             item_id: number;
             /** @description Playable versions/parts of the item, main versions first. */
             sources: components["schemas"]["MediaSourceDto"][];
+        };
+        PlaybackInfoRequest: {
+            /**
+             * Format: int64
+             * @description Chosen audio stream (file stream index); default track when omitted.
+             */
+            audio_stream_index?: number | null;
+            /** @description What the client can play directly; an empty profile means "transcode everything". */
+            device_profile?: components["schemas"]["DeviceProfile"];
+            /**
+             * Format: int64
+             * @description Quality limit chosen by the user (bits/s).
+             */
+            max_bitrate?: number | null;
+            /**
+             * Format: int64
+             * @description Chosen subtitle stream (file stream index); none when omitted.
+             */
+            subtitle_stream_index?: number | null;
+        };
+        PlaybackPlan: {
+            audio?: components["schemas"]["AudioPlan"] | null;
+            method: components["schemas"]["PlayMethod"];
+            /** @description Empty for Direct Play. */
+            reasons: components["schemas"]["Reason"][];
+            subtitle?: components["schemas"]["SubtitlePlan"] | null;
+            video?: components["schemas"]["VideoPlan"] | null;
         };
         PoolSummary: {
             /** Format: int64 */
@@ -1167,6 +1235,11 @@ export interface components {
             name: string;
             unlock: components["schemas"]["Unlock"];
         };
+        /**
+         * @description Why the file cannot simply be played as-is.
+         * @enum {string}
+         */
+        Reason: "container_not_supported" | "video_codec_not_supported" | "video_resolution_not_supported" | "video_bit_depth_not_supported" | "video_range_not_supported" | "bitrate_too_high" | "audio_codec_not_supported" | "audio_channels_not_supported" | "audio_track_not_default" | "subtitle_burn_in";
         ScanQueued: {
             /**
              * Format: int64
@@ -1187,6 +1260,15 @@ export interface components {
         SetupStatus: {
             /** @description `true` until the first administrator account has been created. */
             setup_required: boolean;
+        };
+        /** @enum {string} */
+        StreamAction: "copy" | "transcode";
+        /** @enum {string} */
+        SubtitleDelivery: "external" | "burn_in";
+        SubtitlePlan: {
+            delivery: components["schemas"]["SubtitleDelivery"];
+            /** Format: int64 */
+            stream_index: number;
         };
         SubtitleStreamDto: {
             codec?: string | null;
@@ -1299,6 +1381,37 @@ export interface components {
              */
             max_age_rating?: number | null;
             name: string;
+        };
+        VideoCodecSupport: {
+            /** @description ffprobe codec name: `h264`, `hevc`, `av1`, `vp9`, … */
+            codec: string;
+            /** @description HDR formats shown as HDR (`hdr10`, `hlg`, `dovi`); others are tone-mapped. */
+            hdr?: string[];
+            /**
+             * Format: int64
+             * @description Highest bit depth (8 when omitted).
+             */
+            max_bit_depth?: number | null;
+            /** Format: int64 */
+            max_height?: number | null;
+            /** Format: int64 */
+            max_width?: number | null;
+        };
+        VideoPlan: {
+            action: components["schemas"]["StreamAction"];
+            /**
+             * Format: int64
+             * @description Target bitrate of a transcode (bits/s).
+             */
+            bitrate?: number | null;
+            /** @description Output codec (the source codec when copied). */
+            codec: string;
+            /** Format: int64 */
+            height: number;
+            /** @description HDR → SDR tone mapping during the transcode. */
+            tonemap: boolean;
+            /** Format: int64 */
+            width: number;
         };
         VideoStreamDto: {
             /** Format: int64 */
@@ -2206,9 +2319,13 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackInfoRequest"];
+            };
+        };
         responses: {
-            /** @description Playable sources */
+            /** @description Playable sources with their playback plans */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -6,9 +6,10 @@ use common::{TestApp, app};
 use flixnet_api::signing::UrlSigner;
 use flixnet_core::events::EventBus;
 use flixnet_core::jobs::JobRuntime;
-use flixnet_db::{libraries, users};
+use flixnet_db::{libraries, media, users};
 use flixnet_library::scan::scan_library;
 use http_body_util::BodyExt;
+use serde_json::json;
 use tower::ServiceExt;
 
 /// Raw request (no JSON decoding) with optional extra headers.
@@ -80,8 +81,9 @@ async fn direct_play_serves_ranges_with_signed_urls() {
     let f = library(&app, root.path()).await;
 
     let info = app
-        .get(
+        .post(
             &format!("/api/v1/items/{}/playback-info", f.movie),
+            json!({}),
             Some(&f.token),
         )
         .await;
@@ -115,8 +117,9 @@ async fn direct_play_serves_ranges_with_signed_urls() {
 
     // Series have nothing to play themselves.
     let none = app
-        .get(
+        .post(
             &format!("/api/v1/items/{}/playback-info", f.series),
+            json!({}),
             Some(&f.token),
         )
         .await;
@@ -129,8 +132,9 @@ async fn stream_urls_are_bound_to_user_and_access() {
     let root = tempfile::tempdir().unwrap();
     let f = library(&app, root.path()).await;
     let info = app
-        .get(
+        .post(
             &format!("/api/v1/items/{}/playback-info", f.movie),
+            json!({}),
             Some(&f.token),
         )
         .await;
@@ -200,4 +204,105 @@ async fn stream_urls_are_bound_to_user_and_access() {
     // A deleted user's URLs stop working.
     users::delete(&app.db, user.id).await.unwrap();
     assert_eq!(raw(&app, &signed, &[]).await.0, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn playback_info_decides_per_device_profile() {
+    let app = app().await;
+    let root = tempfile::tempdir().unwrap();
+    let f = library(&app, root.path()).await;
+    let uri = format!("/api/v1/items/{}/playback-info", f.movie);
+    let first = app.post(&uri, json!({}), Some(&f.token)).await;
+    let file_id = first.json["sources"][0]["file_id"].as_i64().unwrap();
+
+    // What a probe would have found: H.264 1080p, AC-3 5.1 (default) and AAC stereo.
+    let stream = |idx, kind: &str, codec: &str| media::Stream {
+        idx,
+        kind: kind.into(),
+        codec: Some(codec.into()),
+        ..Default::default()
+    };
+    let streams = vec![
+        media::Stream {
+            width: Some(1920),
+            height: Some(1080),
+            bit_depth: Some(8),
+            hdr: Some("sdr".into()),
+            ..stream(0, "video", "h264")
+        },
+        media::Stream {
+            channels: Some(6),
+            is_default: true,
+            ..stream(1, "audio", "ac3")
+        },
+        media::Stream {
+            channels: Some(2),
+            ..stream(2, "audio", "aac")
+        },
+        stream(3, "subtitle", "hdmv_pgs_subtitle"),
+    ];
+    media::store_probe(
+        &app.db,
+        file_id,
+        &media::ProbeData {
+            container: Some("matroska,webm".into()),
+            duration_ms: Some(1000),
+            bitrate: Some(5_000_000),
+            streams,
+            chapters: vec![],
+        },
+    )
+    .await
+    .unwrap();
+
+    let browser = json!({
+        "containers": ["mp4", "webm"],
+        "video_codecs": [{ "codec": "h264", "max_height": 2160 }],
+        "audio_codecs": [{ "codec": "aac", "max_channels": 6 }],
+    });
+    let plan = |body| async {
+        let response = app.post(&uri, body, Some(&f.token)).await;
+        assert_eq!(response.status, StatusCode::OK, "{}", response.json);
+        response.json["sources"][0]["plan"].clone()
+    };
+
+    let remux = plan(json!({ "device_profile": browser })).await;
+    assert_eq!(remux["method"], "remux");
+    assert_eq!(
+        remux["reasons"],
+        json!(["audio_codec_not_supported", "container_not_supported"])
+    );
+    assert_eq!(remux["video"]["action"], "copy");
+    assert_eq!(remux["audio"]["action"], "transcode");
+    assert_eq!(remux["audio"]["stream_index"], 1);
+
+    // Picking the AAC track: no audio conversion, but browsers cannot switch tracks.
+    let aac = plan(json!({ "device_profile": browser, "audio_stream_index": 2 })).await;
+    assert_eq!(aac["method"], "remux");
+    assert_eq!(aac["audio"]["action"], "copy");
+    assert_eq!(
+        aac["reasons"],
+        json!(["audio_track_not_default", "container_not_supported"])
+    );
+
+    // PGS subtitles and a quality limit force a transcode.
+    let burn = plan(
+        json!({ "device_profile": browser, "subtitle_stream_index": 3, "max_bitrate": 3_000_000 }),
+    )
+    .await;
+    assert_eq!(burn["method"], "transcode");
+    assert_eq!(burn["subtitle"]["delivery"], "burn_in");
+    assert_eq!(burn["video"]["codec"], "h264");
+    // 3 Mbit/s minus the audio budget lands on the 720p step.
+    assert_eq!(burn["video"]["height"], 720);
+
+    // A device that plays Matroska with AC-3.
+    let native = plan(json!({ "device_profile": {
+        "containers": ["mkv"],
+        "video_codecs": [{ "codec": "h264" }],
+        "audio_codecs": [{ "codec": "ac3", "max_channels": 6 }],
+    }}))
+    .await;
+    assert_eq!(native["method"], "direct_play");
+    assert_eq!(native["reasons"], json!([]));
 }

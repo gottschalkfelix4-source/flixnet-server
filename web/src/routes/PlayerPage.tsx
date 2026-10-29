@@ -2,12 +2,13 @@ import { Link, useParams, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { useItem } from '@/api/queries/items'
-import { usePlaybackInfo } from '@/api/queries/playback'
+import { REASON_LABELS, usePlaybackInfo } from '@/api/queries/playback'
 import { episodeLabel } from '@/lib/media'
 
 /**
- * Full-screen Direct Play of the original file (milestone 4.1). Transcoding, track
- * selection and the custom player controls follow in later milestones.
+ * Full-screen player. Plays the original file when the decision engine says Direct
+ * Play; remux/transcode streams, track selection and custom controls follow in later
+ * milestones.
  */
 export function PlayerPage() {
   const { id } = useParams({ from: '/play/$id' })
@@ -20,6 +21,9 @@ export function PlayerPage() {
 
   const sources = playback.data?.sources ?? []
   const source = sources[part]
+  const direct = source?.plan.method === 'direct_play'
+  // A file the engine judged playable can still fail (e.g. a broken file or a wrong guess).
+  const blocked = failed || playback.isError || (!!source && !direct)
   const title = item.data
     ? [item.data.series_title, episodeLabel(item.data), item.data.title].filter(Boolean).join(' · ')
     : ''
@@ -46,7 +50,7 @@ export function PlayerPage() {
         )}
       </header>
 
-      {source && !failed && (
+      {source && direct && !failed && (
         <video
           key={source.file_id}
           src={source.direct_url}
@@ -60,15 +64,28 @@ export function PlayerPage() {
         />
       )}
 
-      {(failed || playback.isError) && (
+      {blocked && (
         <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center" role="alert">
           <TriangleAlert className="size-10 text-amber-400" aria-hidden="true" />
           <p className="text-lg font-bold">Dieses Video kann dein Browser nicht direkt abspielen.</p>
-          <p className="max-w-md text-sm text-white/70">
-            {playback.isError
-              ? 'Für diesen Eintrag gibt es keine abspielbare Datei.'
-              : `Format: ${source?.container ?? 'unbekannt'}. Das Umwandeln (Transcoding) kommt mit den nächsten Meilensteinen.`}
-          </p>
+          {playback.isError ? (
+            <p className="max-w-md text-sm text-white/70">Für diesen Eintrag gibt es keine abspielbare Datei.</p>
+          ) : (
+            <>
+              {source && !direct && (
+                <ul className="max-w-md space-y-1 text-sm text-white/70" data-testid="playback-reasons">
+                  {source.plan.reasons.map((reason) => (
+                    <li key={reason}>{REASON_LABELS[reason]}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="max-w-md text-sm text-white/50">
+                {source && !direct
+                  ? `Nötig wäre: ${source.plan.method === 'remux' ? 'Umpacken (Remux)' : 'Umwandeln (Transcoding)'} – kommt mit den nächsten Meilensteinen.`
+                  : 'Die Datei ließ sich nicht abspielen.'}
+              </p>
+            </>
+          )}
           <Link to="/item/$id" params={{ id }} className="mt-2 rounded-full bg-white/15 px-5 py-2 text-sm font-semibold hover:bg-white/25">
             Zur Detailseite
           </Link>

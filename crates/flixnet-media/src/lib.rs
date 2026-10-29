@@ -3,6 +3,7 @@
 //! (jellyfin-ffmpeg in Docker). Arguments come only from typed values and database
 //! paths — never from raw request strings.
 
+pub mod decision;
 pub mod probe;
 mod process;
 

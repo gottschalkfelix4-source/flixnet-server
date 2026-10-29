@@ -38,7 +38,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 
 ## Phase 4 – Wiedergabe
 - [x] 4.1 Direct Play mit Range-Requests — `playback-info` mit an Nutzer+Datei gebundenen signierten URLs, `/stream/{file_id}` (206/416, Rechte bei jedem Request neu geprüft), Vollbild-Player-Seite; E2E `playback.spec.ts`
-- [ ] 4.2 DeviceProfile + Decision-Engine + playback-info
+- [x] 4.2 DeviceProfile + Decision-Engine + playback-info — reine `decide()`-Funktion (Direct Play / Remux / Transcode mit Gründen, Tonemapping, Bitraten-Leiter, Burn-in) mit Tabellen-Test über Medien × Profile; Browser-Profil per `canPlayType`; Player zeigt die Gründe
 - [ ] 4.3 HLS-Transcode (Software) + TranscodeManager
 - [ ] 4.4 Remux mit Keyframe-Index, Audio-Transcode
 - [ ] 4.5 QSV/VAAPI/NVENC + HDR→SDR-Tonemapping

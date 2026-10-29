@@ -891,6 +891,7 @@ dependencies = [
  "flixnet-core",
  "flixnet-db",
  "flixnet-library",
+ "flixnet-media",
  "hex",
  "hmac",
  "http-body-util",
@@ -977,6 +978,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "utoipa",
 ]
 
 [[package]]

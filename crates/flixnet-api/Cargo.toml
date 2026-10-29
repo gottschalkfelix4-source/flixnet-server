@@ -8,6 +8,7 @@ publish.workspace = true
 flixnet-core.workspace = true
 flixnet-db.workspace = true
 flixnet-library.workspace = true
+flixnet-media.workspace = true
 
 axum.workspace = true
 hex.workspace = true

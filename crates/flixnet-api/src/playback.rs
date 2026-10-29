@@ -1,5 +1,6 @@
 //! Playback: which sources an item has and how to stream them.
 //!
+//! `playback-info` runs the decision engine against the client's device profile.
 //! `/stream/{file_id}` serves the original file with HTTP range support (Direct Play).
 //! `<video>` elements cannot send an `Authorization` header, so playback info hands
 //! out signed URLs bound to the file *and* the user; every request re-checks that the
@@ -13,6 +14,10 @@ use axum::extract::{Path, Query, Request, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::Response;
 use flixnet_db::{items, libraries, media, users};
+use flixnet_media::decision::{
+    DeviceProfile, PlaybackChoice, PlaybackPlan, SourceAudio, SourceMedia, SourceSubtitle,
+    SourceVideo, decide,
+};
 use serde::{Deserialize, Serialize};
 use tower_http::services::ServeFile;
 use utoipa::{IntoParams, ToSchema};
@@ -28,6 +33,19 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
         .routes(routes!(get_playback_info))
         .routes(routes!(stream_file))
+}
+
+#[derive(Debug, Default, Deserialize, ToSchema)]
+pub struct PlaybackInfoRequest {
+    /// What the client can play directly; an empty profile means "transcode everything".
+    #[serde(default)]
+    pub device_profile: DeviceProfile,
+    /// Chosen audio stream (file stream index); default track when omitted.
+    pub audio_stream_index: Option<i64>,
+    /// Chosen subtitle stream (file stream index); none when omitted.
+    pub subtitle_stream_index: Option<i64>,
+    /// Quality limit chosen by the user (bits/s).
+    pub max_bitrate: Option<i64>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -50,17 +68,20 @@ pub struct MediaSourceDto {
     pub part: Option<i64>,
     /// Signed URL of the original file (supports HTTP range requests).
     pub direct_url: String,
+    /// How this source would be played on the requesting device, and why.
+    pub plan: PlaybackPlan,
 }
 
-/// Sources of a movie or episode, with signed stream URLs.
+/// Sources of a movie or episode with a playback decision for the client's device.
 #[utoipa::path(
-    get,
+    post,
     path = "/items/{id}/playback-info",
     operation_id = "getPlaybackInfo",
     tag = "playback",
     params(("id" = i64, Path, description = "Item id (movie or episode)")),
+    request_body = PlaybackInfoRequest,
     responses(
-        (status = OK, description = "Playable sources", body = PlaybackInfoDto),
+        (status = OK, description = "Playable sources with their playback plans", body = PlaybackInfoDto),
         (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
         (status = NOT_FOUND, description = "No such item, or nothing playable", body = ErrorBody),
     )
@@ -69,23 +90,37 @@ async fn get_playback_info(
     user: AuthUser,
     State(state): State<AppState>,
     Path(id): Path<i64>,
+    Json(request): Json<PlaybackInfoRequest>,
 ) -> ApiResult<Json<PlaybackInfoDto>> {
     ensure_visible(&state, &user, id).await?;
-    let files = media::files_for_item(&state.db, id).await?;
-    let sources: Vec<_> = files
-        .into_iter()
-        .filter(|f| f.role == "main")
-        .map(|f| MediaSourceDto {
-            direct_url: state.signer.stream_url(f.id, user.user_id),
-            file_name: file_name(&f.path),
-            file_id: f.id,
-            container: f.container,
-            size: f.size,
-            duration_ms: f.duration_ms,
-            bitrate: f.bitrate,
-            part: f.part,
-        })
-        .collect();
+    let choice = PlaybackChoice {
+        audio_index: request.audio_stream_index,
+        subtitle_index: request.subtitle_stream_index,
+        max_bitrate: request.max_bitrate,
+    };
+    let mut sources = Vec::new();
+    for file in media::files_for_item(&state.db, id).await? {
+        if file.role != "main" {
+            continue;
+        }
+        let streams = media::streams(&state.db, file.id).await?;
+        let plan = decide(
+            &source_media(&file, &streams),
+            &request.device_profile,
+            choice,
+        );
+        sources.push(MediaSourceDto {
+            direct_url: state.signer.stream_url(file.id, user.user_id),
+            file_name: file_name(&file.path),
+            file_id: file.id,
+            container: file.container,
+            size: file.size,
+            duration_ms: file.duration_ms,
+            bitrate: file.bitrate,
+            part: file.part,
+            plan,
+        });
+    }
     if sources.is_empty() {
         return Err(ApiError::not_found("Keine abspielbare Datei vorhanden."));
     }
@@ -93,6 +128,50 @@ async fn get_playback_info(
         item_id: id,
         sources,
     }))
+}
+
+/// Embedded cover art shows up as a video stream; it is not the movie.
+const COVER_CODECS: &[&str] = &["mjpeg", "png", "bmp", "gif", "webp"];
+
+/// The decision engine's view of a probed file.
+fn source_media(file: &media::MediaFile, streams: &[media::Stream]) -> SourceMedia {
+    let codec = |s: &media::Stream| s.codec.clone().unwrap_or_default();
+    SourceMedia {
+        container: FsPath::new(&file.path)
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default(),
+        bitrate: file.bitrate,
+        video: streams
+            .iter()
+            .find(|s| s.kind == "video" && !COVER_CODECS.contains(&codec(s).as_str()))
+            .map(|s| SourceVideo {
+                codec: codec(s),
+                width: s.width.unwrap_or(0),
+                height: s.height.unwrap_or(0),
+                bit_depth: s.bit_depth.unwrap_or(8),
+                hdr: s.hdr.clone().unwrap_or_else(|| "sdr".to_owned()),
+            }),
+        audio: streams
+            .iter()
+            .filter(|s| s.kind == "audio")
+            .map(|s| SourceAudio {
+                index: s.idx,
+                codec: codec(s),
+                channels: s.channels.unwrap_or(2),
+                is_default: s.is_default,
+            })
+            .collect(),
+        subtitles: streams
+            .iter()
+            .filter(|s| s.kind == "subtitle")
+            .map(|s| SourceSubtitle {
+                index: s.idx,
+                codec: codec(s),
+                is_external: s.is_external,
+            })
+            .collect(),
+    }
 }
 
 fn file_name(path: &str) -> String {

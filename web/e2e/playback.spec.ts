@@ -74,4 +74,10 @@ test('formats the browser cannot play show a hint', async ({ page }) => {
   await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click()
   await page.getByRole('link', { name: 'Abspielen' }).click()
   await expect(page.getByRole('alert')).toContainText('nicht direkt abspielen', { timeout: 10_000 })
+  // The decision engine explains why: MPEG-4 Part 2 and Matroska are not playable here.
+  const reasons = page.getByTestId('playback-reasons')
+  await expect(reasons).toContainText('Video-Codec wird nicht unterstützt')
+  await expect(reasons).toContainText('Dateiformat (Container) wird nicht unterstützt')
+  await expect(page.getByRole('alert')).toContainText('Umwandeln (Transcoding)')
+  await expect(page.getByTestId('player-video')).toHaveCount(0)
 })
