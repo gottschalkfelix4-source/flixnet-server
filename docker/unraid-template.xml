@@ -30,5 +30,5 @@
   <Config Name="UMASK" Target="UMASK" Default="022" Mode="" Description="Dateirechte-Maske für neu angelegte Dateien" Type="Variable" Display="advanced" Required="false" Mask="false">022</Config>
   <Config Name="Jellyfin-Port" Target="8098" Default="8098" Mode="tcp" Description="Optional: Jellyfin-kompatible API für Infuse, Swiftfin, Findroid und Streamyfin. Wird nur benutzt, wenn &quot;Jellyfin-API&quot; auf true steht. Läuft parallel ein echtes Jellyfin, bleibt dessen Port 8096 frei." Type="Port" Display="advanced" Required="false" Mask="false">8098</Config>
   <Config Name="Jellyfin-API" Target="FLIXNET_JELLYFIN__ENABLED" Default="false" Mode="" Description="true schaltet die Jellyfin-kompatible API auf Port 8098 ein (Anmeldung mit Flixnet-Name und -Passwort)." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
-  <Config Name="Log-Level"Target="FLIXNET_LOG__LEVEL" Default="info" Mode="" Description="trace, debug, info, warn, error" Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
+  <Config Name="Log-Level" Target="FLIXNET_LOG__LEVEL" Default="info" Mode="" Description="trace, debug, info, warn, error" Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
 </Container>
