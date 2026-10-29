@@ -2,16 +2,22 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode, header};
 use flixnet_api::{AppState, router};
 use flixnet_core::Config;
+use flixnet_db::Db;
 use http_body_util::BodyExt;
+use tempfile::TempDir;
 use tower::ServiceExt;
 
-fn app() -> axum::Router {
-    router(AppState::new(Config::default()))
+/// Router backed by a fresh database; keep the `TempDir` alive for the test's duration.
+async fn app() -> (TempDir, axum::Router) {
+    let dir = tempfile::tempdir().unwrap();
+    let db = Db::open(&dir.path().join("flixnet.db")).await.unwrap();
+    (dir, router(AppState::new(Config::default(), db)))
 }
 
 #[tokio::test]
 async fn system_info_returns_server_details() {
-    let response = app()
+    let (_dir, app) = app().await;
+    let response = app
         .oneshot(
             Request::get("/api/v1/system/info")
                 .body(Body::empty())
@@ -33,7 +39,8 @@ async fn system_info_returns_server_details() {
 
 #[tokio::test]
 async fn unknown_route_is_not_found() {
-    let response = app()
+    let (_dir, app) = app().await;
+    let response = app
         .oneshot(Request::get("/api/v1/nope").body(Body::empty()).unwrap())
         .await
         .unwrap();

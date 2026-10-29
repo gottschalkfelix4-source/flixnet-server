@@ -4,6 +4,7 @@ use anyhow::Context;
 use clap::{Parser, Subcommand};
 use flixnet_api::AppState;
 use flixnet_core::Config;
+use flixnet_db::Db;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Debug, Parser)]
@@ -21,6 +22,8 @@ struct Cli {
 enum Command {
     /// Run the media server (default).
     Serve,
+    /// Apply pending database migrations and exit.
+    Migrate,
 }
 
 #[tokio::main]
@@ -32,7 +35,25 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command.unwrap_or(Command::Serve) {
         Command::Serve => serve(config).await,
+        Command::Migrate => {
+            open_db(&config).await?.close().await;
+            tracing::info!("database is up to date");
+            Ok(())
+        }
     }
+}
+
+/// Opens `<config_dir>/flixnet.db`, creating the directory and applying migrations.
+async fn open_db(config: &Config) -> anyhow::Result<Db> {
+    let dir = &config.paths.config_dir;
+    std::fs::create_dir_all(dir)
+        .with_context(|| format!("cannot create config dir {}", dir.display()))?;
+    let path = dir.join("flixnet.db");
+    let db = Db::open(&path)
+        .await
+        .with_context(|| format!("cannot open database {}", path.display()))?;
+    tracing::info!(path = %path.display(), "database ready");
+    Ok(db)
 }
 
 fn init_tracing(default_level: &str) {
@@ -43,7 +64,8 @@ fn init_tracing(default_level: &str) {
 
 async fn serve(config: Config) -> anyhow::Result<()> {
     let bind = config.server.bind;
-    let app = flixnet_api::router(AppState::new(config));
+    let db = open_db(&config).await?;
+    let app = flixnet_api::router(AppState::new(config, db.clone()));
 
     let listener = tokio::net::TcpListener::bind(bind)
         .await
@@ -54,6 +76,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .with_graceful_shutdown(shutdown_signal())
         .await?;
 
+    db.close().await;
     tracing::info!("Flixnet stopped");
     Ok(())
 }

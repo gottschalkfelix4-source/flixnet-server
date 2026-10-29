@@ -8,7 +8,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 0.0 Rust-Toolchain (rustup, stable 1.99.1, MSVC) auf dem Dev-PC
 - [ ] 0.0b jellyfin-ffmpeg 7 portable auf dem Dev-PC (spätestens vor Phase 4)
 - [x] 0.1 Workspace, axum, tracing, Config, `GET /api/v1/system/info` – *fertig wenn* `cargo test` + `cargo clippy -- -D warnings` grün
-- [ ] 0.2 flixnet-db: Migrationen, WAL, Writer-/Read-Pool, Settings – *fertig wenn* Migrationstest auf Temp-DB grün
+- [x] 0.2 flixnet-db: Migrationen, WAL, Writer-/Read-Pool, Settings – *fertig wenn* Migrationstest auf Temp-DB grün
 - [ ] 0.3 OpenAPI (utoipa) + Scalar-UI, `flixnet-server openapi > web/openapi.json`
 - [ ] 0.4 Web-Shell (React/Vite, Theme, Sidebar, generierter Client), per rust-embed ausgeliefert – *fertig wenn* Playwright-Smoke grün
 - [ ] 0.5 `xtask fixtures`, Dockerfile, GitHub Actions, Unraid – *fertig wenn* Container auf Unraid die UI zeigt

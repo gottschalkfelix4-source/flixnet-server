@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 flixnet-api.workspace = true
 flixnet-core.workspace = true
+flixnet-db.workspace = true
 
 anyhow.workspace = true
 axum.workspace = true

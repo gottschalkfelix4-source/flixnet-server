@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use flixnet_core::Config;
+use flixnet_db::Db;
 use tower_http::trace::TraceLayer;
 
 mod system;
@@ -12,12 +13,14 @@ mod system;
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
+    pub db: Db,
 }
 
 impl AppState {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, db: Db) -> Self {
         Self {
             config: Arc::new(config),
+            db,
         }
     }
 }
