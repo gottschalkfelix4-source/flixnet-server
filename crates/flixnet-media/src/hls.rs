@@ -13,6 +13,10 @@
 //!   exactly one keyframe per [`SEGMENT_SECS`] slot of the absolute timeline (the
 //!   first frame at or after each multiple), so both cut at the same frames from any
 //!   starting point.
+//! * Hardware encoders ([`crate::hardware`]) keep that rule: forced keyframes become
+//!   IDR frames, and the encoder inserts none of its own (no scene cuts, a GOP longer
+//!   than any film). Their pipelines decode, scale and tone-map on the GPU where it
+//!   can; whatever it cannot is done on the CPU.
 //!
 //! Every argument is built from typed values and paths chosen by the server — never
 //! from request strings.
@@ -21,7 +25,8 @@ use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use crate::decision::{PlaybackPlan, StreamAction};
+use crate::decision::{PlaybackPlan, SourceVideo, StreamAction, VideoPlan};
+use crate::hardware::{Accel, HwEncoder, Tonemap, VideoEncoder, qsv_decoder};
 
 /// Length of every segment except the last.
 pub const SEGMENT_SECS: u32 = 6;
@@ -124,6 +129,19 @@ fn seconds(ms: i64) -> String {
 const TONEMAP: &str = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,\
                        tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
 
+/// Exactly one keyframe per [`SEGMENT_SECS`] slot of the absolute timeline: the first
+/// frame at or after each multiple (see the module docs).
+fn force_key_frames() -> String {
+    format!(
+        "expr:if(isnan(prev_forced_t),1,gt(floor(t/{SEGMENT_SECS}),floor(prev_forced_t/{SEGMENT_SECS})))"
+    )
+}
+
+/// GOP length for hardware encoders: never reached in practice, so the forced
+/// keyframes are the only ones. Quick Sync stores it in 16 bits.
+const HW_GOP: &str = "100000";
+const QSV_GOP: &str = "65535";
+
 /// One ffmpeg run producing segments from `start_segment` on.
 #[derive(Debug, Clone, Copy)]
 pub struct HlsJob<'a> {
@@ -132,12 +150,26 @@ pub struct HlsJob<'a> {
     pub start_segment: u32,
     pub segments: &'a Segments,
     pub plan: &'a PlaybackPlan,
+    /// Encoder for a video transcode (unused when the video is copied).
+    pub encoder: &'a VideoEncoder,
+    /// The source's video stream, so the GPU decodes only what it can.
+    pub source: Option<&'a SourceVideo>,
 }
 
 pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
     let mut args: Vec<OsString> = Vec::new();
     let mut push = |values: &[&str]| args.extend(values.iter().map(OsString::from));
     push(&["-hide_banner", "-loglevel", "error", "-nostdin", "-y"]);
+
+    let transcode_video = job
+        .plan
+        .video
+        .as_ref()
+        .is_some_and(|v| v.action == StreamAction::Transcode);
+    if transcode_video {
+        args.extend(hw_input_args(job.encoder, job.source, cfg!(windows)));
+    }
+    let mut push = |values: &[&str]| args.extend(values.iter().map(OsString::from));
 
     let start_ms = job.segments.start_ms(job.start_segment);
     if start_ms > 0 {
@@ -169,45 +201,13 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
                     }
                 }
                 StreamAction::Transcode => {
-                    let mut filters = format!("scale={}:{}", video.width, video.height);
-                    if video.tonemap {
-                        filters.push(',');
-                        filters.push_str(TONEMAP);
-                    } else {
-                        filters.push_str(",format=yuv420p");
-                    }
-                    push(&[
-                        "-c:v",
-                        "libx264",
-                        "-preset",
-                        "veryfast",
-                        "-crf",
-                        "23",
-                        "-profile:v",
-                        "high",
-                        "-vf",
-                        &filters,
-                        // No keyframes of its own: they would add cuts.
-                        "-x264-params",
-                        "keyint=infinite:scenecut=0",
-                        "-force_key_frames",
-                        &format!(
-                            "expr:if(isnan(prev_forced_t),1,gt(floor(t/{SEGMENT_SECS}),floor(prev_forced_t/{SEGMENT_SECS})))"
-                        ),
-                    ]);
-                    if let Some(bitrate) = video.bitrate {
-                        push(&[
-                            "-maxrate",
-                            &bitrate.to_string(),
-                            "-bufsize",
-                            &(bitrate * 2).to_string(),
-                        ]);
-                    }
+                    args.extend(video_transcode_args(video, job.encoder, job.source));
                 }
             }
         }
         None => push(&["-vn"]),
     }
+    let mut push = |values: &[&str]| args.extend(values.iter().map(OsString::from));
 
     match &job.plan.audio {
         Some(audio) => {
@@ -264,6 +264,308 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
     args
 }
 
+/// A short test transcode into the null muxer, with exactly the pipeline sessions
+/// use: from `input`, or from a test picture (decoded on the CPU) without one.
+pub(crate) fn test_args(
+    input: Option<&Path>,
+    video: &VideoPlan,
+    encoder: &VideoEncoder,
+    source: Option<&SourceVideo>,
+) -> Vec<OsString> {
+    let mut args: Vec<OsString> = ["-hide_banner", "-loglevel", "error", "-nostdin"]
+        .into_iter()
+        .map(OsString::from)
+        .collect();
+    let source = input.and(source);
+    args.extend(hw_input_args(encoder, source, cfg!(windows)));
+    match input {
+        Some(path) => {
+            args.push("-i".into());
+            args.push(path.as_os_str().to_owned());
+        }
+        None => args.extend(
+            ["-f", "lavfi", "-i", "testsrc2=s=640x360:r=25:d=0.4"]
+                .into_iter()
+                .map(OsString::from),
+        ),
+    }
+    args.extend(["-map", "0:v:0"].into_iter().map(OsString::from));
+    args.extend(video_transcode_args(video, encoder, source));
+    args.extend(
+        ["-an", "-sn", "-f", "null", "-"]
+            .into_iter()
+            .map(OsString::from),
+    );
+    args
+}
+
+/// Input options for a hardware pipeline: devices, and GPU decoding when the GPU
+/// can decode the source. `windows` selects how Quick Sync finds the GPU.
+fn hw_input_args(
+    encoder: &VideoEncoder,
+    source: Option<&SourceVideo>,
+    windows: bool,
+) -> Vec<OsString> {
+    let VideoEncoder::Hardware(hw) = encoder else {
+        return Vec::new();
+    };
+    let gpu = hw.decodes(source);
+    let mut args: Vec<OsString> = Vec::new();
+    let mut push = |values: &[&str]| args.extend(values.iter().map(OsString::from));
+    // `vaapi=va:/dev/dri/renderD128` (the node comes from the configuration).
+    let vaapi_device = || {
+        let mut value = OsString::from("vaapi=va:");
+        value.push(hw.device.as_os_str());
+        value
+    };
+    match hw.accel {
+        Accel::Nvenc => {
+            if gpu {
+                push(&["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"]);
+            }
+        }
+        Accel::Qsv => {
+            if windows {
+                push(&[
+                    "-init_hw_device",
+                    "d3d11va=dx:,vendor_id=0x8086",
+                    "-init_hw_device",
+                    "qsv=qs@dx",
+                ]);
+            } else {
+                push(&["-init_hw_device"]);
+                args.push(vaapi_device());
+                args.extend(["-init_hw_device", "qsv=qs@va"].map(OsString::from));
+            }
+            args.extend(["-filter_hw_device", "qs"].map(OsString::from));
+            if gpu {
+                args.extend(
+                    [
+                        "-hwaccel",
+                        "qsv",
+                        "-hwaccel_device",
+                        "qs",
+                        "-hwaccel_output_format",
+                        "qsv",
+                    ]
+                    .map(OsString::from),
+                );
+                // Quick Sync decodes with its own decoders, chosen by name.
+                if let Some(decoder) = source.and_then(|s| qsv_decoder(&s.codec)) {
+                    args.extend(["-c:v", decoder].map(OsString::from));
+                }
+            }
+        }
+        Accel::Vaapi => {
+            push(&["-init_hw_device"]);
+            args.push(vaapi_device());
+            args.extend(["-filter_hw_device", "va"].map(OsString::from));
+            if gpu {
+                args.extend(
+                    [
+                        "-hwaccel",
+                        "vaapi",
+                        "-hwaccel_device",
+                        "va",
+                        "-hwaccel_output_format",
+                        "vaapi",
+                    ]
+                    .map(OsString::from),
+                );
+            }
+        }
+    }
+    args
+}
+
+/// Filters and encoder options for a video transcode (after `-map`).
+fn video_transcode_args(
+    video: &VideoPlan,
+    encoder: &VideoEncoder,
+    source: Option<&SourceVideo>,
+) -> Vec<OsString> {
+    let mut args: Vec<String> = Vec::new();
+    match encoder {
+        VideoEncoder::Software => {
+            let mut filters = format!("scale={}:{}", video.width, video.height);
+            if video.tonemap {
+                filters.push(',');
+                filters.push_str(TONEMAP);
+            } else {
+                filters.push_str(",format=yuv420p");
+            }
+            args.extend(
+                [
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryfast",
+                    "-crf",
+                    "23",
+                    "-profile:v",
+                    "high",
+                    "-vf",
+                    &filters,
+                    // No keyframes of its own: they would add cuts.
+                    "-x264-params",
+                    "keyint=infinite:scenecut=0",
+                    "-force_key_frames",
+                    &force_key_frames(),
+                ]
+                .map(str::to_owned),
+            );
+            if let Some(bitrate) = video.bitrate {
+                args.extend([
+                    "-maxrate".to_owned(),
+                    bitrate.to_string(),
+                    "-bufsize".to_owned(),
+                    (bitrate * 2).to_string(),
+                ]);
+            }
+        }
+        VideoEncoder::Hardware(hw) => {
+            args.push("-vf".to_owned());
+            args.push(hw_filters(hw, hw.decodes(source), video));
+            args.extend(hw_encoder_args(hw, video));
+            // Forced keyframes become IDR frames (`forced-idr` and friends above), and
+            // the encoder adds none of its own: no scene cuts, a GOP never reached.
+            args.extend(["-force_key_frames".to_owned(), force_key_frames()]);
+            if video.tonemap {
+                args.extend(
+                    [
+                        "-color_primaries",
+                        "bt709",
+                        "-color_trc",
+                        "bt709",
+                        "-colorspace",
+                        "bt709",
+                    ]
+                    .map(str::to_owned),
+                );
+            }
+        }
+    }
+    args.into_iter().map(OsString::from).collect()
+}
+
+/// Scaling and tone mapping for a hardware encoder. With GPU decoding the frames stay
+/// in video memory, except for software tone mapping, which downloads them after
+/// scaling (so the CPU only works on the output size).
+fn hw_filters(hw: &HwEncoder, gpu_decode: bool, video: &VideoPlan) -> String {
+    let (w, h) = (video.width, video.height);
+    if !gpu_decode {
+        // Decoded on the CPU: scale (and tone-map) there; the GPU only encodes.
+        let mut filters = format!("scale={w}:{h},");
+        filters.push_str(if video.tonemap {
+            TONEMAP
+        } else {
+            "format=yuv420p"
+        });
+        match hw.accel {
+            Accel::Nvenc => {}
+            Accel::Qsv => filters.push_str(",format=nv12"),
+            Accel::Vaapi => filters.push_str(",format=nv12,hwupload"),
+        }
+        return filters;
+    }
+    let cpu_tonemap = format!("hwdownload,format=p010le,format=yuv420p10le,{TONEMAP}");
+    match (hw.accel, video.tonemap, hw.tonemap) {
+        (Accel::Nvenc, false, _) => format!("scale_cuda={w}:{h}:format=nv12"),
+        (Accel::Nvenc, true, Tonemap::Cuda) => format!(
+            "scale_cuda={w}:{h}:format=p010le,\
+             tonemap_cuda=format=nv12:p=bt709:t=bt709:m=bt709:tonemap=bt2390:peak=100:desat=0"
+        ),
+        (Accel::Nvenc, true, _) => format!("scale_cuda={w}:{h}:format=p010le,{cpu_tonemap}"),
+        (Accel::Qsv, false, _) => format!("vpp_qsv=w={w}:h={h}:format=nv12"),
+        (Accel::Qsv, true, Tonemap::VppQsv) => format!("vpp_qsv=w={w}:h={h}:format=nv12:tonemap=1"),
+        (Accel::Qsv, true, _) => {
+            format!("vpp_qsv=w={w}:h={h}:format=p010le,{cpu_tonemap},format=nv12")
+        }
+        (Accel::Vaapi, false, _) => format!("scale_vaapi=w={w}:h={h}:format=nv12"),
+        (Accel::Vaapi, true, Tonemap::Vaapi) => format!(
+            "scale_vaapi=w={w}:h={h}:format=p010,tonemap_vaapi=format=nv12:p=bt709:t=bt709:m=bt709"
+        ),
+        (Accel::Vaapi, true, _) => {
+            format!("scale_vaapi=w={w}:h={h}:format=p010,{cpu_tonemap},format=nv12,hwupload")
+        }
+    }
+}
+
+/// Bitrate of a hardware transcode without a limit (they encode with a target
+/// bitrate rather than a quality level).
+fn default_bitrate(height: i64) -> i64 {
+    match height {
+        ..=480 => 2_000_000,
+        481..=720 => 4_000_000,
+        721..=1080 => 8_000_000,
+        _ => 20_000_000,
+    }
+}
+
+fn hw_encoder_args(hw: &HwEncoder, video: &VideoPlan) -> Vec<String> {
+    let bitrate = video
+        .bitrate
+        .unwrap_or_else(|| default_bitrate(video.height));
+    let rate = [
+        "-b:v".to_owned(),
+        bitrate.to_string(),
+        "-maxrate".to_owned(),
+        bitrate.to_string(),
+        "-bufsize".to_owned(),
+        (bitrate * 2).to_string(),
+    ];
+    let owned = |values: &[&str]| values.iter().map(|v| (*v).to_owned()).collect::<Vec<_>>();
+    let mut args = match hw.accel {
+        Accel::Nvenc => owned(&[
+            "-c:v",
+            "h264_nvenc",
+            "-preset",
+            "p4",
+            "-profile:v",
+            "high",
+            "-rc",
+            "vbr",
+        ]),
+        Accel::Qsv => owned(&[
+            "-c:v",
+            "h264_qsv",
+            "-preset",
+            "veryfast",
+            "-profile:v",
+            "high",
+        ]),
+        Accel::Vaapi => owned(&[
+            "-c:v",
+            "h264_vaapi",
+            "-profile:v",
+            "high",
+            "-rc_mode",
+            "VBR",
+        ]),
+    };
+    args.extend(rate);
+    args.extend(match hw.accel {
+        Accel::Nvenc => owned(&["-g", HW_GOP, "-forced-idr", "1", "-no-scenecut", "1"]),
+        // VA-API turns every forced keyframe into an IDR frame by itself and has no
+        // scene-cut detection.
+        Accel::Vaapi => owned(&["-g", HW_GOP]),
+        Accel::Qsv => owned(&[
+            "-g",
+            QSV_GOP,
+            "-forced_idr",
+            "1",
+            "-adaptive_i",
+            "0",
+            "-adaptive_b",
+            "0",
+        ]),
+    });
+    if hw.low_power {
+        args.extend(owned(&["-low_power", "1"]));
+    }
+    args
+}
+
 /// Segment numbers ffmpeg reports as complete in its own playlist.
 pub fn completed_segments(ffmpeg_playlist: &str) -> impl Iterator<Item = u32> + '_ {
     ffmpeg_playlist.lines().filter_map(|line| {
@@ -278,7 +580,8 @@ pub fn completed_segments(ffmpeg_playlist: &str) -> impl Iterator<Item = u32> + 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::decision::{AudioPlan, PlayMethod, VideoPlan};
+    use crate::decision::{AudioPlan, PlayMethod};
+    use std::path::PathBuf;
 
     fn plan(tonemap: bool, audio: StreamAction) -> PlaybackPlan {
         PlaybackPlan {
@@ -320,6 +623,8 @@ mod tests {
             start_segment: 10,
             segments: &segments,
             plan: &plan,
+            encoder: &VideoEncoder::Software,
+            source: None,
         });
         let line = joined(&args);
         assert!(line.starts_with(
@@ -350,6 +655,8 @@ mod tests {
             start_segment: 0,
             segments: &Segments::fixed(60_000),
             plan: &plan,
+            encoder: &VideoEncoder::Software,
+            source: None,
         }));
         assert!(!line.contains("-ss"));
         assert!(line.contains("-c:a copy"));
@@ -372,6 +679,8 @@ mod tests {
             start_segment: 2,
             segments: &segments,
             plan: &plan,
+            encoder: &VideoEncoder::Software,
+            source: None,
         }));
         // 150 ms past the keyframe, so the seek cannot fall back to the previous one.
         assert!(line.contains("-ss 4.650 -copyts -start_at_zero -i in.mkv"));
@@ -423,5 +732,279 @@ mod tests {
     fn completed_segments_are_read_from_ffmpegs_playlist() {
         let playlist = "#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4\"\n#EXTINF:6.0,\nseg10.m4s\n#EXTINF:6.0,\nseg11.m4s\n";
         assert_eq!(completed_segments(playlist).collect::<Vec<_>>(), [10, 11]);
+    }
+
+    fn hw(accel: Accel, tonemap: Tonemap) -> VideoEncoder {
+        VideoEncoder::Hardware(HwEncoder {
+            accel,
+            device: PathBuf::from("/dev/dri/renderD128"),
+            low_power: false,
+            hw_decode: true,
+            tonemap,
+        })
+    }
+
+    fn hevc10() -> SourceVideo {
+        SourceVideo {
+            index: 0,
+            codec: "hevc".into(),
+            width: 3840,
+            height: 2160,
+            bit_depth: 10,
+            hdr: "hdr10".into(),
+        }
+    }
+
+    /// Arguments of a run from segment 10 with a hardware encoder.
+    fn hw_line(encoder: &VideoEncoder, tonemap: bool, source: Option<&SourceVideo>) -> String {
+        let plan = plan(tonemap, StreamAction::Copy);
+        joined(&hls_args(&HlsJob {
+            input: Path::new("in.mkv"),
+            out_dir: Path::new("out"),
+            start_segment: 10,
+            segments: &Segments::fixed(120_000),
+            plan: &plan,
+            encoder,
+            source,
+        }))
+    }
+
+    const FORCED: &str =
+        "-force_key_frames expr:if(isnan(prev_forced_t),1,gt(floor(t/6),floor(prev_forced_t/6)))";
+
+    #[test]
+    fn nvenc_runs_entirely_on_the_gpu() {
+        let source = hevc10();
+        let line = hw_line(&hw(Accel::Nvenc, Tonemap::Software), false, Some(&source));
+        assert!(
+            line.starts_with(
+                "-hide_banner -loglevel error -nostdin -y -hwaccel cuda -hwaccel_output_format cuda \
+                 -ss 60.000 -copyts -start_at_zero -i in.mkv -map 0:0 "
+            ),
+            "{line}"
+        );
+        assert!(
+            line.contains(&format!(
+                "-vf scale_cuda=1280:720:format=nv12 -c:v h264_nvenc -preset p4 -profile:v high -rc vbr \
+                 -b:v 3000000 -maxrate 3000000 -bufsize 6000000 -g 100000 -forced-idr 1 -no-scenecut 1 \
+                 {FORCED} -map 0:2 -c:a copy"
+            )),
+            "{line}"
+        );
+        assert!(!line.contains("libx264") && !line.contains("color_trc"));
+    }
+
+    #[test]
+    fn nvenc_tone_maps_with_cuda_or_after_download() {
+        let source = hevc10();
+        let cuda = hw_line(&hw(Accel::Nvenc, Tonemap::Cuda), true, Some(&source));
+        assert!(
+            cuda.contains(
+                "-vf scale_cuda=1280:720:format=p010le,tonemap_cuda=format=nv12:p=bt709:t=bt709:m=bt709:\
+                 tonemap=bt2390:peak=100:desat=0 -c:v h264_nvenc"
+            ),
+            "{cuda}"
+        );
+        assert!(cuda.contains("-color_primaries bt709 -color_trc bt709 -colorspace bt709"));
+
+        let hybrid = hw_line(&hw(Accel::Nvenc, Tonemap::Software), true, Some(&source));
+        assert!(
+            hybrid.contains(
+                "-vf scale_cuda=1280:720:format=p010le,hwdownload,format=p010le,format=yuv420p10le,\
+                 zscale=t=linear:npl=100,"
+            ),
+            "{hybrid}"
+        );
+        assert!(hybrid.contains("format=yuv420p -c:v h264_nvenc"));
+    }
+
+    #[test]
+    fn cpu_decoding_feeds_the_gpu_encoder() {
+        // MPEG-4 Part 2: no GPU decoder, so ffmpeg decodes and scales on the CPU.
+        let source = SourceVideo {
+            codec: "mpeg4".into(),
+            bit_depth: 8,
+            hdr: "sdr".into(),
+            ..hevc10()
+        };
+        let nvenc = hw_line(&hw(Accel::Nvenc, Tonemap::Cuda), false, Some(&source));
+        assert!(!nvenc.contains("-hwaccel"));
+        assert!(
+            nvenc.contains("-vf scale=1280:720,format=yuv420p -c:v h264_nvenc"),
+            "{nvenc}"
+        );
+
+        // Unknown source: same thing. VA-API needs the frames uploaded.
+        let vaapi = hw_line(&hw(Accel::Vaapi, Tonemap::Vaapi), true, None);
+        assert!(vaapi.contains("-filter_hw_device va -ss 60.000"), "{vaapi}");
+        assert!(!vaapi.contains("-hwaccel "));
+        assert!(
+            vaapi.contains("tonemap=tonemap=hable"),
+            "software tone mapping"
+        );
+        assert!(
+            vaapi.contains("format=yuv420p,format=nv12,hwupload -c:v h264_vaapi"),
+            "{vaapi}"
+        );
+
+        let qsv = hw_line(&hw(Accel::Qsv, Tonemap::VppQsv), false, None);
+        assert!(
+            qsv.contains("-vf scale=1280:720,format=yuv420p,format=nv12 -c:v h264_qsv"),
+            "{qsv}"
+        );
+    }
+
+    #[test]
+    fn qsv_pipeline() {
+        let source = hevc10();
+        let line = hw_line(&hw(Accel::Qsv, Tonemap::VppQsv), true, Some(&source));
+        assert!(
+            line.contains(
+                "-hwaccel qsv -hwaccel_device qs -hwaccel_output_format qsv -c:v hevc_qsv -ss 60.000"
+            ),
+            "{line}"
+        );
+        assert!(
+            line.contains(&format!(
+                "-vf vpp_qsv=w=1280:h=720:format=nv12:tonemap=1 -c:v h264_qsv -preset veryfast \
+                 -profile:v high -b:v 3000000 -maxrate 3000000 -bufsize 6000000 -g 65535 \
+                 -forced_idr 1 -adaptive_i 0 -adaptive_b 0 {FORCED}"
+            )),
+            "{line}"
+        );
+        let sdr = hw_line(&hw(Accel::Qsv, Tonemap::VppQsv), false, Some(&source));
+        assert!(
+            sdr.contains("-vf vpp_qsv=w=1280:h=720:format=nv12 -c:v"),
+            "{sdr}"
+        );
+        let hybrid = hw_line(&hw(Accel::Qsv, Tonemap::Software), true, Some(&source));
+        assert!(
+            hybrid.contains("-vf vpp_qsv=w=1280:h=720:format=p010le,hwdownload,format=p010le,")
+        );
+        assert!(hybrid.contains("format=yuv420p,format=nv12 -c:v h264_qsv"));
+
+        let VideoEncoder::Hardware(mut low) = hw(Accel::Qsv, Tonemap::VppQsv) else {
+            unreachable!()
+        };
+        low.low_power = true;
+        let line = hw_line(&VideoEncoder::Hardware(low), false, Some(&source));
+        assert!(
+            line.contains("-adaptive_b 0 -low_power 1 -force_key_frames"),
+            "{line}"
+        );
+    }
+
+    #[test]
+    fn qsv_devices_per_platform() {
+        let source = hevc10();
+        let encoder = hw(Accel::Qsv, Tonemap::VppQsv);
+        assert_eq!(
+            joined(&hw_input_args(&encoder, Some(&source), false)),
+            "-init_hw_device vaapi=va:/dev/dri/renderD128 -init_hw_device qsv=qs@va \
+             -filter_hw_device qs -hwaccel qsv -hwaccel_device qs -hwaccel_output_format qsv \
+             -c:v hevc_qsv"
+        );
+        assert_eq!(
+            joined(&hw_input_args(&encoder, None, true)),
+            "-init_hw_device d3d11va=dx:,vendor_id=0x8086 -init_hw_device qsv=qs@dx \
+             -filter_hw_device qs"
+        );
+    }
+
+    #[test]
+    fn vaapi_pipeline() {
+        let source = hevc10();
+        let encoder = hw(Accel::Vaapi, Tonemap::Vaapi);
+        assert_eq!(
+            joined(&hw_input_args(&encoder, Some(&source), false)),
+            "-init_hw_device vaapi=va:/dev/dri/renderD128 -filter_hw_device va \
+             -hwaccel vaapi -hwaccel_device va -hwaccel_output_format vaapi"
+        );
+        let line = hw_line(&encoder, true, Some(&source));
+        assert!(
+            line.contains(&format!(
+                "-vf scale_vaapi=w=1280:h=720:format=p010,tonemap_vaapi=format=nv12:p=bt709:t=bt709:m=bt709 \
+                 -c:v h264_vaapi -profile:v high -rc_mode VBR -b:v 3000000 -maxrate 3000000 \
+                 -bufsize 6000000 -g 100000 {FORCED}"
+            )),
+            "{line}"
+        );
+        let sdr = hw_line(&encoder, false, Some(&source));
+        assert!(sdr.contains("-vf scale_vaapi=w=1280:h=720:format=nv12 -c:v h264_vaapi"));
+        let hybrid = hw_line(&hw(Accel::Vaapi, Tonemap::Software), true, Some(&source));
+        assert!(hybrid.contains("-vf scale_vaapi=w=1280:h=720:format=p010,hwdownload,"));
+        assert!(hybrid.contains("format=yuv420p,format=nv12,hwupload -c:v h264_vaapi"));
+    }
+
+    #[test]
+    fn hardware_without_a_limit_uses_a_bitrate_for_the_size() {
+        let mut plan = plan(false, StreamAction::Copy);
+        plan.video.as_mut().unwrap().bitrate = None;
+        let line = joined(&hls_args(&HlsJob {
+            input: Path::new("in.mkv"),
+            out_dir: Path::new("out"),
+            start_segment: 0,
+            segments: &Segments::fixed(60_000),
+            plan: &plan,
+            encoder: &hw(Accel::Nvenc, Tonemap::Software),
+            source: None,
+        }));
+        assert!(
+            line.contains("-b:v 4000000 -maxrate 4000000 -bufsize 8000000"),
+            "{line}"
+        );
+        assert_eq!(default_bitrate(1080), 8_000_000);
+        assert_eq!(default_bitrate(2160), 20_000_000);
+    }
+
+    #[test]
+    fn copied_video_ignores_the_hardware_encoder() {
+        let mut plan = plan(false, StreamAction::Copy);
+        plan.video.as_mut().unwrap().action = StreamAction::Copy;
+        let source = hevc10();
+        let line = joined(&hls_args(&HlsJob {
+            input: Path::new("in.mkv"),
+            out_dir: Path::new("out"),
+            start_segment: 0,
+            segments: &Segments::fixed(60_000),
+            plan: &plan,
+            encoder: &hw(Accel::Qsv, Tonemap::VppQsv),
+            source: Some(&source),
+        }));
+        assert!(
+            line.starts_with("-hide_banner -loglevel error -nostdin -y -copyts"),
+            "{line}"
+        );
+        assert!(!line.contains("qsv"));
+    }
+
+    #[test]
+    fn test_runs_use_the_session_pipeline() {
+        let video = plan(true, StreamAction::Copy).video.unwrap();
+        let source = hevc10();
+        let encoder = hw(Accel::Nvenc, Tonemap::Cuda);
+        let picture = joined(&test_args(None, &video, &encoder, Some(&source)));
+        assert!(
+            picture.starts_with(
+                "-hide_banner -loglevel error -nostdin -f lavfi -i testsrc2=s=640x360:r=25:d=0.4 \
+                 -map 0:v:0 -vf scale=1280:720,"
+            ),
+            "the test picture is decoded on the CPU: {picture}"
+        );
+        assert!(picture.ends_with("-an -sn -f null -"));
+        let clip = joined(&test_args(
+            Some(Path::new("hdr.mkv")),
+            &video,
+            &encoder,
+            Some(&source),
+        ));
+        assert!(
+            clip.starts_with(
+                "-hide_banner -loglevel error -nostdin -hwaccel cuda -hwaccel_output_format cuda \
+                 -i hdr.mkv -map 0:v:0 -vf scale_cuda="
+            ),
+            "{clip}"
+        );
+        assert!(clip.contains("tonemap_cuda"));
     }
 }
