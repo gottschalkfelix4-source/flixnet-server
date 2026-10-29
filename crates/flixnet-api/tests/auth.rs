@@ -207,6 +207,8 @@ async fn every_protected_operation_requires_a_token() {
             "GET /api/v1/images/{id}",
             "GET /api/v1/invitations/redeem/{code}",
             "GET /api/v1/setup/status",
+            // Signed URL bound to user + file, or a token (playback_api.rs).
+            "GET /api/v1/stream/{file_id}",
             "GET /api/v1/system/info",
             "POST /api/v1/auth/login",
             "POST /api/v1/invitations/redeem/{code}",

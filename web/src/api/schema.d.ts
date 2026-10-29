@@ -270,6 +270,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/playback-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sources of a movie or episode, with signed stream URLs. */
+        get: operations["getPlaybackInfo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}/played": {
         parameters: {
             query?: never;
@@ -491,6 +508,26 @@ export interface paths {
         };
         /** Is first-run setup still required? */
         get: operations["getSetupStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stream/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The original media file (Direct Play), with HTTP range support.
+         * @description Use the signed `direct_url` from playback info; alternatively authenticate normally.
+         */
+        get: operations["streamFile"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1049,6 +1086,26 @@ export interface components {
             subtitles: components["schemas"]["SubtitleStreamDto"][];
             video?: components["schemas"]["VideoStreamDto"] | null;
         };
+        MediaSourceDto: {
+            /** Format: int64 */
+            bitrate?: number | null;
+            /** @description Container as probed (e.g. `matroska,webm`, `mov,mp4,m4a,3gp,3g2,mj2`). */
+            container?: string | null;
+            /** @description Signed URL of the original file (supports HTTP range requests). */
+            direct_url: string;
+            /** Format: int64 */
+            duration_ms?: number | null;
+            /** Format: int64 */
+            file_id: number;
+            file_name: string;
+            /**
+             * Format: int64
+             * @description Part number for multi-part movies (`cd1`, `part2`, …).
+             */
+            part?: number | null;
+            /** Format: int64 */
+            size: number;
+        };
         MetadataSettingsDto: {
             /** @description Country for age ratings, e.g. `DE`. */
             country: string;
@@ -1083,6 +1140,12 @@ export interface components {
             person_id: number;
             /** @description actor | director | writer | creator | producer */
             role: string;
+        };
+        PlaybackInfoDto: {
+            /** Format: int64 */
+            item_id: number;
+            /** @description Playable versions/parts of the item, main versions first. */
+            sources: components["schemas"]["MediaSourceDto"][];
         };
         PoolSummary: {
             /** Format: int64 */
@@ -2133,6 +2196,47 @@ export interface operations {
             };
         };
     };
+    getPlaybackInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id (movie or episode) */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Playable sources */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackInfoDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such item, or nothing playable */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     markPlayed: {
         parameters: {
             query?: never;
@@ -2916,6 +3020,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SetupStatus"];
                 };
+            };
+        };
+    };
+    streamFile: {
+        parameters: {
+            query?: {
+                /** @description User the URL was issued to, from URLs returned by the API. */
+                u?: number;
+                /** @description Expiry of the signature (unix seconds). */
+                exp?: number;
+                /** @description URL signature. */
+                sig?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Media file id */
+                file_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The whole file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description The requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description Neither a valid signature nor a valid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such file, or no access */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Range outside the file */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

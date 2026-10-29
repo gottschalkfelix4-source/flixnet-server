@@ -27,6 +27,7 @@ mod items;
 mod jobs;
 mod libraries;
 pub mod limiter;
+mod playback;
 mod session;
 mod settings;
 pub mod signing;
@@ -97,6 +98,7 @@ impl AppState {
         (name = "jobs", description = "Background jobs and scheduled tasks (administrators)"),
         (name = "libraries", description = "Media libraries, folder browsing and images"),
         (name = "items", description = "Movies, series, seasons and episodes"),
+        (name = "playback", description = "Playback sources and media streams"),
         (name = "settings", description = "Server settings (administrators)"),
     )
 )]
@@ -138,6 +140,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, images::router())
         .nest(API_PREFIX, items::router())
         .nest(API_PREFIX, browse::router())
+        .nest(API_PREFIX, playback::router())
         .nest(API_PREFIX, settings::router())
         .split_for_parts()
 }

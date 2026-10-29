@@ -98,7 +98,7 @@ async fn get_person(
     }))
 }
 
-async fn ensure_visible(state: &AppState, user: &AuthUser, id: i64) -> ApiResult<()> {
+pub(crate) async fn ensure_visible(state: &AppState, user: &AuthUser, id: i64) -> ApiResult<()> {
     let library_ids = visible_libraries(state, user, None).await?;
     if browse::is_visible(&state.db, id, &library_ids, user.max_age_rating).await? {
         Ok(())

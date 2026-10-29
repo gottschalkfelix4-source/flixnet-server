@@ -1355,6 +1355,59 @@
         }
       }
     },
+    "/api/v1/items/{id}/playback-info": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Sources of a movie or episode, with signed stream URLs.",
+        "operationId": "getPlaybackInfo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id (movie or episode)",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Playable sources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackInfoDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such item, or nothing playable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/items/{id}/played": {
       "put": {
         "tags": [
@@ -2308,6 +2361,97 @@
                 }
               }
             }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/stream/{file_id}": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "The original media file (Direct Play), with HTTP range support.",
+        "description": "Use the signed `direct_url` from playback info; alternatively authenticate normally.",
+        "operationId": "streamFile",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "description": "Media file id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "u",
+            "in": "query",
+            "description": "User the URL was issued to, from URLs returned by the API.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "description": "Expiry of the signature (unix seconds).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "description": "URL signature.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The whole file",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "206": {
+            "description": "The requested byte range",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "401": {
+            "description": "Neither a valid signature nor a valid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such file, or no access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "416": {
+            "description": "Range outside the file"
           }
         },
         "security": [
@@ -4218,6 +4362,61 @@
           }
         }
       },
+      "MediaSourceDto": {
+        "type": "object",
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "direct_url"
+        ],
+        "properties": {
+          "bitrate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "container": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Container as probed (e.g. `matroska,webm`, `mov,mp4,m4a,3gp,3g2,mj2`)."
+          },
+          "direct_url": {
+            "type": "string",
+            "description": "Signed URL of the original file (supports HTTP range requests)."
+          },
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "file_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "part": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Part number for multi-part movies (`cd1`, `part2`, …)."
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "MetadataSettingsDto": {
         "type": "object",
         "required": [
@@ -4334,6 +4533,26 @@
           "role": {
             "type": "string",
             "description": "actor | director | writer | creator | producer"
+          }
+        }
+      },
+      "PlaybackInfoDto": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "sources"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaSourceDto"
+            },
+            "description": "Playable versions/parts of the item, main versions first."
           }
         }
       },
@@ -4871,6 +5090,10 @@
     {
       "name": "items",
       "description": "Movies, series, seasons and episodes"
+    },
+    {
+      "name": "playback",
+      "description": "Playback sources and media streams"
     },
     {
       "name": "settings",

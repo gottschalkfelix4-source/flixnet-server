@@ -37,7 +37,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 3.1 Home (Hero, Reihen), Bibliotheks-Grid, Detailseiten, Suche — virtualisiertes Grid mit A–Z, Sortierung/Genre/Gesehen-Filter; Film-, Serien- (Staffel-Tabs) und Folgenseiten mit Besetzung, Technik und „Mehr wie das“; Personenseite; Identifizieren-Dialog; E2E in `browse.spec.ts`
 
 ## Phase 4 – Wiedergabe
-- [ ] 4.1 Direct Play mit Range-Requests
+- [x] 4.1 Direct Play mit Range-Requests — `playback-info` mit an Nutzer+Datei gebundenen signierten URLs, `/stream/{file_id}` (206/416, Rechte bei jedem Request neu geprüft), Vollbild-Player-Seite; E2E `playback.spec.ts`
 - [ ] 4.2 DeviceProfile + Decision-Engine + playback-info
 - [ ] 4.3 HLS-Transcode (Software) + TranscodeManager
 - [ ] 4.4 Remux mit Keyframe-Index, Audio-Transcode

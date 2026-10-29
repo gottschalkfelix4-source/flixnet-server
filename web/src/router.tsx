@@ -15,6 +15,7 @@ import { type BrowseSearch, BrowsePage } from '@/routes/BrowsePage'
 import { HomePage } from '@/routes/HomePage'
 import { ItemPage } from '@/routes/ItemPage'
 import { PersonPage } from '@/routes/PersonPage'
+import { PlayerPage } from '@/routes/PlayerPage'
 import { SearchPage } from '@/routes/SearchPage'
 import { InvitePage } from '@/routes/InvitePage'
 import { LoginPage } from '@/routes/LoginPage'
@@ -99,6 +100,14 @@ const profilesRoute = createRoute({
   beforeLoad: requireSession,
 })
 
+/** Full-screen player (signed in, without the sidebar). */
+const playRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/play/$id',
+  component: PlayerPage,
+  beforeLoad: requireSession,
+})
+
 /** Public invitation landing page. */
 const inviteRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -177,6 +186,7 @@ const routeTree = rootRoute.addChildren([
   setupRoute,
   loginRoute,
   profilesRoute,
+  playRoute,
   inviteRoute,
   appRoute.addChildren([
     settingsRoute,

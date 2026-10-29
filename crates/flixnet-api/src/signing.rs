@@ -54,6 +54,16 @@ impl UrlSigner {
             && bytes.len() == 16
     }
 
+    /// `/api/v1/stream/{file_id}?u=…&exp=…&sig=…`, bound to the user it was issued to.
+    pub fn stream_url(&self, file_id: i64, user_id: i64) -> String {
+        let (expires, sig) = self.sign(&format!("stream:{user_id}"), file_id);
+        format!("/api/v1/stream/{file_id}?u={user_id}&exp={expires}&sig={sig}")
+    }
+
+    pub fn verify_stream(&self, file_id: i64, user_id: i64, expires: i64, signature: &str) -> bool {
+        self.verify(&format!("stream:{user_id}"), file_id, expires, signature)
+    }
+
     /// `/api/v1/images/{id}?w=…&exp=…&sig=…`
     pub fn image_url(&self, image_id: i64, width: Option<u32>) -> String {
         let (expires, sig) = self.sign("img", image_id);

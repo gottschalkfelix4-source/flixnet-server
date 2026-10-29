@@ -128,15 +128,26 @@ function Header({ item }: { item: ItemDetail }) {
           )}
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button
-              type="button"
-              disabled
-              title="Die Wiedergabe kommt mit Phase 4"
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 text-sm font-bold text-canvas disabled:opacity-60"
-            >
-              <Play className="size-5 fill-current" aria-hidden="true" />
-              Abspielen
-            </button>
+            {item.kind === 'movie' || item.kind === 'episode' ? (
+              <Link
+                to="/play/$id"
+                params={{ id: String(item.id) }}
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 text-sm font-bold text-canvas hover:bg-white"
+              >
+                <Play className="size-5 fill-current" aria-hidden="true" />
+                Abspielen
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="„Nächste Folge“ kommt mit Meilenstein 4.7 – wähle eine Folge"
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 text-sm font-bold text-canvas disabled:opacity-60"
+              >
+                <Play className="size-5 fill-current" aria-hidden="true" />
+                Abspielen
+              </button>
+            )}
             <IconToggle
               active={item.played}
               label={item.played ? 'Als ungesehen markieren' : 'Als gesehen markieren'}
