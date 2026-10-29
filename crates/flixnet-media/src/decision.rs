@@ -301,6 +301,17 @@ pub fn decide(
     };
     if method == PlayMethod::DirectPlay {
         reasons.clear();
+    } else if audio_copy
+        && let Some(track) = audio
+        && !crate::hls::fmp4_audio_codec(&track.codec)
+    {
+        // The stream is HLS in fMP4: a codec the client plays from a file may still not
+        // be allowed there (browsers play MP3 files, but Media Source rejects MP3 in
+        // fMP4 — CHUNK_DEMUXER_ERROR_APPEND_FAILED). Convert it like any other.
+        audio_copy = false;
+        if !reasons.contains(&Reason::AudioCodecNotSupported) {
+            reasons.push(Reason::AudioCodecNotSupported);
+        }
     }
 
     let video = source.video.as_ref().map(|v| {
@@ -748,6 +759,70 @@ mod tests {
             (audio.action, audio.codec.as_str(), audio.channels),
             (StreamAction::Transcode, "aac", 6)
         );
+    }
+
+    #[test]
+    fn mp3_is_converted_when_it_goes_into_hls() {
+        // Chrome plays MP3 files, so an MP4 with MP3 audio plays directly …
+        let mp4 = media(
+            "mp4",
+            video("h264", 1280, 720, 8, "sdr"),
+            vec![audio(1, "mp3", 2, true)],
+        );
+        let plan = decide(&mp4, &chrome(), PlaybackChoice::default());
+        assert_eq!(plan.method, PlayMethod::DirectPlay);
+        assert_eq!(plan.audio.unwrap().action, StreamAction::Copy);
+
+        // … but once it is streamed as HLS (fMP4), MP3 must become AAC: Media Source
+        // rejects MP3 inside MP4.
+        let mkv = media(
+            "mkv",
+            video("h264", 1280, 720, 8, "sdr"),
+            vec![audio(1, "mp3", 2, true)],
+        );
+        let plan = decide(&mkv, &chrome(), PlaybackChoice::default());
+        assert_eq!(
+            method_and_reasons(&plan),
+            (
+                PlayMethod::Remux,
+                vec![
+                    Reason::ContainerNotSupported,
+                    Reason::AudioCodecNotSupported
+                ]
+            )
+        );
+        assert_eq!(plan.video.unwrap().action, StreamAction::Copy);
+        let audio_plan = plan.audio.unwrap();
+        assert_eq!(
+            (
+                audio_plan.action,
+                audio_plan.codec.as_str(),
+                audio_plan.channels
+            ),
+            (StreamAction::Transcode, "aac", 2)
+        );
+
+        let avi = media(
+            "avi",
+            video("mpeg4", 720, 404, 8, "sdr"),
+            vec![audio(1, "mp3", 2, true)],
+        );
+        let plan = decide(&avi, &chrome(), PlaybackChoice::default());
+        assert_eq!(plan.method, PlayMethod::Transcode);
+        assert_eq!(plan.audio.unwrap().action, StreamAction::Transcode);
+
+        // Codecs fMP4 carries are still copied.
+        let opus = media(
+            "mkv",
+            video("h264", 1280, 720, 8, "sdr"),
+            vec![audio(1, "opus", 2, true)],
+        );
+        let plan = decide(&opus, &chrome(), PlaybackChoice::default());
+        assert_eq!(plan.method, PlayMethod::Remux);
+        assert_eq!(plan.audio.unwrap().action, StreamAction::Copy);
+        assert!(crate::hls::fmp4_audio_codec("eac3"));
+        assert!(!crate::hls::fmp4_audio_codec("mp3"));
+        assert!(!crate::hls::fmp4_audio_codec("mp2"));
     }
 
     #[test]

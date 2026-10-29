@@ -263,6 +263,145 @@ async fn remux_segments_follow_the_keyframe_index() {
     manager.stop_all().await;
 }
 
+/// ffprobe's view of the audio in `files` joined (init + segments).
+fn audio_packets(files: &[PathBuf], scratch: &Path) -> (String, Vec<f64>) {
+    let joined = scratch.join("audio.mp4");
+    let mut bytes = Vec::new();
+    for file in files {
+        bytes.extend(std::fs::read(file).unwrap());
+    }
+    std::fs::write(&joined, bytes).unwrap();
+    let probe = |entries: &str| {
+        let out = Command::new("ffprobe")
+            .args(["-v", "error", "-select_streams", "a:0"])
+            .args(["-show_entries", entries, "-of", "csv=p=0"])
+            .arg(&joined)
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    };
+    let codec = probe("stream=codec_name").trim().to_owned();
+    let pts = probe("packet=pts_time")
+        .lines()
+        .filter_map(|l| l.trim().trim_end_matches(',').parse().ok())
+        .collect();
+    (codec, pts)
+}
+
+/// Regression (found in 4.7): Chrome plays MP3 files, so its profile lists MP3 — but
+/// MP3 copied into the fMP4 segments made Media Source fail with
+/// CHUNK_DEMUXER_ERROR_APPEND_FAILED. The decision converts it to AAC, and the AAC
+/// track runs on without gaps across segments and restarts.
+#[tokio::test]
+async fn mp3_audio_reaches_hls_as_aac() {
+    use flixnet_media::decision::{
+        AudioCodecSupport, DeviceProfile, PlaybackChoice, SourceAudio, SourceMedia, SourceVideo,
+        VideoCodecSupport, decide,
+    };
+    let dir = tempfile::tempdir().unwrap();
+    // H.264 (keyframe every 2 s) with MP3 in Matroska: a remux for Chrome.
+    let input = dir.path().join("mp3.mkv");
+    let status = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y"])
+        .args(["-f", "lavfi", "-i", "testsrc=s=320x240:r=25:d=12"])
+        .args(["-f", "lavfi", "-i", "sine=duration=12"])
+        .args(["-c:v", "libx264", "-preset", "ultrafast", "-g", "50"])
+        .args(["-sc_threshold", "0", "-c:a", "libmp3lame"])
+        .arg(&input)
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let chrome = DeviceProfile {
+        containers: vec!["mp4".into(), "webm".into()],
+        video_codecs: vec![VideoCodecSupport {
+            codec: "h264".into(),
+            ..Default::default()
+        }],
+        audio_codecs: ["aac", "mp3", "opus", "flac"]
+            .map(|codec| AudioCodecSupport {
+                codec: codec.into(),
+                max_channels: Some(6),
+            })
+            .to_vec(),
+        ..Default::default()
+    };
+    let source = SourceMedia {
+        container: "mkv".into(),
+        bitrate: None,
+        video: Some(SourceVideo {
+            index: 0,
+            codec: "h264".into(),
+            width: 320,
+            height: 240,
+            bit_depth: 8,
+            hdr: "sdr".into(),
+        }),
+        audio: vec![SourceAudio {
+            index: 1,
+            codec: "mp3".into(),
+            channels: 1,
+            is_default: true,
+        }],
+        subtitles: vec![],
+    };
+    let plan = decide(&source, &chrome, PlaybackChoice::default());
+    assert_eq!(plan.method, PlayMethod::Remux);
+    let audio = plan.audio.as_ref().unwrap();
+    assert_eq!(
+        (audio.action, audio.codec.as_str()),
+        (StreamAction::Transcode, "aac")
+    );
+
+    let keyframes = flixnet_media::Ffprobe::new("ffprobe")
+        .keyframes(&input, 0)
+        .await
+        .unwrap();
+    let mut session = spec(input);
+    session.segments = Segments::keyframes(&keyframes, 12_000).unwrap();
+    session.plan = plan;
+    let manager = TranscodeManager::new(
+        "ffmpeg",
+        dir.path().join("transcode"),
+        TranscodeSettings::default(),
+    );
+    let id = manager.create(session);
+
+    // A later segment first (its own run), then the start: as after a resume.
+    let seg4 = manager.segment(&id, 4).await.unwrap();
+    let init = manager.init(&id).await.unwrap();
+    let seg0 = manager.segment(&id, 0).await.unwrap();
+    let seg1 = manager.segment(&id, 1).await.unwrap();
+    let seg2 = manager.segment(&id, 2).await.unwrap();
+
+    let (codec, pts) = audio_packets(&[init.clone(), seg0, seg1, seg2], dir.path());
+    assert_eq!(codec, "aac", "MP3 never reaches the fMP4 segments");
+    assert!(pts.len() > 100, "{} audio packets", pts.len());
+    // AAC priming may start a frame (23 ms) early, never more.
+    assert!(
+        pts[0] > -0.05 && pts[0] < 0.05,
+        "audio starts at {}",
+        pts[0]
+    );
+    for pair in pts.windows(2) {
+        let step = pair[1] - pair[0];
+        assert!(
+            step > 0.0 && step < 0.05,
+            "audio runs on without jumps: {} → {}",
+            pair[0],
+            pair[1]
+        );
+    }
+    let (codec, pts) = audio_packets(&[init, seg4], dir.path());
+    assert_eq!(codec, "aac");
+    assert!(
+        (pts[0] - 8.0).abs() < 0.1,
+        "the restarted run's audio starts at its segment: {}",
+        pts[0]
+    );
+    manager.stop_all().await;
+}
+
 #[tokio::test]
 async fn a_start_hint_begins_the_first_run_at_the_resume_point() {
     let dir = tempfile::tempdir().unwrap();

@@ -168,6 +168,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/files/{file_id}/chapters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chapters of a media file, with signed URLs of their images. */
+        get: operations["listChapters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{file_id}/chapters/{chapter}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The image of one chapter (`{index}.jpg`).
+         * @description Use the signed URLs from the chapter list; alternatively authenticate normally.
+         */
+        get: operations["getChapterImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{file_id}/trickplay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Trickplay manifest of a media file: tile layout and signed sheet URLs. */
+        get: operations["getTrickplay"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/files/{file_id}/trickplay/{sheet}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One trickplay sheet (`{n}.jpg`).
+         * @description Use the signed URLs from the trickplay manifest; alternatively authenticate normally.
+         */
+        get: operations["getTrickplaySheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/fs/directories": {
         parameters: {
             query?: never;
@@ -2145,6 +2219,38 @@ export interface components {
             tonemap: components["schemas"]["Tonemap"];
         };
         /**
+         * @description How the sheets are laid out: thumbnail `n = floor(position_ms / interval_ms)` is on
+         *     sheet `n / (columns × rows)`, row-major within it.
+         */
+        TrickplayDto: {
+            /**
+             * Format: int64
+             * @description Thumbnails per sheet row.
+             */
+            columns: number;
+            /** Format: int64 */
+            interval_ms: number;
+            /**
+             * Format: int64
+             * @description Rows per sheet.
+             */
+            rows: number;
+            /** @description Signed URLs of the sheets (JPEG), in order. */
+            sheets: string[];
+            /**
+             * Format: int64
+             * @description Thumbnails in total (the last sheet may be partly filled).
+             */
+            thumbnails: number;
+            /** Format: int64 */
+            tile_height: number;
+            /**
+             * Format: int64
+             * @description Size of one thumbnail in pixels.
+             */
+            tile_width: number;
+        };
+        /**
          * @description What switching to a profile requires.
          * @enum {string}
          */
@@ -2843,6 +2949,192 @@ export interface operations {
             };
             /** @description Automatic collections cannot be edited */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listChapters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Media file id */
+                file_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The chapters in order (empty without chapters) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such file, or no access */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getChapterImage: {
+        parameters: {
+            query?: {
+                /** @description User the URL was issued to, from URLs returned by the API. */
+                u?: number;
+                /** @description Expiry of the signature (unix seconds). */
+                exp?: number;
+                /** @description URL signature. */
+                sig?: string;
+                /** @description Version of the image (ignored; new images get new URLs). */
+                v?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Media file id */
+                file_id: number;
+                /** @description Chapter number plus `.jpg`, e.g. `2.jpg` */
+                chapter: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description Neither a valid signature nor a valid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such file or chapter image, or no access */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getTrickplay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Media file id */
+                file_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Layout and sheets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrickplayDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such file, no access, or no thumbnails yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getTrickplaySheet: {
+        parameters: {
+            query?: {
+                /** @description User the URL was issued to, from URLs returned by the API. */
+                u?: number;
+                /** @description Expiry of the signature (unix seconds). */
+                exp?: number;
+                /** @description URL signature. */
+                sig?: string;
+                /** @description Version of the image (ignored; new images get new URLs). */
+                v?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Media file id */
+                file_id: number;
+                /** @description Sheet number plus `.jpg`, e.g. `0.jpg` */
+                sheet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sheet */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description Neither a valid signature nor a valid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such file or sheet, or no access */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -156,7 +156,11 @@ impl JobHandler for ProbeFile {
     type Payload = ProbePayload;
 
     async fn run(&self, ctx: JobContext, payload: ProbePayload) -> anyhow::Result<()> {
-        probe_file(ctx.db(), &self.ffprobe, payload.file_id).await
+        probe_file(ctx.db(), &self.ffprobe, payload.file_id).await?;
+        // Heavier analysis follows in the background (trickplay, chapter images).
+        crate::trickplay::queue_thumbnails(ctx.queue(), payload.file_id, priority::BACKFILL)
+            .await?;
+        Ok(())
     }
 }
 

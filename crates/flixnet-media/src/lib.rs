@@ -10,5 +10,6 @@ pub mod probe;
 mod process;
 pub mod subtitles;
 pub mod transcode;
+pub mod trickplay;
 
 pub use probe::{Chapter, Ffprobe, MediaInfo, ProbeError, StreamInfo, StreamKind};

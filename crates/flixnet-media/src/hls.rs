@@ -41,6 +41,13 @@ pub const INIT_FILE: &str = "init.mp4";
 /// Playlist ffmpeg keeps up to date; lists segments once they are complete.
 pub const FFMPEG_PLAYLIST: &str = "ffmpeg.m3u8";
 
+/// Audio codecs that may be copied into the fMP4 segments. Everything else is
+/// converted to AAC: MP3 (and MP2) in particular play as files in every browser, but
+/// Media Source rejects them inside MP4, and Apple's HLS only knows them in MPEG-TS.
+pub fn fmp4_audio_codec(codec: &str) -> bool {
+    matches!(codec, "aac" | "ac3" | "eac3" | "opus" | "flac")
+}
+
 pub fn segment_file(index: u32) -> String {
     format!("seg{index}.m4s")
 }
@@ -131,7 +138,7 @@ fn seconds(ms: i64) -> String {
 }
 
 /// Software tone mapping HDR → SDR (needs ffmpeg with zimg, as jellyfin-ffmpeg has).
-const TONEMAP: &str = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,\
+pub(crate) const TONEMAP: &str = "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,\
                        tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
 
 /// Exactly one keyframe per [`SEGMENT_SECS`] slot of the absolute timeline: the first

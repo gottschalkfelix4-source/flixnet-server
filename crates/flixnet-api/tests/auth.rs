@@ -206,6 +206,10 @@ async fn every_protected_operation_requires_a_token() {
         [
             // Signed URL, or a token of a user who may see the collection (collections_api.rs).
             "GET /api/v1/collections/{id}/images/{kind}",
+            // Signed URLs bound to user + file for seek-bar previews and chapter
+            // images, or a token (trickplay_api.rs).
+            "GET /api/v1/files/{file_id}/chapters/{chapter}",
+            "GET /api/v1/files/{file_id}/trickplay/{sheet}",
             "GET /api/v1/images/{id}",
             "GET /api/v1/invitations/redeem/{code}",
             "GET /api/v1/setup/status",

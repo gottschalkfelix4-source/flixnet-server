@@ -263,6 +263,11 @@ pub async fn store_probe(db: &Db, file_id: i64, data: &ProbeData) -> Result<()> 
         .bind(file_id)
         .execute(&mut *tx)
         .await?;
+    // So are its trickplay sheets (chapter images go with the chapter rows).
+    sqlx::query("DELETE FROM trickplay WHERE file_id = ?")
+        .bind(file_id)
+        .execute(&mut *tx)
+        .await?;
     for s in &data.streams {
         sqlx::query(
             "INSERT INTO media_streams (file_id, idx, kind, codec, profile, level, width, height, fps,
