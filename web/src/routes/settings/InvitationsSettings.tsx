@@ -5,6 +5,7 @@ import { FormError } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Section, SelectField } from '@/components/ui/Section'
 import { TextField } from '@/components/ui/TextField'
+import { copyText } from '@/lib/clipboard'
 import { AGE_OPTIONS, ageLabel, formatDateTime } from '@/lib/format'
 
 export function InvitationsSettings() {
@@ -39,12 +40,7 @@ export function InvitationsSettings() {
 
   async function copy() {
     if (!link) return
-    try {
-      await navigator.clipboard.writeText(link)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
+    setCopied(await copyText(link))
   }
 
   return (

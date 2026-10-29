@@ -42,9 +42,20 @@ export function useSession(): Session | null {
 export function deviceId(): string {
   const existing = readStored<string | null>(DEVICE_KEY, null)
   if (existing) return existing
-  const id = crypto.randomUUID()
+  const id = randomId()
   writeStored(DEVICE_KEY, id)
   return id
+}
+
+/**
+ * 128 random bits as a UUID-shaped string. Not `crypto.randomUUID()`: browsers only
+ * offer that on HTTPS or localhost, and Flixnet is often opened as plain
+ * `http://<server-ip>:<port>` in the LAN. `getRandomValues` works everywhere.
+ */
+function randomId(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
 /** "Chrome · Windows"-style label shown in the device list. */

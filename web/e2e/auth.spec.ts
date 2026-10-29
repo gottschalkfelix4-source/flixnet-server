@@ -54,3 +54,21 @@ test('a revoked token in storage sends the user to sign-in', async ({ page }) =>
   await page.goto('/')
   await expect(page).toHaveURL(/\/login$/)
 })
+
+// Opened as http://<server-ip>:<port>, the page is not a "secure context": browsers
+// then lack crypto.randomUUID and navigator.clipboard (signing up broke on Unraid).
+test('signing in works without secure-context APIs', async ({ page }) => {
+  await page.addInitScript(() => {
+    // @ts-expect-error -- simulate a non-secure context
+    delete Crypto.prototype.randomUUID
+    Object.defineProperty(navigator, 'clipboard', { value: undefined })
+  })
+  await page.goto('/login')
+  expect(await page.evaluate(() => typeof crypto.randomUUID)).toBe('undefined')
+  await page.getByLabel('Name').fill(ADMIN.name)
+  await page.getByLabel('Passwort').fill(ADMIN.password)
+  await page.getByRole('button', { name: 'Anmelden' }).click()
+  await expect(page.getByTestId('current-user')).toHaveText(ADMIN.name)
+  const device = await page.evaluate(() => JSON.parse(localStorage.getItem('flixnet.device.id') ?? 'null'))
+  expect(device).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+})
