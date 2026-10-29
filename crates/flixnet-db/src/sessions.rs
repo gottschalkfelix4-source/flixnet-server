@@ -20,6 +20,7 @@ pub struct Session {
     pub last_used_at: i64,
     pub user_name: String,
     pub is_admin: bool,
+    pub max_age_rating: Option<i64>,
 }
 
 /// Registers (or refreshes) the device and issues a new token for it, revoking any
@@ -72,7 +73,7 @@ pub async fn create(db: &Db, s: &NewSession<'_>) -> Result<i64> {
 pub async fn find_by_token_hash(db: &Db, token_hash: &str) -> Result<Option<Session>> {
     let session = sqlx::query_as(
         "SELECT t.id AS token_id, t.user_id, t.device_id, t.last_used_at,
-                u.name AS user_name, u.is_admin
+                u.name AS user_name, u.is_admin, u.max_age_rating
          FROM access_tokens t JOIN users u ON u.id = t.user_id
          WHERE t.token_hash = ? AND t.revoked_at IS NULL",
     )

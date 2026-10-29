@@ -27,7 +27,8 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 2.4 NFO + lokale Artworks (Kodi-NFO für Film/Serie/Episode, Poster/Fanart/Logo/Banner/Thumbs, Staffel-Poster; NFO-Felder gesperrt gegen Provider; Genres, Studios, Darsteller/Regie)
 - [x] 2.5 TMDB-Client (de-DE + en-US-Fallback, Response-Cache, 429-Retry), Matching mit Confidence (Titel/Original/Jahr), Identify (Suche + manuell), Staffeln/Folgen, FSK, Bild-Cache (Resize, Blurhash, signierte URLs), Einstellungs-Tab „Metadaten“ – mit Mock-TMDB getestet
   - **Offen (Felix):** TMDB-API-Schlüssel unter Einstellungen → Metadaten eintragen
-- [ ] 2.6 Items-API (Filter-DSL, Sortierung, Paging, A–Z, FTS5) – *fertig wenn* p95 < 50 ms bei 50k Items
+- [x] 2.6 Items-API (Filter-DSL, Sortierung, Paging, A–Z, FTS5) – *fertig wenn* p95 < 50 ms bei 50k Items → gemessen p95 ≈ 10–13 ms (Test `p95_under_50ms_on_50k_items`); Altersgrenze (unbewertet = verborgen, Folgen erben von der Serie) und Bibliotheksrechte überall; Detail-API mit Personen, Artwork, Dateien/Streams/Kapiteln
+  - Offen: Personenbilder kommen noch direkt von TMDB (später über den Bild-Cache)
 - [ ] 2.7 Watcher, Rename-Erkennung – *fertig wenn* Watch-State nach Rename erhalten bleibt
 - [ ] 2.8 TVDB, fanart.tv, Personen/Credits
 

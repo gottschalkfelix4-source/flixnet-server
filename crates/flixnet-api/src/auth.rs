@@ -22,6 +22,8 @@ pub struct AuthUser {
     pub user_id: i64,
     pub name: String,
     pub is_admin: bool,
+    /// Content age limit of this profile (`None` = unrestricted).
+    pub max_age_rating: Option<i64>,
     pub token_id: i64,
     pub device_id: i64,
 }
@@ -54,6 +56,7 @@ impl FromRequestParts<AppState> for AuthUser {
             user_id: session.user_id,
             name: session.user_name,
             is_admin: session.is_admin,
+            max_age_rating: session.max_age_rating,
             token_id: session.token_id,
             device_id: session.device_id,
         })

@@ -14,6 +14,7 @@ use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
+pub mod browse;
 pub mod cache;
 pub mod invitations;
 pub mod items;
@@ -70,7 +71,11 @@ impl Db {
             .synchronous(SqliteSynchronous::Normal)
             .busy_timeout(BUSY_TIMEOUT)
             .foreign_keys(true)
-            .pragma("temp_store", "memory");
+            .pragma("temp_store", "memory")
+            // Memory-mapped reads share the OS page cache across all connections, so a
+            // fresh reader does not start cold; plus a 32 MB page cache per connection.
+            .pragma("mmap_size", "268435456")
+            .pragma("cache_size", "-32000");
 
         let writer = SqlitePoolOptions::new()
             .max_connections(1)

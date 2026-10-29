@@ -18,6 +18,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
 pub mod auth;
+mod browse;
 pub mod error;
 mod images;
 mod invitations;
@@ -131,6 +132,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, libraries::router())
         .nest(API_PREFIX, images::router())
         .nest(API_PREFIX, items::router())
+        .nest(API_PREFIX, browse::router())
         .nest(API_PREFIX, settings::router())
         .split_for_parts()
 }

@@ -19,9 +19,10 @@ pub fn normalize_key(title: &str) -> String {
     out
 }
 
-/// Sort title without leading articles ("The Matrix" → "matrix", "Der Pate" → "pate").
+/// Sort title: lower case, accents folded (ä→a, ß→ss) and leading articles removed,
+/// so "Ärger" sorts with A and "The Matrix" with M.
 pub fn sort_title(title: &str) -> String {
-    let lower = title.trim().to_lowercase();
+    let lower = fold_accents(&title.trim().to_lowercase());
     for article in ["the ", "a ", "an ", "der ", "die ", "das ", "ein ", "eine "] {
         if let Some(rest) = lower.strip_prefix(article)
             && !rest.is_empty()
@@ -30,6 +31,26 @@ pub fn sort_title(title: &str) -> String {
         }
     }
     lower
+}
+
+fn fold_accents(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        match c {
+            'ä' | 'à' | 'á' | 'â' | 'ã' | 'å' => out.push('a'),
+            'ö' | 'ò' | 'ó' | 'ô' | 'õ' | 'ø' => out.push('o'),
+            'ü' | 'ù' | 'ú' | 'û' => out.push('u'),
+            'é' | 'è' | 'ê' | 'ë' => out.push('e'),
+            'í' | 'ì' | 'î' | 'ï' => out.push('i'),
+            'ç' => out.push('c'),
+            'ñ' => out.push('n'),
+            'ß' => out.push_str("ss"),
+            'æ' => out.push_str("ae"),
+            'œ' => out.push_str("oe"),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 /// One level of the item hierarchy to create (series → season → episode, or movie).

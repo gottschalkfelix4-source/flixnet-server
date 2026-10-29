@@ -268,6 +268,51 @@
         }
       }
     },
+    "/api/v1/genres": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Genres used in the visible libraries.",
+        "operationId": "listGenres",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Genres with item counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GenreDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/images/{id}": {
       "get": {
         "tags": [
@@ -607,6 +652,402 @@
           },
           "404": {
             "description": "No such invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Browse and search items.",
+        "operationId": "listItems",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "description": "Comma-separated: `movie`, `series`, `season`, `episode`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "series_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search over titles and descriptions.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "genre",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "year_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "year_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "letter",
+            "in": "query",
+            "description": "`A`–`Z` or `#`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "title",
+                "date_added",
+                "year",
+                "rating",
+                "premiere_date",
+                "relevance"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–200, default 60.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/letters": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Jump bar: items per first letter (title order) with the offset to jump to.",
+        "operationId": "listItemLetters",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "description": "Comma-separated: `movie`, `series`, `season`, `episode`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "series_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search over titles and descriptions.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "genre",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "year_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "year_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "letter",
+            "in": "query",
+            "description": "`A`–`Z` or `#`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "title",
+                "date_added",
+                "year",
+                "rating",
+                "premiere_date",
+                "relevance"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–200, default 60.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Letters in title order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LetterDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Everything about one item: metadata, people, artwork and files.",
+        "operationId": "getItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
             "content": {
               "application/json": {
                 "schema": {
@@ -2435,6 +2876,94 @@
   },
   "components": {
     "schemas": {
+      "ArtworkDto": {
+        "type": "object",
+        "properties": {
+          "backdrop_blurhash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "backdrop_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logo_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "poster_blurhash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "poster_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "thumb_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AudioStreamDto": {
+        "type": "object",
+        "required": [
+          "index",
+          "is_default"
+        ],
+        "properties": {
+          "channel_layout": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channels": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "index": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "CandidateDto": {
         "type": "object",
         "required": [
@@ -2496,6 +3025,29 @@
           },
           "new_password": {
             "type": "string"
+          }
+        }
+      },
+      "ChapterDto": {
+        "type": "object",
+        "required": [
+          "start_ms",
+          "end_ms"
+        ],
+        "properties": {
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -2747,6 +3299,22 @@
           }
         }
       },
+      "GenreDto": {
+        "type": "object",
+        "required": [
+          "name",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
       "IdentifyRequest": {
         "type": "object",
         "required": [
@@ -2819,6 +3387,262 @@
           }
         }
       },
+      "ItemCardDto": {
+        "type": "object",
+        "description": "Enough to draw a poster card.",
+        "required": [
+          "id",
+          "library_id",
+          "kind",
+          "title",
+          "date_added",
+          "child_count"
+        ],
+        "properties": {
+          "backdrop_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed backdrop URL, 1280 px wide."
+          },
+          "child_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Seasons of a series / episodes of a season."
+          },
+          "community_rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "date_added": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "index_end": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "index_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "library_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "official_rating": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "parent_index_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "poster_blurhash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Blurhash placeholder for the poster."
+          },
+          "poster_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed poster URL (episodes: still image), 342 px wide."
+          },
+          "premiere_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "runtime_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "series_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "ItemDetailDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ItemCardDto"
+          },
+          {
+            "type": "object",
+            "required": [
+              "genres",
+              "studios",
+              "people",
+              "artwork",
+              "files",
+              "provider_ids"
+            ],
+            "properties": {
+              "age_rating": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
+              "artwork": {
+                "$ref": "#/components/schemas/ArtworkDto"
+              },
+              "files": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MediaFileDto"
+                }
+              },
+              "genres": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "match_state": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "unmatched | matched | manual | failed (administrators only)."
+              },
+              "original_title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "overview": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "people": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PersonDto"
+                }
+              },
+              "provider_ids": {
+                "type": "object",
+                "description": "provider → id, e.g. `{\"tmdb\": \"603\", \"imdb\": \"tt0133093\"}`.",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
+              },
+              "season_title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "series_title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "studios": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "tagline": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "ItemPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemCardDto"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "JobDto": {
         "type": "object",
         "required": [
@@ -2887,6 +3711,29 @@
           },
           "state": {
             "type": "string"
+          }
+        }
+      },
+      "LetterDto": {
+        "type": "object",
+        "required": [
+          "letter",
+          "count",
+          "offset"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "letter": {
+            "type": "string",
+            "description": "`A`–`Z` or `#`."
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Offset of the first item with this letter in title order."
           }
         }
       },
@@ -2993,6 +3840,97 @@
           "shows"
         ]
       },
+      "MediaFileDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "size",
+          "file_name",
+          "audio",
+          "subtitles",
+          "chapters"
+        ],
+        "properties": {
+          "audio": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AudioStreamDto"
+            }
+          },
+          "bitrate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChapterDto"
+            }
+          },
+          "container": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "extra_kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_name": {
+            "type": "string",
+            "description": "File name (without folders)."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "part": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "role": {
+            "type": "string",
+            "description": "main | extra"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "subtitles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubtitleStreamDto"
+            }
+          },
+          "video": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/VideoStreamDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
       "MetadataSettingsDto": {
         "type": "object",
         "required": [
@@ -3012,6 +3950,40 @@
           "language": {
             "type": "string",
             "description": "Metadata language, e.g. `de-DE`."
+          }
+        }
+      },
+      "PersonDto": {
+        "type": "object",
+        "required": [
+          "person_id",
+          "name",
+          "role"
+        ],
+        "properties": {
+          "character": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Profile photo (provider URL, small size)."
+          },
+          "name": {
+            "type": "string"
+          },
+          "person_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "role": {
+            "type": "string",
+            "description": "actor | director | writer | creator | producer"
           }
         }
       },
@@ -3126,6 +4098,52 @@
           "setup_required": {
             "type": "boolean",
             "description": "`true` until the first administrator account has been created."
+          }
+        }
+      },
+      "SubtitleStreamDto": {
+        "type": "object",
+        "required": [
+          "index",
+          "is_forced",
+          "is_sdh",
+          "is_default",
+          "is_external"
+        ],
+        "properties": {
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "index": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "is_external": {
+            "type": "boolean"
+          },
+          "is_forced": {
+            "type": "boolean"
+          },
+          "is_sdh": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -3391,6 +4409,58 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "VideoStreamDto": {
+        "type": "object",
+        "properties": {
+          "bit_depth": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "hdr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "sdr | hdr10 | hlg | dovi"
+          },
+          "height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "profile": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "width": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           }
         }
       }

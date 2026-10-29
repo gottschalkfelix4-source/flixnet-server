@@ -93,6 +93,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/genres": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Genres used in the visible libraries. */
+        get: operations["listGenres"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/images/{id}": {
         parameters: {
             query?: never;
@@ -161,6 +178,57 @@ export interface paths {
         post?: never;
         /** Withdraw an invitation (administrators only). */
         delete: operations["deleteInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Browse and search items. */
+        get: operations["listItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/letters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Jump bar: items per first letter (title order) with the offset to jump to. */
+        get: operations["listItemLetters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Everything about one item: metadata, people, artwork and files. */
+        get: operations["getItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -592,6 +660,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ArtworkDto: {
+            backdrop_blurhash?: string | null;
+            backdrop_url?: string | null;
+            logo_url?: string | null;
+            poster_blurhash?: string | null;
+            poster_url?: string | null;
+            thumb_url?: string | null;
+        };
+        AudioStreamDto: {
+            channel_layout?: string | null;
+            /** Format: int64 */
+            channels?: number | null;
+            codec?: string | null;
+            /** Format: int64 */
+            index: number;
+            is_default: boolean;
+            language?: string | null;
+            title?: string | null;
+        };
         CandidateDto: {
             /** Format: int64 */
             id: number;
@@ -611,6 +698,13 @@ export interface components {
         ChangePasswordRequest: {
             current_password: string;
             new_password: string;
+        };
+        ChapterDto: {
+            /** Format: int64 */
+            end_ms: number;
+            /** Format: int64 */
+            start_ms: number;
+            title?: string | null;
         };
         CreateInvitationRequest: {
             /**
@@ -707,6 +801,11 @@ export interface components {
              */
             message: string;
         };
+        GenreDto: {
+            /** Format: int64 */
+            count: number;
+            name: string;
+        };
         IdentifyRequest: {
             /** Format: int64 */
             tmdb_id: number;
@@ -729,6 +828,75 @@ export interface components {
         InvitationStatus: {
             valid: boolean;
         };
+        /** @description Enough to draw a poster card. */
+        ItemCardDto: {
+            /** @description Signed backdrop URL, 1280 px wide. */
+            backdrop_url?: string | null;
+            /**
+             * Format: int64
+             * @description Seasons of a series / episodes of a season.
+             */
+            child_count: number;
+            /** Format: double */
+            community_rating?: number | null;
+            /** Format: int64 */
+            date_added: number;
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            index_end?: number | null;
+            /** Format: int64 */
+            index_number?: number | null;
+            kind: string;
+            /** Format: int64 */
+            library_id: number;
+            official_rating?: string | null;
+            /** Format: int64 */
+            parent_id?: number | null;
+            /** Format: int64 */
+            parent_index_number?: number | null;
+            /** @description Blurhash placeholder for the poster. */
+            poster_blurhash?: string | null;
+            /** @description Signed poster URL (episodes: still image), 342 px wide. */
+            poster_url?: string | null;
+            premiere_date?: string | null;
+            /** Format: int64 */
+            runtime_ms?: number | null;
+            /** Format: int64 */
+            series_id?: number | null;
+            title: string;
+            /** Format: int64 */
+            year?: number | null;
+        };
+        ItemDetailDto: components["schemas"]["ItemCardDto"] & {
+            /** Format: int64 */
+            age_rating?: number | null;
+            artwork: components["schemas"]["ArtworkDto"];
+            files: components["schemas"]["MediaFileDto"][];
+            genres: string[];
+            /** @description unmatched | matched | manual | failed (administrators only). */
+            match_state?: string | null;
+            original_title?: string | null;
+            overview?: string | null;
+            people: components["schemas"]["PersonDto"][];
+            /** @description provider → id, e.g. `{"tmdb": "603", "imdb": "tt0133093"}`. */
+            provider_ids: {
+                [key: string]: string;
+            };
+            season_title?: string | null;
+            series_title?: string | null;
+            studios: string[];
+            tagline?: string | null;
+        };
+        ItemPage: {
+            items: components["schemas"]["ItemCardDto"][];
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            offset: number;
+            /** Format: int64 */
+            total: number;
+        };
         JobDto: {
             /** Format: int64 */
             attempts: number;
@@ -750,6 +918,17 @@ export interface components {
             /** Format: int64 */
             started_at?: number | null;
             state: string;
+        };
+        LetterDto: {
+            /** Format: int64 */
+            count: number;
+            /** @description `A`–`Z` or `#`. */
+            letter: string;
+            /**
+             * Format: int64
+             * @description Offset of the first item with this letter in title order.
+             */
+            offset: number;
         };
         /** @description Which libraries a user may see. */
         LibraryAccess: {
@@ -786,6 +965,28 @@ export interface components {
         };
         /** @enum {string} */
         LibraryKind: "movies" | "shows";
+        MediaFileDto: {
+            audio: components["schemas"]["AudioStreamDto"][];
+            /** Format: int64 */
+            bitrate?: number | null;
+            chapters: components["schemas"]["ChapterDto"][];
+            container?: string | null;
+            /** Format: int64 */
+            duration_ms?: number | null;
+            extra_kind?: string | null;
+            /** @description File name (without folders). */
+            file_name: string;
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            part?: number | null;
+            /** @description main | extra */
+            role: string;
+            /** Format: int64 */
+            size: number;
+            subtitles: components["schemas"]["SubtitleStreamDto"][];
+            video?: components["schemas"]["VideoStreamDto"] | null;
+        };
         MetadataSettingsDto: {
             /** @description Country for age ratings, e.g. `DE`. */
             country: string;
@@ -793,6 +994,16 @@ export interface components {
             has_tmdb_api_key: boolean;
             /** @description Metadata language, e.g. `de-DE`. */
             language: string;
+        };
+        PersonDto: {
+            character?: string | null;
+            /** @description Profile photo (provider URL, small size). */
+            image_url?: string | null;
+            name: string;
+            /** Format: int64 */
+            person_id: number;
+            /** @description actor | director | writer | creator | producer */
+            role: string;
         };
         PoolSummary: {
             /** Format: int64 */
@@ -834,6 +1045,17 @@ export interface components {
         SetupStatus: {
             /** @description `true` until the first administrator account has been created. */
             setup_required: boolean;
+        };
+        SubtitleStreamDto: {
+            codec?: string | null;
+            /** Format: int64 */
+            index: number;
+            is_default: boolean;
+            is_external: boolean;
+            is_forced: boolean;
+            is_sdh: boolean;
+            language?: string | null;
+            title?: string | null;
         };
         SwitchProfileRequest: {
             device: components["schemas"]["DeviceInfo"];
@@ -933,6 +1155,20 @@ export interface components {
              */
             max_age_rating?: number | null;
             name: string;
+        };
+        VideoStreamDto: {
+            /** Format: int64 */
+            bit_depth?: number | null;
+            codec?: string | null;
+            /** Format: double */
+            fps?: number | null;
+            /** @description sdr | hdr10 | hlg | dovi */
+            hdr?: string | null;
+            /** Format: int64 */
+            height?: number | null;
+            profile?: string | null;
+            /** Format: int64 */
+            width?: number | null;
         };
     };
     responses: never;
@@ -1151,6 +1387,37 @@ export interface operations {
             };
             /** @description Folder does not exist or is not readable */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listGenres: {
+        parameters: {
+            query?: {
+                library_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Genres with item counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenreDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1412,6 +1679,159 @@ export interface operations {
                 };
             };
             /** @description No such invitation */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listItems: {
+        parameters: {
+            query?: {
+                library_id?: number;
+                /** @description Comma-separated: `movie`, `series`, `season`, `episode`. */
+                kind?: string;
+                parent_id?: number;
+                series_id?: number;
+                /** @description Free-text search over titles and descriptions. */
+                search?: string;
+                genre?: string;
+                year_from?: number;
+                year_to?: number;
+                /** @description `A`–`Z` or `#`. */
+                letter?: string;
+                sort?: "title" | "date_added" | "year" | "rating" | "premiere_date" | "relevance";
+                order?: "asc" | "desc";
+                /** @description 1–200, default 60. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemPage"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid filter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listItemLetters: {
+        parameters: {
+            query?: {
+                library_id?: number;
+                /** @description Comma-separated: `movie`, `series`, `season`, `episode`. */
+                kind?: string;
+                parent_id?: number;
+                series_id?: number;
+                /** @description Free-text search over titles and descriptions. */
+                search?: string;
+                genre?: string;
+                year_from?: number;
+                year_to?: number;
+                /** @description `A`–`Z` or `#`. */
+                letter?: string;
+                sort?: "title" | "date_added" | "year" | "rating" | "premiere_date" | "relevance";
+                order?: "asc" | "desc";
+                /** @description 1–200, default 60. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Letters in title order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LetterDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid filter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The item */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetailDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
             404: {
                 headers: {
                     [name: string]: unknown;
