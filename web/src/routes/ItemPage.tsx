@@ -1,6 +1,6 @@
 import { Link, Navigate, useParams, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { Check, ChevronLeft, Heart, Layers, Play, RefreshCw, Search, Star } from 'lucide-react'
+import { Check, ChevronLeft, Heart, Layers, RefreshCw, Search, Star } from 'lucide-react'
 import { useState } from 'react'
 import { type ItemCard, type ItemDetail, useItem, useItems, useRefreshItem, useSetFavorite, useSetPlayed } from '@/api/queries/items'
 import { AddToCollectionDialog } from '@/components/media/AddToCollectionDialog'
@@ -9,6 +9,7 @@ import { BlurImage } from '@/components/media/BlurImage'
 import { CastRow } from '@/components/media/CastRow'
 import { CollectionRows } from '@/components/media/CollectionRows'
 import { IdentifyDialog } from '@/components/media/IdentifyDialog'
+import { PlayActions } from '@/components/media/PlayActions'
 import { Row } from '@/components/media/Row'
 import { episodeLabel, formatBadges, formatRuntime, languageName } from '@/lib/media'
 import { useSession } from '@/lib/session'
@@ -133,26 +134,7 @@ function Header({ item }: { item: ItemDetail }) {
           )}
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
-            {item.kind === 'movie' || item.kind === 'episode' ? (
-              <Link
-                to="/play/$id"
-                params={{ id: String(item.id) }}
-                className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 text-sm font-bold text-canvas hover:bg-white"
-              >
-                <Play className="size-5 fill-current" aria-hidden="true" />
-                Abspielen
-              </Link>
-            ) : (
-              <button
-                type="button"
-                disabled
-                title="„Nächste Folge“ kommt mit Meilenstein 4.7 – wähle eine Folge"
-                className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 text-sm font-bold text-canvas disabled:opacity-60"
-              >
-                <Play className="size-5 fill-current" aria-hidden="true" />
-                Abspielen
-              </button>
-            )}
+            <PlayActions item={item} />
             <IconToggle
               active={item.played}
               label={item.played ? 'Als ungesehen markieren' : 'Als gesehen markieren'}
@@ -258,6 +240,11 @@ function EpisodeRow({ episode }: { episode: ItemCard }) {
             <span className="absolute top-1.5 right-1.5 flex size-5 items-center justify-center rounded-full bg-accent text-accent-fg">
               <Check className="size-3.5" strokeWidth={3} aria-label="Gesehen" />
             </span>
+          )}
+          {episode.position_ms > 0 && episode.runtime_ms && (
+            <div className="absolute inset-x-1.5 bottom-1.5 h-1 overflow-hidden rounded-full bg-black/60">
+              <div className="h-full bg-accent" style={{ width: `${Math.min(100, Math.round((episode.position_ms / episode.runtime_ms) * 100))}%` }} />
+            </div>
           )}
         </div>
         <div className="min-w-0 py-1">

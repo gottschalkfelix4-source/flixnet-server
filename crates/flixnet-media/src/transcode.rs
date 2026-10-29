@@ -14,7 +14,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
@@ -126,6 +126,8 @@ struct Session {
     /// Held only briefly (checks and spawning), never across waits.
     state: tokio::sync::Mutex<State>,
     touched: Mutex<Instant>,
+    /// Segment the player will start with (resume); the first run begins there.
+    start_hint: AtomicU32,
 }
 
 #[derive(Default)]
@@ -259,6 +261,7 @@ impl TranscodeManager {
             spec,
             state: tokio::sync::Mutex::default(),
             touched: Mutex::new(Instant::now()),
+            start_hint: AtomicU32::new(0),
         });
         self.inner
             .sessions
@@ -279,6 +282,21 @@ impl TranscodeManager {
             .ok_or(TranscodeError::UnknownSession)?;
         *session.touched.lock().unwrap() = Instant::now();
         Ok(session)
+    }
+
+    /// Announces where the player will start (a resume position): the first ffmpeg run
+    /// begins at that segment instead of transcoding from the beginning first.
+    pub fn hint_start(&self, id: &str, position_ms: i64) {
+        let sessions = self.inner.sessions.lock().unwrap();
+        let Some(session) = sessions.get(id) else {
+            return;
+        };
+        let segments = &session.spec.segments;
+        let index = (1..segments.count())
+            .take_while(|i| segments.start_ms(*i) <= position_ms)
+            .last()
+            .unwrap_or(0);
+        session.start_hint.store(index, Ordering::Relaxed);
     }
 
     /// The user a session belongs to.
@@ -321,8 +339,10 @@ impl TranscodeManager {
                 if complete && path.exists() {
                     return Ok(path);
                 }
-                if state.run.is_none() && Instant::now() >= grace {
-                    self.start(&session, &mut state, 0)?;
+                // With a start hint the player's first segment is known: no need to wait.
+                let hint = session.start_hint.load(Ordering::Relaxed);
+                if state.run.is_none() && (hint > 0 || Instant::now() >= grace) {
+                    self.start(&session, &mut state, hint)?;
                 }
             }
             if Instant::now() >= deadline {

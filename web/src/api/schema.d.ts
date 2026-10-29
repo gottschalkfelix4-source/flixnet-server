@@ -309,6 +309,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/next-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** "Nächste Folge": the next unwatched episode of series watched recently. */
+        get: operations["listNextUp"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** "Weiterschauen": movies and episodes with a resume point, most recent first. */
+        get: operations["listResumeItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}": {
         parameters: {
             query?: never;
@@ -376,6 +410,44 @@ export interface paths {
         put?: never;
         /** Pin a movie or series to a TMDB entry and load its metadata. */
         post: operations["identifyItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/next-episode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The episode after an episode in broadcast order, watched or not (autoplay). */
+        get: operations["getNextEpisode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/next-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The episode a series' play button starts: the next one after the furthest watched
+         *     episode (with its resume point), else the first; when everything is watched, the
+         *     first episode again.
+         */
+        get: operations["getSeriesNextUp"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -573,6 +645,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/playback/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Playback started. */
+        post: operations["startPlayback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/playback/sessions/{id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Progress while playing: every ~10 s and on pause, resume and seek. */
+        post: operations["reportPlaybackProgress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/playback/sessions/{id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Playback ended (player closed, item finished or switched). */
+        post: operations["stopPlayback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/playlists": {
         parameters: {
             query?: never;
@@ -657,6 +780,23 @@ export interface paths {
         get?: never;
         /** Reorder entries (owner only). */
         put: operations["reorderPlaylist"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sessions/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Playback sessions that reported recently (administrators). */
+        get: operations["listActiveSessions"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -1080,6 +1220,31 @@ export interface components {
          * @enum {string}
          */
         Accel: "nvenc" | "qsv" | "vaapi";
+        ActiveSessionDto: {
+            client?: string | null;
+            device_name?: string | null;
+            /** Format: int64 */
+            duration_ms?: number | null;
+            /** @description An ffmpeg process currently works for this session. */
+            ffmpeg_running: boolean;
+            id: string;
+            is_paused: boolean;
+            item?: components["schemas"]["ItemCardDto"] | null;
+            /** Format: int64 */
+            last_report_at: number;
+            play_method: components["schemas"]["PlayMethod"];
+            /** Format: int64 */
+            position_ms: number;
+            /** Format: int64 */
+            started_at: number;
+            transcode_session_id?: string | null;
+            /** @description The video is re-encoded (`play_method` = transcode). */
+            transcoding: boolean;
+            /** Format: int64 */
+            user_id: number;
+            /** @description Profile name. */
+            user_name: string;
+        };
         AddedDto: {
             /**
              * Format: int64
@@ -1430,10 +1595,15 @@ export interface components {
             /** @description Signed poster URL (episodes: still image), 342 px wide. */
             poster_url?: string | null;
             premiere_date?: string | null;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Runtime from metadata, else the duration of the main file.
+             */
             runtime_ms?: number | null;
             /** Format: int64 */
             series_id?: number | null;
+            /** @description Title of the series (seasons and episodes). */
+            series_title?: string | null;
             title: string;
             /** Format: int64 */
             year?: number | null;
@@ -1453,7 +1623,6 @@ export interface components {
                 [key: string]: string;
             };
             season_title?: string | null;
-            series_title?: string | null;
             studios: string[];
             tagline?: string | null;
         };
@@ -1656,6 +1825,41 @@ export interface components {
             reasons: components["schemas"]["Reason"][];
             subtitle?: components["schemas"]["SubtitlePlan"] | null;
             video?: components["schemas"]["VideoPlan"] | null;
+        };
+        /** @description What a player reports (the same shape for start, progress and stop). */
+        PlaybackReport: {
+            /**
+             * Format: int64
+             * @description Total duration as the player sees it; the file's duration when omitted.
+             */
+            duration_ms?: number | null;
+            is_paused?: boolean;
+            /**
+             * Format: int64
+             * @description The movie or episode being played.
+             */
+            item_id: number;
+            play_method: components["schemas"]["PlayMethod"];
+            /**
+             * Format: int64
+             * @description Current position in milliseconds (multi-part movies: across all parts).
+             */
+            position_ms?: number;
+            /** @description Transcode session from playback info, for Remux/Transcode. */
+            transcode_session_id?: string | null;
+        };
+        PlaybackSessionDto: {
+            /** @description Id for the following progress and stop reports. */
+            id: string;
+        };
+        PlaybackStopDto: {
+            /** @description The item now counts as watched. */
+            played: boolean;
+            /**
+             * Format: int64
+             * @description Where the item resumes from now (0 = from the start).
+             */
+            resume_position_ms: number;
         };
         PlaylistDetailDto: components["schemas"]["PlaylistDto"] & {
             entries: components["schemas"]["PlaylistEntryDto"][];
@@ -3111,6 +3315,70 @@ export interface operations {
             };
         };
     };
+    listNextUp: {
+        parameters: {
+            query?: {
+                /** @description 1–100, default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Next episodes, most recently watched series first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemCardDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listResumeItems: {
+        parameters: {
+            query?: {
+                /** @description 1–100, default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Items to continue */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemCardDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     getItem: {
         parameters: {
             query?: never;
@@ -3386,6 +3654,102 @@ export interface operations {
             };
             /** @description No TMDB key configured */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getNextEpisode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Episode id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The following episode */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemCardDto"];
+                };
+            };
+            /** @description This is the last episode */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getSeriesNextUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Series id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The episode to play */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemCardDto"];
+                };
+            };
+            /** @description The series has no episodes */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) series */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4075,6 +4439,163 @@ export interface operations {
             };
         };
     };
+    startPlayback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackReport"];
+            };
+        };
+        responses: {
+            /** @description Session registered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackSessionDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid report */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    reportPlaybackProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id from startPlayback */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackReport"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Someone else's session, or no such item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid report */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    stopPlayback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Session id from startPlayback */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackReport"];
+            };
+        };
+        responses: {
+            /** @description The item's state afterwards */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackStopDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Someone else's session, or no such item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid report */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     listPlaylists: {
         parameters: {
             query?: never;
@@ -4472,6 +4993,44 @@ export interface operations {
             };
             /** @description Unknown or repeated entry ids */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listActiveSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active sessions, oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActiveSessionDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5082,7 +5641,13 @@ export interface operations {
     };
     getTranscodePlaylist: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Where the player will start (resume position, ms): the first ffmpeg run begins
+                 *     there instead of at 0.
+                 */
+                start_ms?: number;
+            };
             header?: never;
             path: {
                 /** @description Session id from playback info */

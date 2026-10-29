@@ -24,6 +24,7 @@ pub mod libraries;
 pub mod media;
 pub mod metadata;
 pub mod playlists;
+pub mod playstate;
 pub mod sessions;
 pub mod settings;
 pub mod userdata;

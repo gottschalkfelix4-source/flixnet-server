@@ -258,11 +258,14 @@ pub struct ItemCardDto {
     pub parent_id: Option<i64>,
     pub series_id: Option<i64>,
     pub title: String,
+    /// Title of the series (seasons and episodes).
+    pub series_title: Option<String>,
     pub year: Option<i64>,
     pub index_number: Option<i64>,
     pub index_end: Option<i64>,
     pub parent_index_number: Option<i64>,
     pub premiere_date: Option<String>,
+    /// Runtime from metadata, else the duration of the main file.
     pub runtime_ms: Option<i64>,
     pub community_rating: Option<f64>,
     pub official_rating: Option<String>,
@@ -411,7 +414,6 @@ pub struct ItemDetailDto {
     pub provider_ids: BTreeMap<String, String>,
     /// unmatched | matched | manual | failed (administrators only).
     pub match_state: Option<String>,
-    pub series_title: Option<String>,
     pub season_title: Option<String>,
 }
 
@@ -520,6 +522,7 @@ pub(crate) fn card(state: &AppState, s: ItemSummary) -> ItemCardDto {
         parent_id: s.parent_id,
         series_id: s.series_id,
         title: s.title,
+        series_title: s.series_title,
         year: s.year,
         index_number: s.index_number,
         index_end: s.index_end,
@@ -761,7 +764,6 @@ async fn get_item(
             }
         }
     };
-    let series_title = title_of(details.series_id.filter(|s| *s != id)).await?;
     let season_title = if details.kind == "episode" {
         title_of(details.parent_id).await?
     } else {
@@ -783,7 +785,6 @@ async fn get_item(
             .into_iter()
             .collect(),
         match_state: user.is_admin.then_some(details.match_state),
-        series_title,
         season_title,
     }))
 }
