@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useItem } from '@/api/queries/items'
 import { REASON_LABELS, usePlaybackInfo } from '@/api/queries/playback'
 import { ResumeToast } from '@/components/media/ResumeToast'
+import { SkipButton } from '@/components/player/SkipButton'
 import { TrackMenu } from '@/components/player/TrackMenu'
 import { episodeLabel } from '@/lib/media'
 import { usePlaybackReporting } from '@/lib/usePlaybackReporting'
@@ -93,6 +94,7 @@ export function PlayerPage() {
         onError={() => setFailed(true)}
       />
       {resumedAt > 0 && !error && <ResumeToast positionMs={resumedAt} onRestart={restart} />}
+      {source && !error && <SkipButton videoRef={video} segments={source.segments} />}
 
       {error && (
         <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center" role="alert">

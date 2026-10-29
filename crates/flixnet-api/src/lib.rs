@@ -35,6 +35,7 @@ pub mod limiter;
 mod playback;
 mod playlists;
 mod playstate;
+mod segments;
 mod session;
 mod settings;
 pub mod signing;
@@ -173,6 +174,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, transcode::router())
         .nest(API_PREFIX, tracks::router())
         .nest(API_PREFIX, settings::router())
+        .nest(API_PREFIX, segments::router())
         .split_for_parts()
 }
 

@@ -506,6 +506,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/segments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Intro, credits and recap of an item's files. */
+        get: operations["getMediaSegments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/segments/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Detect intros and credits of a series, season or episode's season now (administrators). */
+        post: operations["analyzeItemSegments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/segments/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a segment by hand (administrators). It replaces the detected one and is kept
+         *     when the season is analyzed again.
+         */
+        put: operations["setMediaSegment"];
+        post?: never;
+        /**
+         * Remove a segment (administrators). A detected one may come back with the next
+         *     analysis of the season.
+         */
+        delete: operations["deleteMediaSegment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs": {
         parameters: {
             query?: never;
@@ -622,6 +680,23 @@ export interface paths {
         put?: never;
         /** Scan a library for new, changed and removed files (administrators only). */
         post: operations["scanLibrary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/libraries/{id}/segments/analyze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Detect intros and credits in every season of a library now (administrators). */
+        post: operations["analyzeLibrarySegments"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1175,6 +1250,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Playback preferences of the signed-in profile. */
+        get: operations["getMyPreferences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change playback preferences of the signed-in profile (omitted fields stay). */
+        patch: operations["updateMyPreferences"];
+        trace?: never;
+    };
     "/api/v1/users/{id}": {
         parameters: {
             query?: never;
@@ -1251,6 +1344,10 @@ export interface components {
              * @description How many were new (already present ones are skipped).
              */
             added: number;
+        };
+        AnalysisQueued: {
+            /** @description Seasons whose analysis was queued (already pending ones are not counted). */
+            seasons: number;
         };
         ArtworkDto: {
             backdrop_blurhash?: string | null;
@@ -1386,6 +1483,8 @@ export interface components {
             valid_days?: number | null;
         };
         CreateLibraryRequest: {
+            /** @description Detect intros and credits of episodes (default: on). */
+            intro_detection?: boolean | null;
             kind: components["schemas"]["LibraryKind"];
             name: string;
             /** @description Absolute folder paths on the server. */
@@ -1694,6 +1793,8 @@ export interface components {
             counts: components["schemas"]["LibraryCountsDto"];
             /** Format: int64 */
             id: number;
+            /** @description Whether intros and credits of episodes are detected ("Intro-Erkennung"). */
+            intro_detection: boolean;
             kind: string;
             /** Format: int64 */
             last_scan_at?: number | null;
@@ -1725,6 +1826,24 @@ export interface components {
             subtitles: components["schemas"]["SubtitleStreamDto"][];
             video?: components["schemas"]["VideoStreamDto"] | null;
         };
+        MediaSegmentDto: {
+            /**
+             * Format: double
+             * @description 0–1: share of compared episodes that agree (1 for manual segments).
+             */
+            confidence: number;
+            /** Format: int64 */
+            end_ms: number;
+            /** Format: int64 */
+            file_id: number;
+            kind: components["schemas"]["SegmentKind"];
+            source: components["schemas"]["SegmentSource"];
+            /**
+             * Format: int64
+             * @description From the start of the file.
+             */
+            start_ms: number;
+        };
         MediaSourceDto: {
             /** @description Audio tracks to choose from (`audio_stream_index`). */
             audio_tracks: components["schemas"]["AudioTrackDto"][];
@@ -1748,6 +1867,8 @@ export interface components {
             part?: number | null;
             /** @description How this source would be played on the requesting device, and why. */
             plan: components["schemas"]["PlaybackPlan"];
+            /** @description Intro, credits and recap of this file (for skip buttons), in playback order. */
+            segments: components["schemas"]["MediaSegmentDto"][];
             /** Format: int64 */
             size: number;
             /**
@@ -1916,6 +2037,10 @@ export interface components {
             /** Format: int64 */
             running: number;
         };
+        PreferencesDto: {
+            /** @description Jump over intros (and recaps) without a click. */
+            skip_intro_automatically: boolean;
+        };
         ProfileDto: {
             /** Format: int64 */
             id: number;
@@ -1937,6 +2062,10 @@ export interface components {
              */
             job_id?: number | null;
         };
+        /** @enum {string} */
+        SegmentKind: "intro" | "credits" | "recap";
+        /** @enum {string} */
+        SegmentSource: "fingerprint" | "blackdetect" | "manual";
         /** @description A newly issued device token plus the signed-in user. */
         SessionDto: {
             /** @description Send as `Authorization: Bearer <token>`. Valid until logout or re-login on this device. */
@@ -1946,6 +2075,17 @@ export interface components {
         SetPinRequest: {
             /** @description 4–8 digits, or `null` to remove the PIN. */
             pin?: string | null;
+        };
+        SetSegmentRequest: {
+            /** Format: int64 */
+            end_ms: number;
+            /**
+             * Format: int64
+             * @description One file of the item; all its main files when omitted.
+             */
+            file_id?: number | null;
+            /** Format: int64 */
+            start_ms: number;
         };
         SetupStatus: {
             /** @description `true` until the first administrator account has been created. */
@@ -2155,6 +2295,8 @@ export interface components {
             overview?: string | null;
         };
         UpdateLibraryRequest: {
+            /** @description Switch intro/credits detection on or off. */
+            intro_detection?: boolean | null;
             name?: string | null;
             paths?: string[] | null;
         };
@@ -2170,6 +2312,9 @@ export interface components {
             name?: string | null;
             shared?: boolean | null;
             smart_filter?: components["schemas"]["SmartFilterDto"] | null;
+        };
+        UpdatePreferencesRequest: {
+            skip_intro_automatically?: boolean | null;
         };
         UpdateTaskRequest: {
             enabled?: boolean | null;
@@ -3930,6 +4075,215 @@ export interface operations {
             };
         };
     };
+    getMediaSegments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id (episode or movie) */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Segments of the item's main files, in playback order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaSegmentDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    analyzeItemSegments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Series, season or episode id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Analysis queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisQueued"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    setMediaSegment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id (episode or movie) */
+                id: number;
+                /** @description Segment kind */
+                kind: components["schemas"]["SegmentKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetSegmentRequest"];
+            };
+        };
+        responses: {
+            /** @description Segments of the item after the change */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaSegmentDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such item or file */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Times outside the file */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deleteMediaSegment: {
+        parameters: {
+            query?: {
+                /** @description One file of the item; all its main files when omitted. */
+                file_id?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Item id (episode or movie) */
+                id: number;
+                /** @description Segment kind */
+                kind: components["schemas"]["SegmentKind"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Segment removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such item, file or segment */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     listJobs: {
         parameters: {
             query?: {
@@ -4367,6 +4721,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ScanQueued"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such library */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    analyzeLibrarySegments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Library id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Analysis queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalysisQueued"];
                 };
             };
             /** @description Missing or invalid token */
@@ -6004,6 +6408,68 @@ export interface operations {
             };
             /** @description PIN is not 4–8 digits */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getMyPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preferences */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateMyPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated preferences */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

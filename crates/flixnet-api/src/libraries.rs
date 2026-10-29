@@ -60,6 +60,8 @@ pub struct LibraryDto {
     pub paths: Option<Vec<String>>,
     pub counts: LibraryCountsDto,
     pub last_scan_at: Option<i64>,
+    /// Whether intros and credits of episodes are detected ("Intro-Erkennung").
+    pub intro_detection: bool,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -68,12 +70,16 @@ pub struct CreateLibraryRequest {
     pub kind: LibraryKind,
     /// Absolute folder paths on the server.
     pub paths: Vec<String>,
+    /// Detect intros and credits of episodes (default: on).
+    pub intro_detection: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateLibraryRequest {
     pub name: Option<String>,
     pub paths: Option<Vec<String>>,
+    /// Switch intro/credits detection on or off.
+    pub intro_detection: Option<bool>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -148,7 +154,11 @@ async fn create_library(
 ) -> ApiResult<(StatusCode, Json<LibraryDto>)> {
     let name = validate_name(&body.name)?;
     let paths = validate_paths(&body.paths).await?;
-    let library = libraries::create(&state.db, &name, body.kind.as_str(), &paths).await?;
+    let mut library = libraries::create(&state.db, &name, body.kind.as_str(), &paths).await?;
+    if body.intro_detection == Some(false) {
+        libraries::set_intro_detection(&state.db, library.id, false).await?;
+        library.intro_detection = false;
+    }
     queue_scan(state.jobs.queue(), library.id, priority::INTERACTIVE).await?;
     resync_watcher(&state).await;
     tracing::info!(library = %library.name, kind = %library.kind, "library created");
@@ -207,8 +217,26 @@ async fn update_library(
         Some(paths) => Some(validate_paths(paths).await?),
         None => None,
     };
+    let was_detecting = libraries::get(&state.db, id)
+        .await?
+        .is_some_and(|l| l.intro_detection);
     if !libraries::update(&state.db, id, name.as_deref(), paths.as_deref()).await? {
         return Err(ApiError::not_found("Bibliothek nicht gefunden."));
+    }
+    if let Some(enabled) = body.intro_detection {
+        libraries::set_intro_detection(&state.db, id, enabled).await?;
+        if enabled && !was_detecting {
+            // Switched (back) on: catch up with the seasons already there.
+            for season_id in flixnet_db::segments::library_seasons(&state.db, id).await? {
+                flixnet_library::segments::queue_season(
+                    state.jobs.queue(),
+                    season_id,
+                    priority::BACKFILL,
+                    None,
+                )
+                .await?;
+            }
+        }
     }
     if paths.is_some() {
         queue_scan(state.jobs.queue(), id, priority::INTERACTIVE).await?;
@@ -386,6 +414,7 @@ async fn to_dto(
             unprobed: counts.unprobed,
         },
         last_scan_at: library.last_scan_at,
+        intro_detection: library.intro_detection,
     })
 }
 

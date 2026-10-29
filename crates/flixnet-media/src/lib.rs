@@ -8,6 +8,7 @@ pub mod hardware;
 pub mod hls;
 pub mod probe;
 mod process;
+pub mod segments;
 pub mod subtitles;
 pub mod transcode;
 

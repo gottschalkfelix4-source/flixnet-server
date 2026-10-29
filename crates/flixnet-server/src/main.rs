@@ -11,6 +11,7 @@ use flixnet_core::maintenance;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use flixnet_library::jobs as library_jobs;
+use flixnet_library::segments as segment_jobs;
 use flixnet_media::hardware::{HardwareMode, HardwareOptions};
 use flixnet_media::transcode::{TranscodeManager, TranscodeSettings};
 use tokio_util::sync::CancellationToken;
@@ -114,13 +115,18 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .register(library_jobs::ScanLibrary)
         .register(library_jobs::ScanAllLibraries)
         .register(library_jobs::RefreshMetadata)
-        .register(library_jobs::ProbeFile { ffprobe });
+        .register(library_jobs::ProbeFile { ffprobe })
+        .register(segment_jobs::AnalyzeSeason {
+            analyzer: flixnet_media::segments::SegmentAnalyzer::new(&config.media.ffmpeg),
+        })
+        .register(segment_jobs::AnalyzePendingSeasons);
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
     let tasks = TaskRegistry::new(
         maintenance::tasks()
             .into_iter()
             .chain(library_jobs::tasks())
+            .chain(segment_jobs::tasks())
             .collect(),
     );
     let stop_scheduler = CancellationToken::new();

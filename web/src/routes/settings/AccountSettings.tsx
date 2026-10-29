@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { currentUserQuery } from '@/api/queries/auth'
 import { useChangePassword, useMyDevices, useSetPin, useSignOutDevice } from '@/api/queries/users'
 import { FormError } from '@/components/layout/AuthLayout'
+import { PlaybackPreferences } from '@/components/player/PlaybackPreferences'
 import { Button } from '@/components/ui/Button'
 import { Section } from '@/components/ui/Section'
 import { TextField } from '@/components/ui/TextField'
@@ -14,6 +15,7 @@ export function AccountSettings() {
     <div className="flex flex-col gap-6">
       <PasswordForm />
       <PinForm />
+      <PlaybackPreferences />
       <DevicesList />
     </div>
   )

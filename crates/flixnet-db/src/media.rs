@@ -259,6 +259,15 @@ pub async fn store_probe(db: &Db, file_id: i64, data: &ProbeData) -> Result<()> 
         .bind(file_id)
         .execute(&mut *tx)
         .await?;
+    // Likewise its detected (and hand-set) intro/credits and the fingerprints behind them.
+    sqlx::query("DELETE FROM media_segments WHERE file_id = ?")
+        .bind(file_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM audio_fingerprints WHERE file_id = ?")
+        .bind(file_id)
+        .execute(&mut *tx)
+        .await?;
     sqlx::query("DELETE FROM chapters WHERE file_id = ?")
         .bind(file_id)
         .execute(&mut *tx)

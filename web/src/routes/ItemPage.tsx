@@ -11,6 +11,7 @@ import { CollectionRows } from '@/components/media/CollectionRows'
 import { IdentifyDialog } from '@/components/media/IdentifyDialog'
 import { PlayActions } from '@/components/media/PlayActions'
 import { Row } from '@/components/media/Row'
+import { SegmentsPanel } from '@/components/media/SegmentsPanel'
 import { episodeLabel, formatBadges, formatRuntime, languageName } from '@/lib/media'
 import { useSession } from '@/lib/session'
 import { NotFoundPage } from './NotFoundPage'
@@ -38,6 +39,7 @@ export function ItemPage() {
       {d.kind === 'series' && <Seasons series={d} initial={season} />}
       <CastRow people={d.people} />
       {(d.kind === 'movie' || d.kind === 'series') && <CollectionRows itemId={d.id} />}
+      {d.kind === 'episode' && <SegmentsPanel itemId={d.id} />}
       <TechnicalInfo item={d} />
       {d.kind !== 'episode' && <MoreLikeThis item={d} />}
     </div>
