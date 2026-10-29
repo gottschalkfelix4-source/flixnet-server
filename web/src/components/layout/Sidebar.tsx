@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Logo } from './Logo'
 import { footerNav, mainNav, type NavItem } from './nav'
+import { UserMenu } from './UserMenu'
 
 interface SidebarProps {
   collapsed: boolean
@@ -32,6 +33,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       <div className="space-y-1 border-t border-line/60 px-2 py-3">
+        <UserMenu collapsed={collapsed} />
         <ul className="space-y-1">
           {footerNav.map((item) => (
             <NavLink key={item.to} item={item} collapsed={collapsed} />

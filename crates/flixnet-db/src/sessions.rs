@@ -1,0 +1,110 @@
+//! Devices and their access tokens (one active token per device).
+
+use crate::{Db, Result, now_ms};
+
+pub struct NewSession<'a> {
+    pub user_id: i64,
+    pub device_uid: &'a str,
+    pub client: &'a str,
+    pub device_name: &'a str,
+    /// SHA-256 (hex) of the token handed to the client.
+    pub token_hash: &'a str,
+}
+
+/// An authenticated session resolved from a token.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct Session {
+    pub token_id: i64,
+    pub user_id: i64,
+    pub device_id: i64,
+    pub last_used_at: i64,
+    pub user_name: String,
+    pub is_admin: bool,
+}
+
+/// Registers (or refreshes) the device and issues a new token for it, revoking any
+/// token the device held before. Returns the token id.
+pub async fn create(db: &Db, s: &NewSession<'_>) -> Result<i64> {
+    let now = now_ms();
+    let mut tx = db.writer().begin().await?;
+
+    let (device_id,): (i64,) = sqlx::query_as(
+        "INSERT INTO devices (user_id, device_uid, client, name, created_at, last_seen)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (user_id, device_uid) DO UPDATE
+             SET client = excluded.client, name = excluded.name, last_seen = excluded.last_seen
+         RETURNING id",
+    )
+    .bind(s.user_id)
+    .bind(s.device_uid)
+    .bind(s.client)
+    .bind(s.device_name)
+    .bind(now)
+    .bind(now)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    sqlx::query(
+        "UPDATE access_tokens SET revoked_at = ? WHERE device_id = ? AND revoked_at IS NULL",
+    )
+    .bind(now)
+    .bind(device_id)
+    .execute(&mut *tx)
+    .await?;
+
+    let (token_id,): (i64,) = sqlx::query_as(
+        "INSERT INTO access_tokens (token_hash, user_id, device_id, created_at, last_used_at)
+         VALUES (?, ?, ?, ?, ?) RETURNING id",
+    )
+    .bind(s.token_hash)
+    .bind(s.user_id)
+    .bind(device_id)
+    .bind(now)
+    .bind(now)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+    Ok(token_id)
+}
+
+/// Resolves an active (not revoked) token.
+pub async fn find_by_token_hash(db: &Db, token_hash: &str) -> Result<Option<Session>> {
+    let session = sqlx::query_as(
+        "SELECT t.id AS token_id, t.user_id, t.device_id, t.last_used_at,
+                u.name AS user_name, u.is_admin
+         FROM access_tokens t JOIN users u ON u.id = t.user_id
+         WHERE t.token_hash = ? AND t.revoked_at IS NULL",
+    )
+    .bind(token_hash)
+    .fetch_optional(db.reader())
+    .await?;
+    Ok(session)
+}
+
+/// Records token use (callers throttle this; it is a write).
+pub async fn touch(db: &Db, token_id: i64, device_id: i64) -> Result<()> {
+    let now = now_ms();
+    let mut tx = db.writer().begin().await?;
+    sqlx::query("UPDATE access_tokens SET last_used_at = ? WHERE id = ?")
+        .bind(now)
+        .bind(token_id)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("UPDATE devices SET last_seen = ? WHERE id = ?")
+        .bind(now)
+        .bind(device_id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+pub async fn revoke(db: &Db, token_id: i64) -> Result<()> {
+    sqlx::query("UPDATE access_tokens SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL")
+        .bind(now_ms())
+        .bind(token_id)
+        .execute(db.writer())
+        .await?;
+    Ok(())
+}

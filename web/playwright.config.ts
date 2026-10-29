@@ -18,7 +18,21 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${port}`,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'setup', testMatch: /global\.setup\.ts/ },
+    {
+      name: 'signed-in',
+      testIgnore: /auth\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/admin.json' },
+    },
+    {
+      name: 'signed-out',
+      testMatch: /auth\.spec\.ts/,
+      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
   webServer: {
     command: 'cargo run -q -p flixnet-server -- serve',
     cwd: '..',

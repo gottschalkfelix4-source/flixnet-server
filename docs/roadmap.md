@@ -15,7 +15,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [ ] 0.5b Container auf Unraid installieren (`docker/unraid-template.xml`) – braucht Felix (GHCR-Paket ist privat → Login auf Unraid oder Paket öffentlich machen)
 
 ## Phase 1 – Auth und Nutzer
-- [ ] 1.1 Setup-Assistent, argon2, Login → Device-Token, Auth-Extractor – *fertig wenn* jede OpenAPI-Operation ohne Token 401 liefert
+- [x] 1.1 Setup-Assistent, argon2, Login → Device-Token, Auth-Extractor – *fertig wenn* jede OpenAPI-Operation ohne Token 401 liefert
 - [ ] 1.2 Haushalt, Profile mit PIN, Bibliotheksrechte, Einladungen, Admin-Rolle
 
 ## Phase 2 – Scannen und Metadaten

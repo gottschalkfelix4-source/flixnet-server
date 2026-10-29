@@ -13,7 +13,9 @@ use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
+pub mod sessions;
 pub mod settings;
+pub mod users;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 

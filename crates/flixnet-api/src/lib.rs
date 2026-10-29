@@ -8,11 +8,16 @@ use axum::{Json, Router};
 use flixnet_core::Config;
 use flixnet_db::Db;
 use tower_http::trace::TraceLayer;
-use utoipa::OpenApi;
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme};
+use utoipa::{Modify, OpenApi};
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
+pub mod auth;
+pub mod error;
+mod session;
 mod system;
+mod users;
 
 /// Path prefix of the current API version.
 const API_PREFIX: &str = "/api/v1";
@@ -40,9 +45,35 @@ impl AppState {
         description = "API of the Flixnet media server. Used by the web UI and future native apps."
     ),
     servers((url = "/", description = "The Flixnet server serving this document")),
-    tags((name = "system", description = "Server information"))
+    // Every operation requires a device token unless it declares `security(())`.
+    security(("bearer" = []), ("api_key" = [])),
+    modifiers(&SecuritySchemes),
+    tags(
+        (name = "system", description = "Server information"),
+        (name = "auth", description = "First-run setup, sign-in and sign-out"),
+        (name = "users", description = "User accounts"),
+    )
 )]
 struct ApiDoc;
+
+struct SecuritySchemes;
+
+impl Modify for SecuritySchemes {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi.components.get_or_insert_with(Default::default);
+        components.add_security_scheme(
+            "bearer",
+            SecurityScheme::Http(Http::new(HttpAuthScheme::Bearer)),
+        );
+        components.add_security_scheme(
+            "api_key",
+            SecurityScheme::ApiKey(ApiKey::Query(ApiKeyValue::with_description(
+                "api_key",
+                "Device token as query parameter, for URLs that cannot carry headers (media, images).",
+            ))),
+        );
+    }
+}
 
 /// Documented API routes plus the spec generated from them.
 fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
@@ -53,6 +84,8 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
 
     OpenApiRouter::with_openapi(doc)
         .nest(&format!("{API_PREFIX}/system"), system::router())
+        .nest(&format!("{API_PREFIX}/users"), users::router())
+        .nest(API_PREFIX, session::router())
         .split_for_parts()
 }
 

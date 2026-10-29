@@ -14,6 +14,9 @@ flixnet-api = { path = "crates/flixnet-api" }
 flixnet-db = { path = "crates/flixnet-db" }
 
 anyhow = "1"
+argon2 = "0.6"
+getrandom = "0.3"
+sha2 = "0.11"
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
 figment = { version = "0.10", features = ["toml", "env"] }

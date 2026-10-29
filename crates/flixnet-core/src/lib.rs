@@ -1,6 +1,7 @@
 //! Shared building blocks for all Flixnet crates: configuration, version info and,
 //! in later milestones, ids, the event bus and the job runtime.
 
+pub mod auth;
 pub mod config;
 
 pub use config::Config;

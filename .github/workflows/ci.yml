@@ -51,6 +51,8 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci
+      - name: OpenAPI spec is valid
+        run: npx --yes @redocly/cli@2 lint openapi.json
       - name: Generated API client is up to date
         run: |
           npm run gen:api
