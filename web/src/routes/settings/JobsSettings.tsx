@@ -12,6 +12,7 @@ const KIND_LABELS: Record<string, string> = {
   'library.scan': 'Bibliothek scannen',
   'library.scan_all': 'Alle Bibliotheken scannen',
   'media.probe': 'Mediendatei analysieren',
+  'metadata.refresh': 'Metadaten aktualisieren',
 }
 
 const STATE_STYLES: Record<string, { label: string; className: string }> = {

@@ -5,7 +5,7 @@
 //! parameter is accepted as well. Handlers opt in by taking [`AuthUser`] (or
 //! [`AdminUser`]) as their first argument, so authentication runs before body parsing.
 
-use axum::extract::FromRequestParts;
+use axum::extract::{FromRequestParts, OptionalFromRequestParts};
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
 use flixnet_db::sessions;
@@ -60,11 +60,29 @@ impl FromRequestParts<AppState> for AuthUser {
     }
 }
 
+/// `Option<AuthUser>`: `None` when the request carries no valid token (for routes
+/// that also accept a URL signature).
+impl OptionalFromRequestParts<AppState> for AuthUser {
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Option<Self>, Self::Rejection> {
+        Ok(
+            <AuthUser as FromRequestParts<AppState>>::from_request_parts(parts, state)
+                .await
+                .ok(),
+        )
+    }
+}
+
 impl FromRequestParts<AppState> for AdminUser {
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, ApiError> {
-        let user = AuthUser::from_request_parts(parts, state).await?;
+        let user =
+            <AuthUser as FromRequestParts<AppState>>::from_request_parts(parts, state).await?;
         if user.is_admin {
             Ok(AdminUser(user))
         } else {

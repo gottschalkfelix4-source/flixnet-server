@@ -268,6 +268,89 @@
         }
       }
     },
+    "/api/v1/images/{id}": {
+      "get": {
+        "tags": [
+          "libraries"
+        ],
+        "summary": "An artwork image, resized and cached.",
+        "description": "Use the signed URLs returned by item endpoints; alternatively authenticate normally.",
+        "operationId": "getImage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Image id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "w",
+            "in": "query",
+            "description": "Desired width in pixels (snapped up to 92, 185, 342, 500, 780, 1280 or 1920).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "description": "Expiry of the signature (unix seconds), from URLs returned by the API.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "description": "URL signature, from URLs returned by the API.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image (JPEG, PNG for logos)",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "401": {
+            "description": "Neither a valid signature nor a valid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
     "/api/v1/invitations": {
       "get": {
         "tags": [
@@ -524,6 +607,230 @@
           },
           "404": {
             "description": "No such invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/identify": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Search TMDB for candidates matching a movie or series.",
+        "operationId": "identifyCandidates",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "description": "Search text (defaults to the item's title).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Candidates, best first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CandidateDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such movie or series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No TMDB key configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Pin a movie or series to a TMDB entry and load its metadata.",
+        "operationId": "identifyItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Identified and updated"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such movie or series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No TMDB key configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/refresh": {
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Re-read NFO/artwork and provider data for an item and its children.",
+        "operationId": "refreshItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Refresh queued"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such item",
             "content": {
               "application/json": {
                 "schema": {
@@ -1106,6 +1413,106 @@
           },
           "404": {
             "description": "No such library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/metadata": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Metadata provider settings.",
+        "operationId": "getMetadataSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Change metadata provider settings. A new TMDB key is checked against TMDB.",
+        "operationId": "updateMetadataSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMetadataSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid key, language or country",
             "content": {
               "application/json": {
                 "schema": {
@@ -2028,6 +2435,55 @@
   },
   "components": {
     "schemas": {
+      "CandidateDto": {
+        "type": "object",
+        "required": [
+          "provider",
+          "id",
+          "title",
+          "original_title",
+          "score"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "original_title": {
+            "type": "string"
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "poster_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "description": "0–1: how well the candidate fits the item's title and year."
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "ChangePasswordRequest": {
         "type": "object",
         "required": [
@@ -2291,6 +2747,18 @@
           }
         }
       },
+      "IdentifyRequest": {
+        "type": "object",
+        "required": [
+          "tmdb_id"
+        ],
+        "properties": {
+          "tmdb_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "InvitationDto": {
         "type": "object",
         "required": [
@@ -2524,6 +2992,28 @@
           "movies",
           "shows"
         ]
+      },
+      "MetadataSettingsDto": {
+        "type": "object",
+        "required": [
+          "has_tmdb_api_key",
+          "language",
+          "country"
+        ],
+        "properties": {
+          "country": {
+            "type": "string",
+            "description": "Country for age ratings, e.g. `DE`."
+          },
+          "has_tmdb_api_key": {
+            "type": "boolean",
+            "description": "Whether a TMDB API key is stored (the key itself is never returned)."
+          },
+          "language": {
+            "type": "string",
+            "description": "Metadata language, e.g. `de-DE`."
+          }
+        }
       },
       "PoolSummary": {
         "type": "object",
@@ -2774,6 +3264,30 @@
           }
         }
       },
+      "UpdateMetadataSettings": {
+        "type": "object",
+        "properties": {
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tmdb_api_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "TMDB v3 API key or v4 read access token; `null` removes it."
+          }
+        }
+      },
       "UpdateTaskRequest": {
         "type": "object",
         "properties": {
@@ -2925,7 +3439,15 @@
     },
     {
       "name": "libraries",
-      "description": "Media libraries and folder browsing"
+      "description": "Media libraries, folder browsing and images"
+    },
+    {
+      "name": "items",
+      "description": "Movies, series, seasons and episodes"
+    },
+    {
+      "name": "settings",
+      "description": "Server settings (administrators)"
     }
   ]
 }

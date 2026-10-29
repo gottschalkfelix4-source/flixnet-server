@@ -102,13 +102,16 @@ impl JobHandler for RefreshMetadata {
     type Payload = RefreshPayload;
 
     async fn run(&self, ctx: JobContext, payload: RefreshPayload) -> anyhow::Result<()> {
-        if flixnet_db::items::get(ctx.db(), payload.item_id)
-            .await?
-            .is_none()
-        {
+        let Some(item) = flixnet_db::items::get(ctx.db(), payload.item_id).await? else {
             return Ok(()); // removed meanwhile
+        };
+        crate::refresh::refresh_local(ctx.db(), item.id).await?;
+        // Movies and series are matched online; seasons/episodes follow their series.
+        if matches!(item.kind.as_str(), "movie" | "series")
+            && let Some(tmdb) = crate::providers::tmdb_from_settings(ctx.db()).await?
+        {
+            crate::providers::refresh_remote(ctx.db(), &tmdb, item.id).await?;
         }
-        crate::refresh::refresh_local(ctx.db(), payload.item_id).await?;
         Ok(())
     }
 }

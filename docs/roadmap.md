@@ -25,7 +25,8 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 2.2 Job-Runtime + Jobs-API – *fertig wenn* Kill während der Queue → Neustart setzt fort (Test `crash_mid_queue_resumes_after_restart`); Pools, Prioritäten, Dedupe, Retry mit Backoff, Abbruch, Scheduler, Admin-UI „Aufgaben“
 - [x] 2.3 FS-Diff → media_files → ffprobe-Jobs – *fertig wenn* Rescan ohne Änderung null Probes macht (Test `scan_builds_items_and_rescan_is_a_no_op`); Bibliotheken-API + UI mit Ordner-Browser, Bibliotheksrechte pro Nutzer, Sidecar-Untertitel, Mehrteiler, Extras, unerreichbare Ordner markieren nichts als fehlend
 - [x] 2.4 NFO + lokale Artworks (Kodi-NFO für Film/Serie/Episode, Poster/Fanart/Logo/Banner/Thumbs, Staffel-Poster; NFO-Felder gesperrt gegen Provider; Genres, Studios, Darsteller/Regie)
-- [ ] 2.5 TMDB-Client, Matching mit Confidence, Identify, Bild-Cache + Blurhash
+- [x] 2.5 TMDB-Client (de-DE + en-US-Fallback, Response-Cache, 429-Retry), Matching mit Confidence (Titel/Original/Jahr), Identify (Suche + manuell), Staffeln/Folgen, FSK, Bild-Cache (Resize, Blurhash, signierte URLs), Einstellungs-Tab „Metadaten“ – mit Mock-TMDB getestet
+  - **Offen (Felix):** TMDB-API-Schlüssel unter Einstellungen → Metadaten eintragen
 - [ ] 2.6 Items-API (Filter-DSL, Sortierung, Paging, A–Z, FTS5) – *fertig wenn* p95 < 50 ms bei 50k Items
 - [ ] 2.7 Watcher, Rename-Erkennung – *fertig wenn* Watch-State nach Rename erhalten bleibt
 - [ ] 2.8 TVDB, fanart.tv, Personen/Credits

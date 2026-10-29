@@ -1,8 +1,11 @@
 //! Media libraries: understanding file names and folders, scanning, and metadata.
 
 pub mod artwork;
+pub mod http;
+pub mod images;
 pub mod jobs;
 pub mod nfo;
 pub mod parse;
+pub mod providers;
 pub mod refresh;
 pub mod scan;

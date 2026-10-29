@@ -10,6 +10,7 @@ use flixnet_core::events::EventBus;
 use flixnet_core::jobs::JobRuntime;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
+use flixnet_library::images::ImageCache;
 use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use tempfile::TempDir;
@@ -34,6 +35,8 @@ pub async fn app() -> TestApp {
         events,
         jobs: runtime.handle(),
         tasks: TaskRegistry::new(flixnet_core::maintenance::tasks()),
+        images: ImageCache::new(dir.path().join("cache/images")),
+        url_secret: b"test-secret".to_vec(),
     };
     let router = router(AppState::new(Config::default(), db.clone(), services));
     TestApp {

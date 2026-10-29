@@ -23,8 +23,15 @@ axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
 figment = { version = "0.10", features = ["toml", "env"] }
 hex = "0.4"
+blurhash = "0.2"
+hmac = "0.13"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "rayon"] }
 quick-xml = "0.42"
 regex = "1"
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "charset", "http2", "rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+strsim = "0.11"
+wiremock = "0.6"
 http-body-util = "0.1"
 rust-embed = { version = "8.13", features = ["mime-guess"] }
 serde = { version = "1", features = ["derive"] }

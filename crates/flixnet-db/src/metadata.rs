@@ -445,6 +445,17 @@ pub async fn images(db: &Db, item_id: i64) -> Result<Vec<Image>> {
     Ok(rows)
 }
 
+pub async fn image(db: &Db, image_id: i64) -> Result<Option<Image>> {
+    let row = sqlx::query_as(
+        "SELECT id, item_id, kind, source, path, url, language, width, height, blurhash, score
+         FROM images WHERE id = ?",
+    )
+    .bind(image_id)
+    .fetch_optional(db.reader())
+    .await?;
+    Ok(row)
+}
+
 pub async fn set_image_details(
     db: &Db,
     image_id: i64,

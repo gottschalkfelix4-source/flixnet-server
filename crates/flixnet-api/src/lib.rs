@@ -10,6 +10,7 @@ use flixnet_core::events::EventBus;
 use flixnet_core::jobs::JobsHandle;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
+use flixnet_library::images::ImageCache;
 use tower_http::trace::TraceLayer;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
@@ -18,11 +19,15 @@ use utoipa_scalar::{Scalar, Servable};
 
 pub mod auth;
 pub mod error;
+mod images;
 mod invitations;
+mod items;
 mod jobs;
 mod libraries;
 pub mod limiter;
 mod session;
+mod settings;
+pub mod signing;
 mod system;
 mod users;
 mod validate;
@@ -39,6 +44,8 @@ pub struct AppState {
     pub events: EventBus,
     pub jobs: JobsHandle,
     pub tasks: TaskRegistry,
+    pub images: ImageCache,
+    pub signer: Arc<signing::UrlSigner>,
 }
 
 /// Long-lived services the API talks to.
@@ -46,6 +53,9 @@ pub struct Services {
     pub events: EventBus,
     pub jobs: JobsHandle,
     pub tasks: TaskRegistry,
+    pub images: ImageCache,
+    /// Secret for signed media URLs (persisted, so URLs survive restarts).
+    pub url_secret: Vec<u8>,
 }
 
 impl AppState {
@@ -57,6 +67,8 @@ impl AppState {
             events: services.events,
             jobs: services.jobs,
             tasks: services.tasks,
+            images: services.images,
+            signer: Arc::new(signing::UrlSigner::new(services.url_secret)),
         }
     }
 }
@@ -77,7 +89,9 @@ impl AppState {
         (name = "users", description = "User accounts and household profiles"),
         (name = "invitations", description = "Invitation links for new accounts"),
         (name = "jobs", description = "Background jobs and scheduled tasks (administrators)"),
-        (name = "libraries", description = "Media libraries and folder browsing"),
+        (name = "libraries", description = "Media libraries, folder browsing and images"),
+        (name = "items", description = "Movies, series, seasons and episodes"),
+        (name = "settings", description = "Server settings (administrators)"),
     )
 )]
 struct ApiDoc;
@@ -115,6 +129,9 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, session::router())
         .nest(API_PREFIX, jobs::router())
         .nest(API_PREFIX, libraries::router())
+        .nest(API_PREFIX, images::router())
+        .nest(API_PREFIX, items::router())
+        .nest(API_PREFIX, settings::router())
         .split_for_parts()
 }
 

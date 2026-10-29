@@ -204,6 +204,7 @@ async fn every_protected_operation_requires_a_token() {
     assert_eq!(
         public,
         [
+            "GET /api/v1/images/{id}",
             "GET /api/v1/invitations/redeem/{code}",
             "GET /api/v1/setup/status",
             "GET /api/v1/system/info",

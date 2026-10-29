@@ -136,6 +136,10 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         events,
         jobs,
         tasks,
+        images: flixnet_library::images::ImageCache::new(
+            config.paths.config_dir.join("cache").join("images"),
+        ),
+        url_secret: url_signing_secret(&db).await?,
     };
     let app = flixnet_api::router(AppState::new(config, db.clone(), services))
         .fallback_service(web::router());
@@ -155,6 +159,18 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     db.close().await;
     tracing::info!("Flixnet stopped");
     Ok(())
+}
+
+/// Secret for signed media URLs, created once and stored in the database so URLs
+/// handed out before a restart stay valid.
+async fn url_signing_secret(db: &Db) -> anyhow::Result<Vec<u8>> {
+    const KEY: &str = "url_signing_secret";
+    if let Some(secret) = flixnet_db::settings::get::<String>(db, KEY).await? {
+        return Ok(secret.into_bytes());
+    }
+    let secret = flixnet_core::auth::new_token().token;
+    flixnet_db::settings::set(db, KEY, &secret).await?;
+    Ok(secret.into_bytes())
 }
 
 /// Resolves on Ctrl+C, or on SIGTERM (sent by `docker stop`) on Unix.

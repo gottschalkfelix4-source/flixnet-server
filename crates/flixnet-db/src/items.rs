@@ -125,6 +125,84 @@ pub async fn list_by_kind(db: &Db, library_id: i64, kind: &str) -> Result<Vec<It
     Ok(items)
 }
 
+/// All descriptive columns of an item (detail pages, tests).
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
+pub struct ItemDetails {
+    pub id: i64,
+    pub library_id: i64,
+    pub kind: String,
+    pub parent_id: Option<i64>,
+    pub series_id: Option<i64>,
+    pub title: String,
+    pub sort_title: String,
+    pub original_title: Option<String>,
+    pub year: Option<i64>,
+    pub index_number: Option<i64>,
+    pub index_end: Option<i64>,
+    pub parent_index_number: Option<i64>,
+    pub premiere_date: Option<String>,
+    pub overview: Option<String>,
+    pub tagline: Option<String>,
+    pub runtime_ms: Option<i64>,
+    pub community_rating: Option<f64>,
+    pub official_rating: Option<String>,
+    pub age_rating: Option<i64>,
+    pub content_key: String,
+    pub match_state: String,
+    pub match_confidence: Option<f64>,
+    pub locked_fields: String,
+    pub date_added: i64,
+    pub date_modified: i64,
+}
+
+pub async fn details(db: &Db, id: i64) -> Result<Option<ItemDetails>> {
+    let item = sqlx::query_as(
+        "SELECT id, library_id, kind, parent_id, series_id, title, sort_title, original_title, year,
+                index_number, index_end, parent_index_number, premiere_date, overview, tagline,
+                runtime_ms, community_rating, official_rating, age_rating, content_key, match_state,
+                match_confidence, locked_fields, date_added, date_modified
+         FROM items WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(db.reader())
+    .await?;
+    Ok(item)
+}
+
+/// Direct children (seasons of a series, episodes of a season).
+pub async fn children(db: &Db, parent_id: i64) -> Result<Vec<Item>> {
+    let items = sqlx::query_as(concat!(
+        "SELECT ",
+        item_columns!(),
+        " FROM items WHERE parent_id = ? ORDER BY index_number, sort_title"
+    ))
+    .bind(parent_id)
+    .fetch_all(db.reader())
+    .await?;
+    Ok(items)
+}
+
+/// Seasons and episodes below a series (or episodes below a season).
+pub async fn descendant_ids(db: &Db, item_id: i64) -> Result<Vec<i64>> {
+    let rows: Vec<(i64,)> = sqlx::query_as(
+        "SELECT id FROM items WHERE (parent_id = ?1 OR series_id = ?1) AND id != ?1 ORDER BY id",
+    )
+    .bind(item_id)
+    .fetch_all(db.reader())
+    .await?;
+    Ok(rows.into_iter().map(|(id,)| id).collect())
+}
+
+pub async fn set_match(db: &Db, item_id: i64, state: &str, confidence: Option<f64>) -> Result<()> {
+    sqlx::query("UPDATE items SET match_state = ?, match_confidence = ? WHERE id = ?")
+        .bind(state)
+        .bind(confidence)
+        .bind(item_id)
+        .execute(db.writer())
+        .await?;
+    Ok(())
+}
+
 pub async fn provider_ids(db: &Db, item_id: i64) -> Result<Vec<(String, String)>> {
     let rows = sqlx::query_as(
         "SELECT provider, value FROM provider_ids WHERE item_id = ? ORDER BY provider",

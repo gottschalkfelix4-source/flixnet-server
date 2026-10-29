@@ -93,6 +93,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/images/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An artwork image, resized and cached.
+         * @description Use the signed URLs returned by item endpoints; alternatively authenticate normally.
+         */
+        get: operations["getImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invitations": {
         parameters: {
             query?: never;
@@ -141,6 +161,41 @@ export interface paths {
         post?: never;
         /** Withdraw an invitation (administrators only). */
         delete: operations["deleteInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/identify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search TMDB for candidates matching a movie or series. */
+        get: operations["identifyCandidates"];
+        put?: never;
+        /** Pin a movie or series to a TMDB entry and load its metadata. */
+        post: operations["identifyItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Re-read NFO/artwork and provider data for an item and its children. */
+        post: operations["refreshItem"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -262,6 +317,24 @@ export interface paths {
         put?: never;
         /** Scan a library for new, changed and removed files (administrators only). */
         post: operations["scanLibrary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Metadata provider settings. */
+        get: operations["getMetadataSettings"];
+        /** Change metadata provider settings. A new TMDB key is checked against TMDB. */
+        put: operations["updateMetadataSettings"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -519,6 +592,22 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CandidateDto: {
+            /** Format: int64 */
+            id: number;
+            original_title: string;
+            overview?: string | null;
+            poster_url?: string | null;
+            provider: string;
+            /**
+             * Format: double
+             * @description 0–1: how well the candidate fits the item's title and year.
+             */
+            score: number;
+            title: string;
+            /** Format: int64 */
+            year?: number | null;
+        };
         ChangePasswordRequest: {
             current_password: string;
             new_password: string;
@@ -618,6 +707,10 @@ export interface components {
              */
             message: string;
         };
+        IdentifyRequest: {
+            /** Format: int64 */
+            tmdb_id: number;
+        };
         InvitationDto: {
             /** Format: int64 */
             created_at: number;
@@ -693,6 +786,14 @@ export interface components {
         };
         /** @enum {string} */
         LibraryKind: "movies" | "shows";
+        MetadataSettingsDto: {
+            /** @description Country for age ratings, e.g. `DE`. */
+            country: string;
+            /** @description Whether a TMDB API key is stored (the key itself is never returned). */
+            has_tmdb_api_key: boolean;
+            /** @description Metadata language, e.g. `de-DE`. */
+            language: string;
+        };
         PoolSummary: {
             /** Format: int64 */
             done: number;
@@ -790,6 +891,12 @@ export interface components {
         UpdateLibraryRequest: {
             name?: string | null;
             paths?: string[] | null;
+        };
+        UpdateMetadataSettings: {
+            country?: string | null;
+            language?: string | null;
+            /** @description TMDB v3 API key or v4 read access token; `null` removes it. */
+            tmdb_api_key?: string | null;
         };
         UpdateTaskRequest: {
             enabled?: boolean | null;
@@ -1053,6 +1160,54 @@ export interface operations {
             };
         };
     };
+    getImage: {
+        parameters: {
+            query?: {
+                /** @description Desired width in pixels (snapped up to 92, 185, 342, 500, 780, 1280 or 1920). */
+                w?: number;
+                /** @description Expiry of the signature (unix seconds), from URLs returned by the API. */
+                exp?: number;
+                /** @description URL signature, from URLs returned by the API. */
+                sig?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Image id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image (JPEG, PNG for logos) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description Neither a valid signature nor a valid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such image */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     listInvitations: {
         parameters: {
             query?: never;
@@ -1257,6 +1412,178 @@ export interface operations {
                 };
             };
             /** @description No such invitation */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    identifyCandidates: {
+        parameters: {
+            query?: {
+                /** @description Search text (defaults to the item's title). */
+                query?: string;
+                year?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Candidates, best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such movie or series */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No TMDB key configured */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    identifyItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdentifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Identified and updated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such movie or series */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No TMDB key configured */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    refreshItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Refresh queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such item */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -1726,6 +2053,95 @@ export interface operations {
             };
             /** @description No such library */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getMetadataSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetadataSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateMetadataSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMetadataSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MetadataSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid key, language or country */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

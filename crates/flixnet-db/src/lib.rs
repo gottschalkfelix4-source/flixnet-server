@@ -14,6 +14,7 @@ use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
+pub mod cache;
 pub mod invitations;
 pub mod items;
 pub mod jobs;
