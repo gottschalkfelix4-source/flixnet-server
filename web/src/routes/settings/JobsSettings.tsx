@@ -12,6 +12,9 @@ const KIND_LABELS: Record<string, string> = {
   'library.scan': 'Bibliothek scannen',
   'library.scan_all': 'Alle Bibliotheken scannen',
   'media.probe': 'Mediendatei analysieren',
+  'media.trickplay': 'Vorschaubilder erzeugen',
+  'media.chapter_images': 'Kapitelbilder erzeugen',
+  'media.thumbnails_backfill': 'Fehlende Vorschau- und Kapitelbilder suchen',
   'metadata.refresh': 'Metadaten aktualisieren',
 }
 

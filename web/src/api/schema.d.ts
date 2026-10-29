@@ -1867,6 +1867,20 @@ export interface components {
         };
         /** @enum {string} */
         PlayMethod: "direct_play" | "remux" | "transcode";
+        PlaybackChapterDto: {
+            /** Format: int64 */
+            end_ms: number;
+            /** @description Signed URL of the chapter's image (JPEG), once made. */
+            image_url?: string | null;
+            /**
+             * Format: int64
+             * @description Chapter number within the file, from 0.
+             */
+            index: number;
+            /** Format: int64 */
+            start_ms: number;
+            title?: string | null;
+        };
         PlaybackInfoDto: {
             /** Format: int64 */
             item_id: number;
@@ -2976,7 +2990,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChapterDto"][];
+                    "application/json": components["schemas"]["PlaybackChapterDto"][];
                 };
             };
             /** @description Missing or invalid token */

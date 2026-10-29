@@ -785,7 +785,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ChapterDto"
+                    "$ref": "#/components/schemas/PlaybackChapterDto"
                   }
                 }
               }
@@ -7339,6 +7339,42 @@
           "remux",
           "transcode"
         ]
+      },
+      "PlaybackChapterDto": {
+        "type": "object",
+        "required": [
+          "index",
+          "start_ms",
+          "end_ms"
+        ],
+        "properties": {
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed URL of the chapter's image (JPEG), once made."
+          },
+          "index": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Chapter number within the file, from 0."
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
       },
       "PlaybackInfoDto": {
         "type": "object",

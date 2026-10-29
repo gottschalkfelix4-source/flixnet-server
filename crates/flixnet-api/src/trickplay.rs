@@ -48,7 +48,7 @@ pub struct TrickplayDto {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct ChapterDto {
+pub struct PlaybackChapterDto {
     /// Chapter number within the file, from 0.
     pub index: i64,
     pub start_ms: i64,
@@ -220,7 +220,7 @@ async fn get_trickplay_sheet(
     tag = "playback",
     params(("file_id" = i64, Path, description = "Media file id")),
     responses(
-        (status = OK, description = "The chapters in order (empty without chapters)", body = Vec<ChapterDto>),
+        (status = OK, description = "The chapters in order (empty without chapters)", body = Vec<PlaybackChapterDto>),
         (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
         (status = NOT_FOUND, description = "No such file, or no access", body = ErrorBody),
     )
@@ -229,7 +229,7 @@ async fn list_chapters(
     user: AuthUser,
     State(state): State<AppState>,
     Path(file_id): Path<i64>,
-) -> ApiResult<Json<Vec<ChapterDto>>> {
+) -> ApiResult<Json<Vec<PlaybackChapterDto>>> {
     accessible_file(&state, Some(&user), None, file_id).await?;
     let images = trickplay::chapters(&state.db, file_id).await?;
     let chapters = media::chapters(&state.db, file_id)
@@ -240,7 +240,7 @@ async fn list_chapters(
                 .iter()
                 .find(|i| i.idx == c.idx)
                 .and_then(|i| i.image_at);
-            ChapterDto {
+            PlaybackChapterDto {
                 index: c.idx,
                 start_ms: c.start_ms,
                 end_ms: c.end_ms,

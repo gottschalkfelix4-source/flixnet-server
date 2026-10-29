@@ -186,8 +186,10 @@ test('after episode 1, "Nächste Folge" offers episode 2', async ({ page }) => {
   const video = page.getByTestId('player-video')
   await play(video)
   await expect.poll(() => currentTime(video), { timeout: 10_000 }).toBeGreaterThan(0.3)
-  // Watch the end: past 90 % counts as watched.
-  await seek(video, 28)
+  // Watch the end: past 90 % counts as watched. The player offers to go on with
+  // episode 2 (autoplay); cancelled here, so this player sees the end.
+  await seek(video, 25)
+  await page.getByTestId('up-next').getByRole('button', { name: 'Abbrechen' }).click()
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.ended), { timeout: 10_000 }).toBe(true)
   const stopped = page.waitForResponse((r) => r.url().includes('/stop') && r.status() === 200)
   await page.getByRole('button', { name: 'Zurück' }).click()
