@@ -12,6 +12,7 @@ path = "src/main.rs"
 flixnet-api.workspace = true
 flixnet-core.workspace = true
 flixnet-db.workspace = true
+flixnet-jellyfin.workspace = true
 flixnet-library.workspace = true
 flixnet-media.workspace = true
 

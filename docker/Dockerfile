@@ -53,7 +53,8 @@ ENV PATH="/usr/lib/jellyfin-ffmpeg:${PATH}" \
     PGID=100 \
     UMASK=022
 
-EXPOSE 8097
+# 8098: Jellyfin-compatible API (off unless FLIXNET_JELLYFIN__ENABLED=true).
+EXPOSE 8097 8098
 VOLUME ["/config"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
     CMD curl -fsS http://127.0.0.1:8097/api/v1/system/info >/dev/null || exit 1
