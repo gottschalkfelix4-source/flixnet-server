@@ -232,6 +232,37 @@ pub struct MovieDetails {
     pub release_dates: ReleaseDates,
     #[serde(default)]
     pub external_ids: ExternalIds,
+    /// The movie series this movie is part of ("Matrix Filmreihe").
+    pub belongs_to_collection: Option<CollectionRef>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CollectionRef {
+    pub id: i64,
+    #[serde(default)]
+    pub name: String,
+    pub poster_path: Option<String>,
+    pub backdrop_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CollectionPart {
+    pub id: i64,
+    #[serde(default)]
+    pub title: String,
+    pub release_date: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CollectionDetails {
+    pub id: i64,
+    #[serde(default)]
+    pub name: String,
+    pub overview: Option<String>,
+    pub poster_path: Option<String>,
+    pub backdrop_path: Option<String>,
+    #[serde(default)]
+    pub parts: Vec<CollectionPart>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -462,6 +493,25 @@ impl Tmdb {
                     DETAIL_TTL_MS,
                 )
                 .await?;
+            details.overview = fallback.overview;
+        }
+        Ok(details)
+    }
+
+    /// A movie collection with its parts (overview falls back to English).
+    pub async fn collection(&self, id: i64) -> Result<CollectionDetails, TmdbError> {
+        let mut details: CollectionDetails = self
+            .get(&format!("/collection/{id}"), &[self.lang()], DETAIL_TTL_MS)
+            .await?;
+        if is_blank(&details.overview)
+            && let Ok(fallback) = self
+                .get::<CollectionDetails>(
+                    &format!("/collection/{id}"),
+                    &[("language", self.config.fallback_language.clone())],
+                    DETAIL_TTL_MS,
+                )
+                .await
+        {
             details.overview = fallback.overview;
         }
         Ok(details)

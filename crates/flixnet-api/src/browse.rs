@@ -416,7 +416,7 @@ pub struct ItemDetailDto {
 }
 
 /// Libraries the user may see, optionally narrowed to one.
-async fn visible_libraries(
+pub(crate) async fn visible_libraries(
     state: &AppState,
     user: &AuthUser,
     only: Option<i64>,
@@ -503,10 +503,11 @@ fn filter_from(
         descending: matches!(query.order, Some(SortOrder::Desc)),
         limit: query.limit.unwrap_or(60).clamp(1, 200),
         offset: query.offset.unwrap_or(0).max(0),
+        ..Default::default()
     })
 }
 
-fn card(state: &AppState, s: ItemSummary) -> ItemCardDto {
+pub(crate) fn card(state: &AppState, s: ItemSummary) -> ItemCardDto {
     ItemCardDto {
         poster_url: s.poster_id.map(|id| state.signer.image_url(id, Some(342))),
         poster_blurhash: s.poster_blurhash,

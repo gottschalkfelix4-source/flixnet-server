@@ -12,9 +12,13 @@ import { AppShell } from '@/components/layout/AppShell'
 import { itemQuery } from '@/api/queries/items'
 import { getSession } from '@/lib/session'
 import { type BrowseSearch, BrowsePage } from '@/routes/BrowsePage'
+import { CollectionPage } from '@/routes/CollectionPage'
+import { CollectionsPage } from '@/routes/CollectionsPage'
 import { HomePage } from '@/routes/HomePage'
 import { ItemPage } from '@/routes/ItemPage'
 import { PersonPage } from '@/routes/PersonPage'
+import { PlaylistPage } from '@/routes/PlaylistPage'
+import { PlaylistsPage } from '@/routes/PlaylistsPage'
 import { PlayerPage } from '@/routes/PlayerPage'
 import { SearchPage } from '@/routes/SearchPage'
 import { InvitePage } from '@/routes/InvitePage'
@@ -166,6 +170,30 @@ const personRoute = createRoute({
   component: PersonPage,
 })
 
+const collectionsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/collections',
+  component: CollectionsPage,
+})
+
+const collectionRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/collection/$id',
+  component: CollectionPage,
+})
+
+const playlistsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/playlists',
+  component: PlaylistsPage,
+})
+
+const playlistRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/playlist/$id',
+  component: PlaylistPage,
+})
+
 const searchRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/search',
@@ -195,6 +223,10 @@ const routeTree = rootRoute.addChildren([
     showsRoute,
     itemRoute,
     personRoute,
+    collectionsRoute,
+    collectionRoute,
+    playlistsRoute,
+    playlistRoute,
     searchRoute,
     placeholder('/music', 'Musik', 'Musikbibliotheken folgen in Phase 9.'),
     placeholder('/live', 'Live TV', 'Live TV und DVR folgen in Phase 7.'),

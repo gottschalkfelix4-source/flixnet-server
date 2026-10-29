@@ -1,5 +1,6 @@
 //! Online metadata providers: matching items to provider entries and applying data.
 
+pub mod collections;
 pub mod fanart;
 pub mod tmdb;
 
@@ -404,6 +405,10 @@ pub async fn apply_movie(db: &Db, tmdb: &Tmdb, item_id: i64, tmdb_id: i64) -> an
     art.extend(images(&d.images.backdrops, "backdrop", &config.language, 5));
     art.extend(images(&d.images.logos, "logo", &config.language, 3));
     metadata::replace_images(db, item_id, "tmdb", &art).await?;
+    // The movie's TMDB collection; a failure there must not fail the refresh.
+    if let Err(err) = collections::sync_movie(db, tmdb, &d).await {
+        tracing::warn!(item = item_id, %err, "TMDB collection lookup failed");
+    }
     Ok(())
 }
 
@@ -617,10 +622,13 @@ pub async fn identify(db: &Db, tmdb: &Tmdb, item_id: i64, tmdb_id: i64) -> anyho
     metadata::set_provider_id(db, item_id, "tmdb", &tmdb_id.to_string()).await?;
     items::set_match(db, item_id, "manual", Some(1.0)).await?;
     if item.kind == "movie" {
-        apply_movie(db, tmdb, item_id, tmdb_id).await
+        apply_movie(db, tmdb, item_id, tmdb_id).await?;
     } else {
-        apply_series(db, tmdb, item_id, tmdb_id).await
+        apply_series(db, tmdb, item_id, tmdb_id).await?;
     }
+    // User data, collections and playlists follow the new identity right away.
+    flixnet_db::userdata::update_identity(db, item_id).await?;
+    Ok(())
 }
 
 #[cfg(test)]

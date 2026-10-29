@@ -1,10 +1,13 @@
 import { Link, Navigate, useParams, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { Check, ChevronLeft, Heart, Play, RefreshCw, Search, Star } from 'lucide-react'
+import { Check, ChevronLeft, Heart, Layers, Play, RefreshCw, Search, Star } from 'lucide-react'
 import { useState } from 'react'
 import { type ItemCard, type ItemDetail, useItem, useItems, useRefreshItem, useSetFavorite, useSetPlayed } from '@/api/queries/items'
+import { AddToCollectionDialog } from '@/components/media/AddToCollectionDialog'
+import { AddToPlaylistButton } from '@/components/media/AddToPlaylistDialog'
 import { BlurImage } from '@/components/media/BlurImage'
 import { CastRow } from '@/components/media/CastRow'
+import { CollectionRows } from '@/components/media/CollectionRows'
 import { IdentifyDialog } from '@/components/media/IdentifyDialog'
 import { Row } from '@/components/media/Row'
 import { episodeLabel, formatBadges, formatRuntime, languageName } from '@/lib/media'
@@ -33,6 +36,7 @@ export function ItemPage() {
       <Header item={d} />
       {d.kind === 'series' && <Seasons series={d} initial={season} />}
       <CastRow people={d.people} />
+      {(d.kind === 'movie' || d.kind === 'series') && <CollectionRows itemId={d.id} />}
       <TechnicalInfo item={d} />
       {d.kind !== 'episode' && <MoreLikeThis item={d} />}
     </div>
@@ -45,6 +49,7 @@ function Header({ item }: { item: ItemDetail }) {
   const setFavorite = useSetFavorite()
   const refresh = useRefreshItem()
   const [identifying, setIdentifying] = useState(false)
+  const [collecting, setCollecting] = useState(false)
   const badges = formatBadges(item)
   const runtime = formatRuntime(item.runtime_ms)
   const label = episodeLabel(item)
@@ -162,8 +167,12 @@ function Header({ item }: { item: ItemDetail }) {
             >
               <Heart className={clsx('size-5', item.favorite && 'fill-current')} />
             </IconToggle>
+            <AddToPlaylistButton item={item} />
             {session?.user.is_admin && (item.kind === 'movie' || item.kind === 'series') && (
               <>
+                <IconToggle active={false} label="Zur Sammlung hinzufügen" onClick={() => setCollecting(true)}>
+                  <Layers className="size-5" />
+                </IconToggle>
                 <IconToggle active={false} label="Identifizieren" onClick={() => setIdentifying(true)}>
                   <Search className="size-5" />
                 </IconToggle>
@@ -176,6 +185,7 @@ function Header({ item }: { item: ItemDetail }) {
         </div>
       </div>
       {identifying && <IdentifyDialog itemId={item.id} title={item.title} onClose={() => setIdentifying(false)} />}
+      {collecting && <AddToCollectionDialog item={item} onClose={() => setCollecting(false)} />}
     </section>
   )
 }

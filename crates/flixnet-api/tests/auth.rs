@@ -204,6 +204,8 @@ async fn every_protected_operation_requires_a_token() {
     assert_eq!(
         public,
         [
+            // Signed URL, or a token of a user who may see the collection (collections_api.rs).
+            "GET /api/v1/collections/{id}/images/{kind}",
             "GET /api/v1/images/{id}",
             "GET /api/v1/invitations/redeem/{code}",
             "GET /api/v1/setup/status",

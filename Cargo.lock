@@ -907,6 +907,7 @@ dependencies = [
  "utoipa",
  "utoipa-axum",
  "utoipa-scalar",
+ "wiremock",
 ]
 
 [[package]]

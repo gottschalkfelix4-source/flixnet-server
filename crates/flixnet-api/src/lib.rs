@@ -22,6 +22,7 @@ use utoipa_scalar::{Scalar, Servable};
 
 pub mod auth;
 mod browse;
+mod collections;
 pub mod error;
 mod images;
 mod invitations;
@@ -30,6 +31,7 @@ mod jobs;
 mod libraries;
 pub mod limiter;
 mod playback;
+mod playlists;
 mod session;
 mod settings;
 pub mod signing;
@@ -108,6 +110,8 @@ impl AppState {
         (name = "libraries", description = "Media libraries, folder browsing and images"),
         (name = "items", description = "Movies, series, seasons and episodes"),
         (name = "playback", description = "Playback sources and media streams"),
+        (name = "collections", description = "Movie collections (automatic from TMDB and manual)"),
+        (name = "playlists", description = "Personal and smart playlists"),
         (name = "settings", description = "Server settings (administrators)"),
     )
 )]
@@ -149,6 +153,8 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, images::router())
         .nest(API_PREFIX, items::router())
         .nest(API_PREFIX, browse::router())
+        .nest(API_PREFIX, collections::router())
+        .nest(API_PREFIX, playlists::router())
         .nest(API_PREFIX, playback::router())
         .nest(API_PREFIX, transcode::router())
         .nest(API_PREFIX, settings::router())

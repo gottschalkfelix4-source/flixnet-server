@@ -206,6 +206,558 @@
         }
       }
     },
+    "/api/v1/collections": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Collections with at least one visible member, by name.",
+        "operationId": "listCollections",
+        "responses": {
+          "200": {
+            "description": "Collections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Create a manual collection (administrators).",
+        "operationId": "createCollection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCollectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{id}": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "A collection with its visible members in release order.",
+        "operationId": "getCollection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Collection id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Delete a collection (administrators). Automatic ones return on the next refresh.",
+        "operationId": "deleteCollection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Collection id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Rename or re-describe a manual collection (administrators).",
+        "operationId": "updateCollection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Collection id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCollectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Automatic collections cannot be edited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{id}/images/{kind}": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Collection artwork (poster or backdrop), resized and cached.",
+        "description": "Use the signed URLs returned by the collection endpoints; alternatively\nauthenticate normally.",
+        "operationId": "getCollectionImage",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Collection id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "description": "`poster` or `backdrop`",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "w",
+            "in": "query",
+            "description": "Desired width in pixels (snapped like `/images/{id}`).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "description": "Expiry of the signature (unix seconds), from URLs returned by the API.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "description": "URL signature, from URLs returned by the API.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image (JPEG)",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "401": {
+            "description": "Neither a valid signature nor a valid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/collections/{id}/items": {
+      "post": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Add movies or series to a manual collection (administrators).",
+        "operationId": "addCollectionItems",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Collection id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddedDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such collection or item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Automatic collections cannot be edited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Only movies and series",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{id}/items/{item_id}": {
+      "delete": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Remove a movie or series from a manual collection (administrators).",
+        "operationId": "removeCollectionItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Collection id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "description": "Item id of the member",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not a member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Automatic collections cannot be edited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/fs/directories": {
       "get": {
         "tags": [
@@ -1070,6 +1622,62 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ItemDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/collections": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Collections a movie or series belongs to, each with its visible members\n(\"Teil der Sammlung …\" on detail pages).",
+        "operationId": "listItemCollections",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Collections with members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CollectionDetailDto"
+                  }
                 }
               }
             }
@@ -2188,6 +2796,512 @@
           },
           "404": {
             "description": "No such person",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/playlists": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Own playlists and those shared by other profiles.",
+        "operationId": "listPlaylists",
+        "responses": {
+          "200": {
+            "description": "Playlists, own first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlaylistDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Create a playlist (with `smart_filter`: a smart playlist).",
+        "operationId": "createPlaylist",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlaylistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid name or filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/playlists/{id}": {
+      "get": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "A playlist with its items (smart playlists: evaluated now, for the signed-in user).",
+        "operationId": "getPlaylist",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Playlist id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Delete a playlist (owner only).",
+        "operationId": "deletePlaylist",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Playlist id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Shared by someone else (read-only)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Rename, share/unshare, or change a smart playlist's filter (owner only).",
+        "operationId": "updatePlaylist",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Playlist id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlaylistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Shared by someone else (read-only)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid name or filter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/playlists/{id}/items": {
+      "post": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Add movies and episodes (series and seasons as all their episodes) at the end\n(owner only). Items already in the playlist are skipped.",
+        "operationId": "addPlaylistItems",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Playlist id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistItemsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddedDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Shared by someone else (read-only)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) playlist or item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Smart playlists fill themselves",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No or too many items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/playlists/{id}/items/{entry_id}": {
+      "delete": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Remove one entry (owner only).",
+        "operationId": "removePlaylistEntry",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Playlist id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "description": "Entry id (from the playlist's entries)",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Shared by someone else (read-only)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such playlist or entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/playlists/{id}/order": {
+      "put": {
+        "tags": [
+          "playlists"
+        ],
+        "summary": "Reorder entries (owner only).",
+        "operationId": "reorderPlaylist",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Playlist id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistOrderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Reordered"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Shared by someone else (read-only)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) playlist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unknown or repeated entry ids",
             "content": {
               "application/json": {
                 "schema": {
@@ -3546,6 +4660,20 @@
   },
   "components": {
     "schemas": {
+      "AddedDto": {
+        "type": "object",
+        "required": [
+          "added"
+        ],
+        "properties": {
+          "added": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many were new (already present ones are skipped).",
+            "minimum": 0
+          }
+        }
+      },
       "ArtworkDto": {
         "type": "object",
         "properties": {
@@ -3766,6 +4894,134 @@
           }
         }
       },
+      "CollectionDetailDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CollectionDto"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ItemCardDto"
+                },
+                "description": "Visible members in release order."
+              }
+            }
+          }
+        ]
+      },
+      "CollectionDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "item_count",
+          "played_count"
+        ],
+        "properties": {
+          "backdrop_blurhash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "backdrop_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed backdrop URL, 1920 px wide."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "item_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Members the signed-in user may see."
+          },
+          "kind": {
+            "type": "string",
+            "description": "`auto` (from TMDB) or `manual` (curated by an administrator)."
+          },
+          "name": {
+            "type": "string"
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "played_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Of those, how many the user has watched."
+          },
+          "poster_blurhash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "poster_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed poster URL (the collection's own, else a member's), 342 px wide."
+          },
+          "tmdb_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "TMDB collection id of automatic collections."
+          }
+        }
+      },
+      "CollectionItemsRequest": {
+        "type": "object",
+        "required": [
+          "item_ids"
+        ],
+        "properties": {
+          "item_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Movies or series to add."
+          }
+        }
+      },
+      "CreateCollectionRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "CreateInvitationRequest": {
         "type": "object",
         "properties": {
@@ -3814,6 +5070,31 @@
               "type": "string"
             },
             "description": "Absolute folder paths on the server."
+          }
+        }
+      },
+      "CreatePlaylistRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "shared": {
+            "type": "boolean"
+          },
+          "smart_filter": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SmartFilterDto",
+                "description": "Makes it a smart playlist."
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -4995,6 +6276,152 @@
           }
         }
       },
+      "PlaylistDetailDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlaylistDto"
+          },
+          {
+            "type": "object",
+            "required": [
+              "entries"
+            ],
+            "properties": {
+              "entries": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlaylistEntryDto"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PlaylistDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "shared",
+          "smart",
+          "owner_id",
+          "owner_name",
+          "is_owner",
+          "item_count",
+          "poster_urls",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "is_owner": {
+            "type": "boolean",
+            "description": "The signed-in user owns (and may edit) the playlist."
+          },
+          "item_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Items the signed-in user may see."
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "owner_name": {
+            "type": "string"
+          },
+          "poster_urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Up to four signed poster URLs of the first items (for a collage)."
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "Visible to every profile of the household (read-only for them)."
+          },
+          "smart": {
+            "type": "boolean"
+          },
+          "smart_filter": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SmartFilterDto",
+                "description": "The filter of a smart playlist."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PlaylistEntryDto": {
+        "type": "object",
+        "required": [
+          "item"
+        ],
+        "properties": {
+          "entry_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Id of the entry (for removing and reordering); `null` in smart playlists."
+          },
+          "item": {
+            "$ref": "#/components/schemas/ItemCardDto"
+          }
+        }
+      },
+      "PlaylistItemsRequest": {
+        "type": "object",
+        "required": [
+          "item_ids"
+        ],
+        "properties": {
+          "item_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Movies and episodes; series and seasons are added as all their episodes."
+          }
+        }
+      },
+      "PlaylistOrderRequest": {
+        "type": "object",
+        "required": [
+          "entry_ids"
+        ],
+        "properties": {
+          "entry_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Entry ids in the new order. Entries not listed keep their relative order after them."
+          }
+        }
+      },
       "PoolSummary": {
         "type": "object",
         "required": [
@@ -5124,6 +6551,112 @@
             "description": "`true` until the first administrator account has been created."
           }
         }
+      },
+      "SmartFilterDto": {
+        "type": "object",
+        "description": "Saved filter of a smart playlist (the fields of `GET /items`). Empty lists and\nmissing values do not filter.",
+        "properties": {
+          "favorite": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Only the viewer's favorites.",
+            "default": null
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Any of these genres.",
+            "default": []
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "`movie`, `series`, `season`, `episode`; empty = movies and series.",
+            "default": []
+          },
+          "library_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Only these libraries (still limited to what the viewer may see).",
+            "default": []
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Maximum number of items, 1–500 (default 100).",
+            "default": null
+          },
+          "min_rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Minimum community rating, 0–10.",
+            "default": null
+          },
+          "order": {
+            "$ref": "#/components/schemas/SmartOrder",
+            "default": "asc"
+          },
+          "played": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Watched (`true`) or unwatched (`false`) by the viewer.",
+            "default": null
+          },
+          "sort": {
+            "$ref": "#/components/schemas/SmartSort",
+            "default": "title"
+          },
+          "year_from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "default": null
+          },
+          "year_to": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "default": null
+          }
+        }
+      },
+      "SmartOrder": {
+        "type": "string",
+        "enum": [
+          "asc",
+          "desc"
+        ]
+      },
+      "SmartSort": {
+        "type": "string",
+        "enum": [
+          "title",
+          "date_added",
+          "year",
+          "rating",
+          "premiere_date"
+        ]
       },
       "StreamAction": {
         "type": "string",
@@ -5355,6 +6888,24 @@
           "password"
         ]
       },
+      "UpdateCollectionRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "overview": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` clears the description."
+          }
+        }
+      },
       "UpdateLibraryRequest": {
         "type": "object",
         "properties": {
@@ -5403,6 +6954,34 @@
               "null"
             ],
             "description": "TMDB v3 API key or v4 read access token; `null` removes it."
+          }
+        }
+      },
+      "UpdatePlaylistRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shared": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "smart_filter": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SmartFilterDto",
+                "description": "New filter (smart playlists only)."
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -5703,6 +7282,14 @@
     {
       "name": "playback",
       "description": "Playback sources and media streams"
+    },
+    {
+      "name": "collections",
+      "description": "Movie collections (automatic from TMDB and manual)"
+    },
+    {
+      "name": "playlists",
+      "description": "Personal and smart playlists"
     },
     {
       "name": "settings",

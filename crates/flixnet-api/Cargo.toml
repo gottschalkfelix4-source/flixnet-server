@@ -14,6 +14,7 @@ axum.workspace = true
 hex.workspace = true
 hmac.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 sha2.workspace = true
 tokio.workspace = true
 tower-http.workspace = true
@@ -25,9 +26,9 @@ utoipa-scalar.workspace = true
 [dev-dependencies]
 http-body-util.workspace = true
 image.workspace = true
-serde_json.workspace = true
 tempfile.workspace = true
 tower.workspace = true
+wiremock.workspace = true
 
 [lints]
 workspace = true

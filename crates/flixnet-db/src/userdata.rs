@@ -77,6 +77,24 @@ pub async fn update_identity(db: &Db, item_id: i64) -> Result<()> {
                 .bind(&old)
                 .execute(&mut *tx)
                 .await?;
+            // Collection members and playlist entries hang on the identity as well.
+            for (update, delete) in [
+                (
+                    "UPDATE OR IGNORE collection_items SET identity_key = ? WHERE identity_key = ?",
+                    "DELETE FROM collection_items WHERE identity_key = ?",
+                ),
+                (
+                    "UPDATE OR IGNORE playlist_items SET identity_key = ? WHERE identity_key = ?",
+                    "DELETE FROM playlist_items WHERE identity_key = ?",
+                ),
+            ] {
+                sqlx::query(update)
+                    .bind(&identity)
+                    .bind(&old)
+                    .execute(&mut *tx)
+                    .await?;
+                sqlx::query(delete).bind(&old).execute(&mut *tx).await?;
+            }
         }
         tx.commit().await?;
     }

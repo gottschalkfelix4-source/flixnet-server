@@ -45,6 +45,10 @@ pub struct ItemFilter {
     pub descending: bool,
     pub limit: i64,
     pub offset: i64,
+    /// Any of these genres (smart playlists).
+    pub genres: Vec<String>,
+    /// Minimum community rating (0–10).
+    pub min_rating: Option<f64>,
 }
 
 /// One row of a grid: enough to draw a poster card.
@@ -106,7 +110,9 @@ fn push_from(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
     }
 }
 
-fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
+/// `WHERE …` over `items i` for everything in the filter except the search (which
+/// needs the FTS join from `push_from`). Also used by collections and playlists.
+pub(crate) fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
     qb.push(" WHERE i.library_id IN (");
     {
         let mut ids = qb.separated(", ");
@@ -140,6 +146,20 @@ fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
         )
         .push_bind(genre.clone())
         .push("))");
+    }
+    if !f.genres.is_empty() {
+        qb.push(
+            " AND i.id IN (SELECT ig.item_id FROM item_genres ig JOIN genres g ON g.id = ig.genre_id
+                          WHERE g.name IN (",
+        );
+        let mut names = qb.separated(", ");
+        for genre in &f.genres {
+            names.push_bind(genre.clone());
+        }
+        qb.push("))");
+    }
+    if let Some(min) = f.min_rating {
+        qb.push(" AND i.community_rating >= ").push_bind(min);
     }
     if let Some(from) = f.year_from {
         qb.push(" AND i.year >= ").push_bind(from);

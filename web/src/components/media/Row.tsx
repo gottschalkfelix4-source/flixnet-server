@@ -1,6 +1,6 @@
 import useEmblaCarousel from 'embla-carousel-react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import type { ItemCard } from '@/api/queries/items'
 import { PosterCard, PosterSkeleton } from './PosterCard'
 
@@ -9,10 +9,12 @@ interface RowProps {
   items: ItemCard[] | undefined
   loading?: boolean
   wide?: boolean
+  /** Shown next to the title (e.g. a link to the full list). */
+  action?: ReactNode
 }
 
 /** A titled, horizontally scrolling row of cards with arrow buttons. */
-export function Row({ title, items, loading = false, wide = false }: RowProps) {
+export function Row({ title, items, loading = false, wide = false, action }: RowProps) {
   const [viewport, embla] = useEmblaCarousel({ align: 'start', dragFree: true, containScroll: 'trimSnaps' })
   const [canPrev, setCanPrev] = useState(false)
   const [canNext, setCanNext] = useState(false)
@@ -39,7 +41,10 @@ export function Row({ title, items, loading = false, wide = false }: RowProps) {
   return (
     <section className="mb-8" aria-label={title}>
       <div className="mb-3 flex items-center justify-between px-6 md:px-10">
-        <h2 className="text-lg font-bold tracking-tight md:text-xl">{title}</h2>
+        <div className="flex min-w-0 items-baseline gap-3">
+          <h2 className="truncate text-lg font-bold tracking-tight md:text-xl">{title}</h2>
+          {action}
+        </div>
         <div className="hidden gap-1 md:flex">
           <button
             type="button"

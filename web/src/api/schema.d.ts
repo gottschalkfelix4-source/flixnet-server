@@ -76,6 +76,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Collections with at least one visible member, by name. */
+        get: operations["listCollections"];
+        put?: never;
+        /** Create a manual collection (administrators). */
+        post: operations["createCollection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A collection with its visible members in release order. */
+        get: operations["getCollection"];
+        put?: never;
+        post?: never;
+        /** Delete a collection (administrators). Automatic ones return on the next refresh. */
+        delete: operations["deleteCollection"];
+        options?: never;
+        head?: never;
+        /** Rename or re-describe a manual collection (administrators). */
+        patch: operations["updateCollection"];
+        trace?: never;
+    };
+    "/api/v1/collections/{id}/images/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Collection artwork (poster or backdrop), resized and cached.
+         * @description Use the signed URLs returned by the collection endpoints; alternatively
+         *     authenticate normally.
+         */
+        get: operations["getCollectionImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collections/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add movies or series to a manual collection (administrators). */
+        post: operations["addCollectionItems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/collections/{id}/items/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a movie or series from a manual collection (administrators). */
+        delete: operations["removeCollectionItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/fs/directories": {
         parameters: {
             query?: never;
@@ -226,6 +318,26 @@ export interface paths {
         };
         /** Everything about one item: metadata, people, artwork and files. */
         get: operations["getItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/collections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Collections a movie or series belongs to, each with its visible members
+         *     ("Teil der Sammlung …" on detail pages).
+         */
+        get: operations["listItemCollections"];
         put?: never;
         post?: never;
         delete?: never;
@@ -454,6 +566,97 @@ export interface paths {
         /** A person and their movies/series in the library. */
         get: operations["getPerson"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/playlists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Own playlists and those shared by other profiles. */
+        get: operations["listPlaylists"];
+        put?: never;
+        /** Create a playlist (with `smart_filter`: a smart playlist). */
+        post: operations["createPlaylist"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/playlists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A playlist with its items (smart playlists: evaluated now, for the signed-in user). */
+        get: operations["getPlaylist"];
+        put?: never;
+        post?: never;
+        /** Delete a playlist (owner only). */
+        delete: operations["deletePlaylist"];
+        options?: never;
+        head?: never;
+        /** Rename, share/unshare, or change a smart playlist's filter (owner only). */
+        patch: operations["updatePlaylist"];
+        trace?: never;
+    };
+    "/api/v1/playlists/{id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add movies and episodes (series and seasons as all their episodes) at the end
+         *     (owner only). Items already in the playlist are skipped.
+         */
+        post: operations["addPlaylistItems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/playlists/{id}/items/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove one entry (owner only). */
+        delete: operations["removePlaylistEntry"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/playlists/{id}/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder entries (owner only). */
+        put: operations["reorderPlaylist"];
         post?: never;
         delete?: never;
         options?: never;
@@ -835,6 +1038,13 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AddedDto: {
+            /**
+             * Format: int64
+             * @description How many were new (already present ones are skipped).
+             */
+            added: number;
+        };
         ArtworkDto: {
             backdrop_blurhash?: string | null;
             backdrop_url?: string | null;
@@ -898,6 +1108,47 @@ export interface components {
             start_ms: number;
             title?: string | null;
         };
+        CollectionDetailDto: components["schemas"]["CollectionDto"] & {
+            /** @description Visible members in release order. */
+            items: components["schemas"]["ItemCardDto"][];
+        };
+        CollectionDto: {
+            backdrop_blurhash?: string | null;
+            /** @description Signed backdrop URL, 1920 px wide. */
+            backdrop_url?: string | null;
+            /** Format: int64 */
+            id: number;
+            /**
+             * Format: int64
+             * @description Members the signed-in user may see.
+             */
+            item_count: number;
+            /** @description `auto` (from TMDB) or `manual` (curated by an administrator). */
+            kind: string;
+            name: string;
+            overview?: string | null;
+            /**
+             * Format: int64
+             * @description Of those, how many the user has watched.
+             */
+            played_count: number;
+            poster_blurhash?: string | null;
+            /** @description Signed poster URL (the collection's own, else a member's), 342 px wide. */
+            poster_url?: string | null;
+            /**
+             * Format: int64
+             * @description TMDB collection id of automatic collections.
+             */
+            tmdb_id?: number | null;
+        };
+        CollectionItemsRequest: {
+            /** @description Movies or series to add. */
+            item_ids: number[];
+        };
+        CreateCollectionRequest: {
+            name: string;
+            overview?: string | null;
+        };
         CreateInvitationRequest: {
             /**
              * Format: int64
@@ -917,6 +1168,11 @@ export interface components {
             name: string;
             /** @description Absolute folder paths on the server. */
             paths: string[];
+        };
+        CreatePlaylistRequest: {
+            name: string;
+            shared?: boolean;
+            smart_filter?: components["schemas"]["SmartFilterDto"] | null;
         };
         CreateUserRequest: {
             is_admin?: boolean;
@@ -1302,6 +1558,50 @@ export interface components {
             subtitle?: components["schemas"]["SubtitlePlan"] | null;
             video?: components["schemas"]["VideoPlan"] | null;
         };
+        PlaylistDetailDto: components["schemas"]["PlaylistDto"] & {
+            entries: components["schemas"]["PlaylistEntryDto"][];
+        };
+        PlaylistDto: {
+            /** Format: int64 */
+            created_at: number;
+            /** Format: int64 */
+            id: number;
+            /** @description The signed-in user owns (and may edit) the playlist. */
+            is_owner: boolean;
+            /**
+             * Format: int64
+             * @description Items the signed-in user may see.
+             */
+            item_count: number;
+            name: string;
+            /** Format: int64 */
+            owner_id: number;
+            owner_name: string;
+            /** @description Up to four signed poster URLs of the first items (for a collage). */
+            poster_urls: string[];
+            /** @description Visible to every profile of the household (read-only for them). */
+            shared: boolean;
+            smart: boolean;
+            smart_filter?: components["schemas"]["SmartFilterDto"] | null;
+            /** Format: int64 */
+            updated_at: number;
+        };
+        PlaylistEntryDto: {
+            /**
+             * Format: int64
+             * @description Id of the entry (for removing and reordering); `null` in smart playlists.
+             */
+            entry_id?: number | null;
+            item: components["schemas"]["ItemCardDto"];
+        };
+        PlaylistItemsRequest: {
+            /** @description Movies and episodes; series and seasons are added as all their episodes. */
+            item_ids: number[];
+        };
+        PlaylistOrderRequest: {
+            /** @description Entry ids in the new order. Entries not listed keep their relative order after them. */
+            entry_ids: number[];
+        };
         PoolSummary: {
             /** Format: int64 */
             done: number;
@@ -1348,6 +1648,67 @@ export interface components {
             /** @description `true` until the first administrator account has been created. */
             setup_required: boolean;
         };
+        /**
+         * @description Saved filter of a smart playlist (the fields of `GET /items`). Empty lists and
+         *     missing values do not filter.
+         */
+        SmartFilterDto: {
+            /**
+             * @description Only the viewer's favorites.
+             * @default null
+             */
+            favorite: boolean | null;
+            /**
+             * @description Any of these genres.
+             * @default []
+             */
+            genres: string[];
+            /**
+             * @description `movie`, `series`, `season`, `episode`; empty = movies and series.
+             * @default []
+             */
+            kinds: string[];
+            /**
+             * @description Only these libraries (still limited to what the viewer may see).
+             * @default []
+             */
+            library_ids: number[];
+            /**
+             * Format: int64
+             * @description Maximum number of items, 1–500 (default 100).
+             * @default null
+             */
+            limit: number | null;
+            /**
+             * Format: double
+             * @description Minimum community rating, 0–10.
+             * @default null
+             */
+            min_rating: number | null;
+            /** @default asc */
+            order: components["schemas"]["SmartOrder"];
+            /**
+             * @description Watched (`true`) or unwatched (`false`) by the viewer.
+             * @default null
+             */
+            played: boolean | null;
+            /** @default title */
+            sort: components["schemas"]["SmartSort"];
+            /**
+             * Format: int64
+             * @default null
+             */
+            year_from: number | null;
+            /**
+             * Format: int64
+             * @default null
+             */
+            year_to: number | null;
+        };
+        /** @enum {string} */
+        SmartOrder: "asc" | "desc";
+        /** @enum {string} */
+        SmartSort: "title" | "date_added" | "year" | "rating" | "premiere_date";
         /** @enum {string} */
         StreamAction: "copy" | "transcode";
         /** @enum {string} */
@@ -1434,6 +1795,11 @@ export interface components {
          * @enum {string}
          */
         Unlock: "none" | "pin" | "password";
+        UpdateCollectionRequest: {
+            name?: string | null;
+            /** @description `null` clears the description. */
+            overview?: string | null;
+        };
         UpdateLibraryRequest: {
             name?: string | null;
             paths?: string[] | null;
@@ -1445,6 +1811,11 @@ export interface components {
             language?: string | null;
             /** @description TMDB v3 API key or v4 read access token; `null` removes it. */
             tmdb_api_key?: string | null;
+        };
+        UpdatePlaylistRequest: {
+            name?: string | null;
+            shared?: boolean | null;
+            smart_filter?: components["schemas"]["SmartFilterDto"] | null;
         };
         UpdateTaskRequest: {
             enabled?: boolean | null;
@@ -1696,6 +2067,428 @@ export interface operations {
             };
             /** @description Too many failed attempts */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listCollections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Collections */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCollectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid name */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The collection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionDetailDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) collection */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deleteCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such collection */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateCollection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCollectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such collection */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Automatic collections cannot be edited */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid name */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getCollectionImage: {
+        parameters: {
+            query?: {
+                /** @description Desired width in pixels (snapped like `/images/{id}`). */
+                w?: number;
+                /** @description Expiry of the signature (unix seconds), from URLs returned by the API. */
+                exp?: number;
+                /** @description URL signature, from URLs returned by the API. */
+                sig?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Collection id */
+                id: number;
+                /** @description `poster` or `backdrop` */
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image (JPEG) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description Neither a valid signature nor a valid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such image */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    addCollectionItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CollectionItemsRequest"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddedDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such collection or item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Automatic collections cannot be edited */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Only movies and series */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    removeCollectionItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Collection id */
+                id: number;
+                /** @description Item id of the member */
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a member */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Automatic collections cannot be edited */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2187,6 +2980,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemDetailDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listItemCollections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Collections with members */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CollectionDetailDto"][];
                 };
             };
             /** @description Missing or invalid token */
@@ -3082,6 +3916,412 @@ export interface operations {
             };
             /** @description No such person */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listPlaylists: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Playlists, own first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createPlaylist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlaylistRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid name or filter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getPlaylist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The playlist */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistDetailDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) playlist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deletePlaylist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Shared by someone else (read-only) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) playlist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updatePlaylist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePlaylistRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaylistDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Shared by someone else (read-only) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) playlist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid name or filter */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    addPlaylistItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaylistItemsRequest"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddedDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Shared by someone else (read-only) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) playlist or item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Smart playlists fill themselves */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No or too many items */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    removePlaylistEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist id */
+                id: number;
+                /** @description Entry id (from the playlist's entries) */
+                entry_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Shared by someone else (read-only) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such playlist or entry */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    reorderPlaylist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playlist id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaylistOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Reordered */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Shared by someone else (read-only) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) playlist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown or repeated entry ids */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

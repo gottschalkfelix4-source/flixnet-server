@@ -16,12 +16,14 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, S
 
 pub mod browse;
 pub mod cache;
+pub mod collections;
 pub mod invitations;
 pub mod items;
 pub mod jobs;
 pub mod libraries;
 pub mod media;
 pub mod metadata;
+pub mod playlists;
 pub mod sessions;
 pub mod settings;
 pub mod userdata;
