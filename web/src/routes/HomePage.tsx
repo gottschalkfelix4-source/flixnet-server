@@ -1,64 +1,54 @@
-import { Library, Play } from 'lucide-react'
-import { useSystemInfo } from '@/api/queries/system'
+import { Link } from '@tanstack/react-router'
+import { Library } from 'lucide-react'
+import { useItems } from '@/api/queries/items'
+import { useLibraries } from '@/api/queries/libraries'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Hero } from '@/components/media/Hero'
+import { Row } from '@/components/media/Row'
+import { useSession } from '@/lib/session'
 
 export function HomePage() {
-  const info = useSystemInfo()
+  const session = useSession()
+  const libraries = useLibraries()
+  const featured = useItems({ kind: 'movie,series', sort: 'date_added', order: 'desc', limit: 12 })
+  const continueWatching = useItems({ kind: 'movie,episode', sort: 'date_added', order: 'desc', limit: 20 })
+  const newMovies = useItems({ kind: 'movie', sort: 'date_added', order: 'desc', limit: 20 })
+  const newSeries = useItems({ kind: 'series', sort: 'date_added', order: 'desc', limit: 20 })
+  const favorites = useItems({ kind: 'movie,series', favorite: true, limit: 20 })
+  const topRated = useItems({ kind: 'movie,series', sort: 'rating', order: 'desc', limit: 20 })
+
+  if (libraries.data?.length === 0) {
+    return (
+      <div className="pt-16 pb-16">
+        <EmptyState icon={Library} title="Noch keine Bibliotheken">
+          {session?.user.is_admin ? (
+            <>
+              Füge deinen ersten Medienordner hinzu:{' '}
+              <Link to="/settings" search={{ tab: 'libraries' }} className="font-semibold text-accent hover:text-accent-hover">
+                Bibliothek hinzufügen
+              </Link>
+            </>
+          ) : (
+            'Sobald ein Administrator Bibliotheken anlegt, erscheinen sie hier.'
+          )}
+        </EmptyState>
+      </div>
+    )
+  }
+
+  const heroItems = (featured.data?.items ?? []).filter((item) => item.backdrop_url).slice(0, 6)
+  const resume = continueWatching.data?.items.filter((i) => i.position_ms > 0 && !i.played)
 
   return (
     <div className="pb-16">
-      <section className="relative isolate overflow-hidden">
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-[radial-gradient(900px_420px_at_75%_10%,rgb(255_107_61/0.22),transparent_60%),linear-gradient(135deg,#1d1d23,#0f0f12_60%)]"
-        />
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-gradient-to-t from-canvas via-canvas/40 to-transparent"
-        />
-        <div className="flex min-h-[46vh] max-w-3xl flex-col justify-end gap-4 px-6 pt-24 pb-12 md:px-10">
-          <p className="text-sm font-semibold tracking-widest text-accent uppercase">Willkommen</p>
-          <h1 className="text-4xl font-extrabold tracking-tight md:text-6xl">Dein Kino. Dein Server.</h1>
-          <p className="max-w-xl text-base text-muted md:text-lg">
-            Filme, Serien, Musik und Live TV, organisiert von deinem eigenen Flixnet-Server, mit
-            Empfehlungen, die lokal berechnet werden.
-          </p>
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button
-              type="button"
-              disabled
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-fg px-6 font-bold text-canvas disabled:opacity-40"
-            >
-              <Play className="size-5 fill-current" aria-hidden="true" />
-              Abspielen
-            </button>
-            <ServerBadge
-              status={info.status}
-              label={info.data ? `${info.data.name} ${info.data.version}` : undefined}
-            />
-          </div>
-        </div>
-      </section>
-
-      <EmptyState icon={Library} title="Noch keine Bibliotheken">
-        Sobald du Medienordner hinzufügst, erscheinen hier „Weiterschauen“, „Neu hinzugefügt“ und
-        persönliche Empfehlungen.
-      </EmptyState>
+      {heroItems.length > 0 ? <Hero items={heroItems} /> : <div className="h-16" />}
+      <div className={heroItems.length > 0 ? '-mt-8 relative' : ''}>
+        <Row title="Weiterschauen" items={resume} wide />
+        <Row title="Neu: Filme" items={newMovies.data?.items} loading={newMovies.isPending} />
+        <Row title="Neu: Serien" items={newSeries.data?.items} loading={newSeries.isPending} />
+        <Row title="Favoriten" items={favorites.data?.items} />
+        <Row title="Am besten bewertet" items={topRated.data?.items.filter((i) => i.community_rating != null)} />
+      </div>
     </div>
-  )
-}
-
-function ServerBadge({ status, label }: { status: 'pending' | 'error' | 'success'; label?: string }) {
-  const text =
-    status === 'success' ? label : status === 'error' ? 'Server nicht erreichbar' : 'Verbinde…'
-  const dot = status === 'success' ? 'bg-emerald-400' : status === 'error' ? 'bg-red-500' : 'bg-subtle'
-  return (
-    <span
-      data-testid="server-status"
-      className="inline-flex h-11 items-center gap-2 rounded-full border border-line bg-surface/70 px-4 text-sm text-muted backdrop-blur"
-    >
-      <span className={`size-2 rounded-full ${dot}`} aria-hidden="true" />
-      {text}
-    </span>
   )
 }

@@ -17,6 +17,8 @@ pub enum Sort {
     PremiereDate,
     /// Search relevance (only with a search query).
     Relevance,
+    /// Season/episode number (children of a series or season).
+    Index,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -62,6 +64,7 @@ pub struct ItemSummary {
     pub runtime_ms: Option<i64>,
     pub community_rating: Option<f64>,
     pub official_rating: Option<String>,
+    pub overview: Option<String>,
     pub date_added: i64,
     /// Best poster (thumb for episodes) and backdrop.
     pub poster_id: Option<i64>,
@@ -194,6 +197,12 @@ fn push_order(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
         Sort::Year => nulls_last(qb, "i.year"),
         Sort::Rating => nulls_last(qb, "i.community_rating"),
         Sort::PremiereDate => nulls_last(qb, "i.premiere_date"),
+        Sort::Index => {
+            qb.push(" ORDER BY (i.parent_index_number IS NULL), i.parent_index_number")
+                .push(dir)
+                .push(", (i.index_number IS NULL), i.index_number")
+                .push(dir);
+        }
         Sort::Relevance => {
             // bm25: lower is better.
             qb.push(if f.search.is_some() {
@@ -257,7 +266,7 @@ pub async fn summaries(db: &Db, ids: &[i64], user_id: Option<i64>) -> Result<Vec
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(
         "SELECT i.id, i.library_id, i.kind, i.parent_id, i.series_id, i.title, i.year,
                 i.index_number, i.index_end, i.parent_index_number, i.premiere_date, i.runtime_ms,
-                i.community_rating, i.official_rating, i.date_added,
+                i.community_rating, i.official_rating, i.overview, i.date_added,
                 (SELECT im.id FROM images im WHERE im.item_id = i.id
                    AND im.kind = CASE i.kind WHEN 'episode' THEN 'thumb' ELSE 'poster' END
                    ORDER BY CASE im.source WHEN 'local' THEN 0 WHEN 'nfo' THEN 1 ELSE 2 END, im.score DESC, im.id

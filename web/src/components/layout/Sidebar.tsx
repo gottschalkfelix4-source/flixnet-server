@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useSystemInfo } from '@/api/queries/system'
 import { Logo } from './Logo'
 import { footerNav, mainNav, type NavItem } from './nav'
 import { UserMenu } from './UserMenu'
@@ -52,8 +53,30 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
           {!collapsed && <span>Einklappen</span>}
         </button>
+        <ServerStatus collapsed={collapsed} />
       </div>
     </aside>
+  )
+}
+
+/** Small connection indicator: green dot and version once the server answered. */
+function ServerStatus({ collapsed }: { collapsed: boolean }) {
+  const info = useSystemInfo()
+  const text = info.isSuccess
+    ? `${info.data.name} ${info.data.version}`
+    : info.isError
+      ? 'Server nicht erreichbar'
+      : 'Verbinde…'
+  const dot = info.isSuccess ? 'bg-emerald-400' : info.isError ? 'bg-red-500' : 'bg-subtle'
+  return (
+    <p
+      data-testid="server-status"
+      title={text}
+      className={clsx('flex items-center gap-2 pt-1 text-[11px] text-subtle', collapsed ? 'justify-center' : 'px-3')}
+    >
+      <span className={clsx('size-1.5 shrink-0 rounded-full', dot)} aria-hidden="true" />
+      {!collapsed && <span className="truncate">{text}</span>}
+    </p>
   )
 }
 

@@ -187,6 +187,13 @@ async fn browse_search_letters_and_details() {
         .map(|e| e["index_number"].as_i64().unwrap())
         .collect();
     assert_eq!(numbers, [1, 2]);
+    let reversed = app
+        .get(
+            &format!("/api/v1/items?parent_id={season_id}&sort=index&order=desc"),
+            Some(&admin),
+        )
+        .await;
+    assert_eq!(reversed.json["items"][0]["index_number"], 2);
 
     // Details.
     let detail = app

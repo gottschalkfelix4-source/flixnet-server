@@ -11,3 +11,4 @@
 /web/test-results
 /web/node_modules/.tmp
 /web/e2e/.auth
+/.claude/launch.json

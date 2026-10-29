@@ -905,6 +905,8 @@ export interface components {
             /** Format: int64 */
             library_id: number;
             official_rating?: string | null;
+            /** @description Short description (episode lists show it). */
+            overview?: string | null;
             /** Format: int64 */
             parent_id?: number | null;
             /** Format: int64 */
@@ -938,7 +940,6 @@ export interface components {
             /** @description unmatched | matched | manual | failed (administrators only). */
             match_state?: string | null;
             original_title?: string | null;
-            overview?: string | null;
             people: components["schemas"]["PersonDto"][];
             /** @description provider → id, e.g. `{"tmdb": "603", "imdb": "tt0133093"}`. */
             provider_ids: {
@@ -1784,7 +1785,7 @@ export interface operations {
                 year_to?: number;
                 /** @description `A`–`Z` or `#`. */
                 letter?: string;
-                sort?: "title" | "date_added" | "year" | "rating" | "premiere_date" | "relevance";
+                sort?: "title" | "date_added" | "year" | "rating" | "premiere_date" | "relevance" | "index";
                 order?: "asc" | "desc";
                 /** @description Only watched (`true`) or unwatched (`false`) items. */
                 played?: boolean;
@@ -1844,7 +1845,7 @@ export interface operations {
                 year_to?: number;
                 /** @description `A`–`Z` or `#`. */
                 letter?: string;
-                sort?: "title" | "date_added" | "year" | "rating" | "premiere_date" | "relevance";
+                sort?: "title" | "date_added" | "year" | "rating" | "premiere_date" | "relevance" | "index";
                 order?: "asc" | "desc";
                 /** @description Only watched (`true`) or unwatched (`false`) items. */
                 played?: boolean;

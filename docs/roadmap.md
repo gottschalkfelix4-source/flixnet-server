@@ -34,7 +34,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
   - TVDB v4 verschoben nach Phase 9 (braucht kostenpflichtiges Abo/PIN; TMDB deckt Serien ab, TVDB bringt v. a. alternative Anime-Reihenfolgen)
 
 ## Phase 3 – Browsing-UI
-- [ ] 3.1 Home (Hero, Reihen), Bibliotheks-Grid, Detailseiten, Suche
+- [x] 3.1 Home (Hero, Reihen), Bibliotheks-Grid, Detailseiten, Suche — virtualisiertes Grid mit A–Z, Sortierung/Genre/Gesehen-Filter; Film-, Serien- (Staffel-Tabs) und Folgenseiten mit Besetzung, Technik und „Mehr wie das“; Personenseite; Identifizieren-Dialog; E2E in `browse.spec.ts`
 
 ## Phase 4 – Wiedergabe
 - [ ] 4.1 Direct Play mit Range-Requests

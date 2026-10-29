@@ -9,8 +9,13 @@ import {
 import { ApiError, setUnauthorizedHandler } from '@/api/client'
 import { currentUserQuery, setupStatusQuery } from '@/api/queries/auth'
 import { AppShell } from '@/components/layout/AppShell'
+import { itemQuery } from '@/api/queries/items'
 import { getSession } from '@/lib/session'
+import { type BrowseSearch, BrowsePage } from '@/routes/BrowsePage'
 import { HomePage } from '@/routes/HomePage'
+import { ItemPage } from '@/routes/ItemPage'
+import { PersonPage } from '@/routes/PersonPage'
+import { SearchPage } from '@/routes/SearchPage'
 import { InvitePage } from '@/routes/InvitePage'
 import { LoginPage } from '@/routes/LoginPage'
 import { NotFoundPage } from '@/routes/NotFoundPage'
@@ -110,6 +115,56 @@ const settingsRoute = createRoute({
     settingsTabs.includes(search.tab as SettingsTab) ? { tab: search.tab as SettingsTab } : {},
 })
 
+const browseSorts = ['title', 'date_added', 'year', 'rating'] as const
+
+function validateBrowse(search: Record<string, unknown>): BrowseSearch {
+  const out: BrowseSearch = {}
+  if (browseSorts.includes(search.sort as never)) out.sort = search.sort as BrowseSearch['sort']
+  if (search.order === 'asc' || search.order === 'desc') out.order = search.order
+  if (typeof search.genre === 'string' && search.genre) out.genre = search.genre
+  if (search.played === 'yes' || search.played === 'no') out.played = search.played
+  return out
+}
+
+const moviesRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/movies',
+  component: () => <BrowsePage kind="movie" from="/movies" />,
+  validateSearch: validateBrowse,
+})
+
+const showsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/shows',
+  component: () => <BrowsePage kind="series" from="/shows" />,
+  validateSearch: validateBrowse,
+})
+
+const itemRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/item/$id',
+  component: ItemPage,
+  validateSearch: (search: Record<string, unknown>): { season?: number } => {
+    const season = Number(search.season)
+    return Number.isInteger(season) && season >= 0 ? { season } : {}
+  },
+  loader: ({ context, params }) => context.queryClient.prefetchQuery(itemQuery(Number(params.id))),
+})
+
+const personRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/person/$id',
+  component: PersonPage,
+})
+
+const searchRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/search',
+  component: SearchPage,
+  validateSearch: (search: Record<string, unknown>): { q?: string } =>
+    typeof search.q === 'string' && search.q ? { q: search.q } : {},
+})
+
 function placeholder(path: string, title: string, note: string) {
   return createRoute({
     getParentRoute: () => appRoute,
@@ -126,12 +181,14 @@ const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     settingsRoute,
     createRoute({ getParentRoute: () => appRoute, path: '/', component: HomePage }),
-    placeholder('/movies', 'Filme', 'Filmbibliotheken kommen mit dem Scanner in Phase 2.'),
-    placeholder('/shows', 'Serien', 'Serienbibliotheken kommen mit dem Scanner in Phase 2.'),
+    moviesRoute,
+    showsRoute,
+    itemRoute,
+    personRoute,
+    searchRoute,
     placeholder('/music', 'Musik', 'Musikbibliotheken folgen in Phase 9.'),
     placeholder('/live', 'Live TV', 'Live TV und DVR folgen in Phase 7.'),
     placeholder('/for-you', 'Für dich', 'KI-Empfehlungen folgen in Phase 6.'),
-    placeholder('/search', 'Suche', 'Die Suche kommt mit der Items-API in Phase 2.'),
   ]),
 ])
 

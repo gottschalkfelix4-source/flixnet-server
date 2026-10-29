@@ -209,6 +209,8 @@ pub enum SortField {
     Rating,
     PremiereDate,
     Relevance,
+    /// Season/episode number; the default when listing children (`parent_id`/`series_id`).
+    Index,
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, ToSchema)]
@@ -264,6 +266,8 @@ pub struct ItemCardDto {
     pub runtime_ms: Option<i64>,
     pub community_rating: Option<f64>,
     pub official_rating: Option<String>,
+    /// Short description (episode lists show it).
+    pub overview: Option<String>,
     pub date_added: i64,
     /// Signed poster URL (episodes: still image), 342 px wide.
     pub poster_url: Option<String>,
@@ -396,7 +400,6 @@ pub struct ItemDetailDto {
     #[serde(flatten)]
     pub card: ItemCardDto,
     pub original_title: Option<String>,
-    pub overview: Option<String>,
     pub tagline: Option<String>,
     pub age_rating: Option<i64>,
     pub genres: Vec<String>,
@@ -466,17 +469,21 @@ fn filter_from(
         .as_deref()
         .filter(|s| !s.trim().is_empty())
         .map(|s| browse::fts_query(s).unwrap_or_else(|| "\"\"".to_owned()));
-    let sort = match query.sort.unwrap_or(if search.is_some() {
+    let default_sort = if search.is_some() {
         SortField::Relevance
+    } else if query.parent_id.is_some() || query.series_id.is_some() {
+        SortField::Index
     } else {
         SortField::Title
-    }) {
+    };
+    let sort = match query.sort.unwrap_or(default_sort) {
         SortField::Title => Sort::Title,
         SortField::DateAdded => Sort::DateAdded,
         SortField::Year => Sort::Year,
         SortField::Rating => Sort::Rating,
         SortField::PremiereDate => Sort::PremiereDate,
         SortField::Relevance => Sort::Relevance,
+        SortField::Index => Sort::Index,
     };
     Ok(ItemFilter {
         library_ids,
@@ -520,6 +527,7 @@ fn card(state: &AppState, s: ItemSummary) -> ItemCardDto {
         runtime_ms: s.runtime_ms,
         community_rating: s.community_rating,
         official_rating: s.official_rating,
+        overview: s.overview,
         date_added: s.date_added,
         child_count: s.child_count,
         played: s.played,
@@ -762,7 +770,6 @@ async fn get_item(
     Ok(Json(ItemDetailDto {
         card: card(&state, summary),
         original_title: details.original_title,
-        overview: details.overview,
         tagline: details.tagline,
         age_rating: details.age_rating,
         genres: metadata::genres(&state.db, id).await?,

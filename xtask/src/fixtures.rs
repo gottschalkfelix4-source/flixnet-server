@@ -70,6 +70,7 @@ pub fn generate(out: &Path, force: bool) -> anyhow::Result<()> {
     }
 
     write_sidecars(out)?;
+    write_metadata(out, force)?;
     fs::remove_dir_all(&tmp).ok();
     println!("fixtures ready in {}", out.display());
     Ok(())
@@ -285,6 +286,171 @@ fn episode(out: &Path, _tmp: &Path, number: u32, cold_open: f64) -> anyhow::Resu
     }
     cmd.arg(p(out));
     run(&mut cmd)
+}
+
+/// A gradient image (poster/backdrop stand-in) rendered by ffmpeg.
+fn art(
+    path: &Path,
+    width: u32,
+    height: u32,
+    from: &str,
+    to: &str,
+    seed: u32,
+    force: bool,
+) -> anyhow::Result<()> {
+    if path.exists() && !force {
+        return Ok(());
+    }
+    let mut cmd = ffmpeg();
+    lavfi(
+        &mut cmd,
+        &format!("gradients=s={width}x{height}:c0={from}:c1={to}:seed={seed}:speed=0:d=1"),
+    );
+    cmd.args(["-frames:v", "1", "-q:v", "3", p(path)]);
+    run(&mut cmd)
+}
+
+/// NFO files and artwork so the web UI has titles, plots, genres and images to show.
+fn write_metadata(out: &Path, force: bool) -> anyhow::Result<()> {
+    let movies = [
+        FixtureMovie {
+            folder: "movies/Testfilm Alpha (2021)",
+            title: "Testfilm Alpha",
+            plot: "Ein Testbild macht sich auf die Reise durch die Farbbalken des Universums.",
+            genre: "Abenteuer",
+            mpaa: "FSK 6",
+            colors: ("0x1e3a8a", "0xff6b3d"),
+        },
+        FixtureMovie {
+            folder: "movies/Testfilm Beta (2019) {tmdb-990001}",
+            title: "Testfilm Beta",
+            plot: "In HDR10 leuchtet alles heller – auch die Geheimnisse einer stillen Kleinstadt.",
+            genre: "Drama",
+            mpaa: "FSK 12",
+            colors: ("0x14532d", "0xfacc15"),
+        },
+        FixtureMovie {
+            folder: "movies/Testfilm Gamma (2023)",
+            title: "Testfilm Gamma",
+            plot: "Ein AV1-kodierter Thriller über Kompression und Verlust.",
+            genre: "Thriller",
+            mpaa: "FSK 16",
+            colors: ("0x450a0a", "0xf97316"),
+        },
+        FixtureMovie {
+            folder: "movies/Testfilm Delta (2018)",
+            title: "Testfilm Delta",
+            plot: "Eine leichte Komödie in VP9 über ein Missverständnis im Büro.",
+            genre: "Komödie",
+            mpaa: "FSK 0",
+            colors: ("0x3b0764", "0x22d3ee"),
+        },
+        FixtureMovie {
+            folder: "movies/Testfilm Epsilon (1999)",
+            title: "Testfilm Epsilon",
+            plot: "Ein interlaced Klassiker aus der Zeit der DVB-Aufnahmen.",
+            genre: "Klassiker",
+            mpaa: "FSK 12",
+            colors: ("0x1f2937", "0xa3e635"),
+        },
+    ];
+    for (i, movie) in movies.iter().enumerate() {
+        let FixtureMovie {
+            folder,
+            title,
+            plot,
+            genre,
+            mpaa,
+            colors: (from, to),
+        } = movie;
+        let dir = out.join(folder);
+        if !dir.exists() {
+            continue;
+        }
+        let year = folder
+            .split('(')
+            .nth(1)
+            .and_then(|s| s.get(..4))
+            .unwrap_or("2020");
+        fs::write(
+            dir.join("movie.nfo"),
+            format!(
+                "<movie><title>{title}</title><year>{year}</year><plot>{plot}</plot><genre>{genre}</genre>\
+                 <mpaa>{mpaa}</mpaa><rating>{rating}</rating><runtime>1</runtime>\
+                 <director>Regie Robot</director>\
+                 <actor><name>Erika Testfrau</name><role>Hauptrolle</role><order>0</order></actor>\
+                 <actor><name>Max Pixel</name><role>Nebenrolle</role><order>1</order></actor></movie>",
+                rating = 6.5 + i as f64 * 0.4
+            ),
+        )?;
+        art(
+            &dir.join("poster.jpg"),
+            500,
+            750,
+            from,
+            to,
+            i as u32 + 1,
+            force,
+        )?;
+        art(
+            &dir.join("fanart.jpg"),
+            1280,
+            720,
+            to,
+            from,
+            i as u32 + 11,
+            force,
+        )?;
+    }
+
+    let series = out.join("shows/Testserie (2022) [tvdbid-990100]");
+    if series.exists() {
+        fs::write(
+            series.join("tvshow.nfo"),
+            "<tvshow><title>Testserie</title><year>2022</year>\
+             <plot>Drei Folgen, ein Intro: Die Serie, an der Flixnet das Überspringen lernt.</plot>\
+             <genre>Mystery</genre><mpaa>FSK 12</mpaa><rating>8.1</rating>\
+             <actor><name>Tom Test</name><role>Kommissar</role></actor></tvshow>",
+        )?;
+        art(
+            &series.join("poster.jpg"),
+            500,
+            750,
+            "0x0f172a",
+            "0xe11d48",
+            21,
+            force,
+        )?;
+        art(
+            &series.join("fanart.jpg"),
+            1280,
+            720,
+            "0xe11d48",
+            "0x0f172a",
+            22,
+            force,
+        )?;
+        art(
+            &series.join("season01-poster.jpg"),
+            500,
+            750,
+            "0x172554",
+            "0xe11d48",
+            23,
+            force,
+        )?;
+    }
+    Ok(())
+}
+
+/// A fixture movie's metadata and the two colours of its generated artwork.
+struct FixtureMovie {
+    folder: &'static str,
+    title: &'static str,
+    plot: &'static str,
+    genre: &'static str,
+    mpaa: &'static str,
+    colors: (&'static str, &'static str),
 }
 
 /// External subtitles next to the media files (SRT, forced SRT).

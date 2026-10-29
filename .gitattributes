@@ -4,5 +4,5 @@
 *.ico binary
 *.mkv binary
 *.mp4 binary
-*.ts binary
+fixtures/**/*.ts binary
 *.sup binary
