@@ -71,6 +71,9 @@ pub fn vtt_args(input: &SubtitleInput, source: &Path, output: &Path) -> Vec<OsSt
         .into_iter()
         .map(OsString::from)
         .collect();
+    // The file's own timestamps: ffmpeg up to 7 otherwise shifts subtitles by a
+    // negative start time (audio priming), ffmpeg 8 doesn't.
+    args.push("-copyts".into());
     args.push("-i".into());
     args.push(source.as_os_str().to_owned());
     let map = match input {
@@ -306,7 +309,7 @@ mod tests {
         let args = vtt_args(&input, input.source(), Path::new("/cache/1-4.part"));
         assert_eq!(
             joined(&args),
-            "-hide_banner -loglevel error -nostdin -y -i /media/Film (2020)/film.mkv \
+            "-hide_banner -loglevel error -nostdin -y -copyts -i /media/Film (2020)/film.mkv \
              -map 0:4 -vn -an -dn -c:s webvtt -f webvtt /cache/1-4.part"
         );
         // The path stays one argument, spaces and all.
