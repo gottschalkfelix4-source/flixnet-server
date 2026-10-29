@@ -6,6 +6,7 @@ import { AccountSettings } from './AccountSettings'
 import { InvitationsSettings } from './InvitationsSettings'
 import { JobsSettings } from './JobsSettings'
 import { LibrariesSettings } from './LibrariesSettings'
+import { LiveTvSettings } from './LiveTvSettings'
 import { MetadataSettings } from './MetadataSettings'
 import { SessionsSettings } from './SessionsSettings'
 import { SETTINGS_TABS as TABS } from './tabs'
@@ -42,6 +43,7 @@ export function SettingsPage() {
         {active === 'libraries' && <LibrariesSettings />}
         {active === 'metadata' && <MetadataSettings />}
         {active === 'transcoding' && <TranscodingSettings />}
+        {active === 'livetv' && <LiveTvSettings />}
         {active === 'users' && <UsersSettings />}
         {active === 'invitations' && <InvitationsSettings />}
         {active === 'jobs' && <JobsSettings />}

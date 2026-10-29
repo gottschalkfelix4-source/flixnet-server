@@ -21,6 +21,7 @@ pub mod invitations;
 pub mod items;
 pub mod jobs;
 pub mod libraries;
+pub mod livetv;
 pub mod media;
 pub mod metadata;
 pub mod playlists;

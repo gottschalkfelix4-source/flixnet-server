@@ -21,6 +21,7 @@ tower-http.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+flixnet-livetv.workspace = true
 flixnet-library.workspace = true
 http-body-util.workspace = true
 image.workspace = true

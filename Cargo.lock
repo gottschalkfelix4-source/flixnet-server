@@ -888,9 +888,11 @@ name = "flixnet-api"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "flate2",
  "flixnet-core",
  "flixnet-db",
  "flixnet-library",
+ "flixnet-livetv",
  "flixnet-media",
  "hex",
  "hmac",
@@ -901,6 +903,7 @@ dependencies = [
  "sha2 0.11.1",
  "tempfile",
  "tokio",
+ "tokio-util",
  "tower",
  "tower-http",
  "tracing",
@@ -951,6 +954,7 @@ dependencies = [
  "flixnet-core",
  "flixnet-db",
  "flixnet-library",
+ "flixnet-livetv",
  "flixnet-media",
  "hex",
  "http-body-util",
@@ -994,6 +998,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "flixnet-livetv"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "flate2",
+ "flixnet-core",
+ "flixnet-db",
+ "flixnet-media",
+ "getrandom 0.3.4",
+ "hex",
+ "quick-xml",
+ "reqwest",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "strsim",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
 name = "flixnet-media"
 version = "0.1.0"
 dependencies = [
@@ -1020,6 +1050,7 @@ dependencies = [
  "flixnet-db",
  "flixnet-jellyfin",
  "flixnet-library",
+ "flixnet-livetv",
  "flixnet-media",
  "hex",
  "rust-embed",

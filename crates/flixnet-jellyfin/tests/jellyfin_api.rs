@@ -55,6 +55,12 @@ async fn app() -> TestApp {
             std::time::Duration::from_secs(60),
             2,
         ),
+        livetv: flixnet_livetv::LiveTvManager::new(
+            "ffmpeg",
+            "ffprobe",
+            dir.path().join("transcode/live"),
+            flixnet_livetv::LiveSettings::default(),
+        ),
     };
     let state = AppState::new(Config::default(), db.clone(), services);
     TestApp {

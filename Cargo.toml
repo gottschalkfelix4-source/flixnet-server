@@ -15,6 +15,7 @@ flixnet-db = { path = "crates/flixnet-db" }
 flixnet-library = { path = "crates/flixnet-library" }
 flixnet-media = { path = "crates/flixnet-media" }
 flixnet-jellyfin = { path = "crates/flixnet-jellyfin" }
+flixnet-livetv = { path = "crates/flixnet-livetv" }
 
 anyhow = "1"
 argon2 = "0.6"
@@ -22,6 +23,7 @@ getrandom = "0.3"
 sha2 = "0.11"
 axum = "0.8"
 clap = { version = "4", features = ["derive", "env"] }
+flate2 = "1"
 figment = { version = "0.10", features = ["toml", "env"] }
 hex = "0.4"
 blurhash = "0.2"
