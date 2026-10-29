@@ -24,6 +24,7 @@ pub mod media;
 pub mod metadata;
 pub mod sessions;
 pub mod settings;
+pub mod userdata;
 pub mod users;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");

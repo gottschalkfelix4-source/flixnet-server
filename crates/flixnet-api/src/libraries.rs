@@ -150,6 +150,7 @@ async fn create_library(
     let paths = validate_paths(&body.paths).await?;
     let library = libraries::create(&state.db, &name, body.kind.as_str(), &paths).await?;
     queue_scan(state.jobs.queue(), library.id, priority::INTERACTIVE).await?;
+    resync_watcher(&state).await;
     tracing::info!(library = %library.name, kind = %library.kind, "library created");
     Ok((
         StatusCode::CREATED,
@@ -211,6 +212,7 @@ async fn update_library(
     }
     if paths.is_some() {
         queue_scan(state.jobs.queue(), id, priority::INTERACTIVE).await?;
+        resync_watcher(&state).await;
     }
     let library = libraries::get(&state.db, id)
         .await?
@@ -238,6 +240,7 @@ async fn delete_library(
     UrlPath(id): UrlPath<i64>,
 ) -> ApiResult<StatusCode> {
     if libraries::delete(&state.db, id).await? {
+        resync_watcher(&state).await;
         Ok(StatusCode::NO_CONTENT)
     } else {
         Err(ApiError::not_found("Bibliothek nicht gefunden."))
@@ -420,4 +423,13 @@ async fn validate_paths(paths: &[String]) -> ApiResult<Vec<String>> {
         }
     }
     Ok(out)
+}
+
+/// Point the file watcher at the current library folders.
+async fn resync_watcher(state: &AppState) {
+    if let Some(watcher) = &state.watcher
+        && let Err(err) = watcher.sync(&state.db).await
+    {
+        tracing::warn!(%err, "could not update the file watcher");
+    }
 }

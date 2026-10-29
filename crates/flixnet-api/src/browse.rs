@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use flixnet_db::browse::{self, ItemFilter, ItemSummary, Sort};
-use flixnet_db::{items, libraries, media, metadata};
+use flixnet_db::{items, libraries, media, metadata, userdata};
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use utoipa_axum::router::OpenApiRouter;
@@ -23,6 +23,109 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(letters))
         .routes(routes!(get_item))
         .routes(routes!(list_genres))
+        .routes(routes!(mark_played, mark_unplayed))
+        .routes(routes!(add_favorite, remove_favorite))
+}
+
+async fn ensure_visible(state: &AppState, user: &AuthUser, id: i64) -> ApiResult<()> {
+    let library_ids = visible_libraries(state, user, None).await?;
+    if browse::is_visible(&state.db, id, &library_ids, user.max_age_rating).await? {
+        Ok(())
+    } else {
+        Err(ApiError::not_found("Eintrag nicht gefunden."))
+    }
+}
+
+/// Mark as watched (series/seasons: all their episodes).
+#[utoipa::path(
+    put,
+    path = "/items/{id}/played",
+    operation_id = "markPlayed",
+    tag = "items",
+    params(("id" = i64, Path, description = "Item id")),
+    responses(
+        (status = NO_CONTENT, description = "Marked as watched"),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = NOT_FOUND, description = "No such (visible) item", body = ErrorBody),
+    )
+)]
+async fn mark_played(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<axum::http::StatusCode> {
+    ensure_visible(&state, &user, id).await?;
+    userdata::set_played(&state.db, user.user_id, id, true).await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+/// Mark as not watched.
+#[utoipa::path(
+    delete,
+    path = "/items/{id}/played",
+    operation_id = "markUnplayed",
+    tag = "items",
+    params(("id" = i64, Path, description = "Item id")),
+    responses(
+        (status = NO_CONTENT, description = "Marked as not watched"),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = NOT_FOUND, description = "No such (visible) item", body = ErrorBody),
+    )
+)]
+async fn mark_unplayed(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<axum::http::StatusCode> {
+    ensure_visible(&state, &user, id).await?;
+    userdata::set_played(&state.db, user.user_id, id, false).await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+/// Add to favorites.
+#[utoipa::path(
+    put,
+    path = "/items/{id}/favorite",
+    operation_id = "addFavorite",
+    tag = "items",
+    params(("id" = i64, Path, description = "Item id")),
+    responses(
+        (status = NO_CONTENT, description = "Added"),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = NOT_FOUND, description = "No such (visible) item", body = ErrorBody),
+    )
+)]
+async fn add_favorite(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<axum::http::StatusCode> {
+    ensure_visible(&state, &user, id).await?;
+    userdata::set_favorite(&state.db, user.user_id, id, true).await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+/// Remove from favorites.
+#[utoipa::path(
+    delete,
+    path = "/items/{id}/favorite",
+    operation_id = "removeFavorite",
+    tag = "items",
+    params(("id" = i64, Path, description = "Item id")),
+    responses(
+        (status = NO_CONTENT, description = "Removed"),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = NOT_FOUND, description = "No such (visible) item", body = ErrorBody),
+    )
+)]
+async fn remove_favorite(
+    user: AuthUser,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> ApiResult<axum::http::StatusCode> {
+    ensure_visible(&state, &user, id).await?;
+    userdata::set_favorite(&state.db, user.user_id, id, false).await?;
+    Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, ToSchema)]
@@ -64,6 +167,10 @@ pub struct ItemsQuery {
     pub sort: Option<SortField>,
     #[param(inline)]
     pub order: Option<SortOrder>,
+    /// Only watched (`true`) or unwatched (`false`) items.
+    pub played: Option<bool>,
+    /// Only favorites.
+    pub favorite: Option<bool>,
     /// 1–200, default 60.
     pub limit: Option<i64>,
     pub offset: Option<i64>,
@@ -95,6 +202,11 @@ pub struct ItemCardDto {
     pub backdrop_url: Option<String>,
     /// Seasons of a series / episodes of a season.
     pub child_count: i64,
+    /// Watched by the signed-in user.
+    pub played: bool,
+    pub favorite: bool,
+    /// Resume position in milliseconds (0 = from the start).
+    pub position_ms: i64,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -306,6 +418,9 @@ fn filter_from(
         year_to: query.year_to,
         letter,
         max_age: user.max_age_rating,
+        user_id: Some(user.user_id),
+        is_played: query.played,
+        is_favorite: query.favorite,
         sort,
         descending: matches!(query.order, Some(SortOrder::Desc)),
         limit: query.limit.unwrap_or(60).clamp(1, 200),
@@ -336,6 +451,9 @@ fn card(state: &AppState, s: ItemSummary) -> ItemCardDto {
         official_rating: s.official_rating,
         date_added: s.date_added,
         child_count: s.child_count,
+        played: s.played,
+        favorite: s.favorite,
+        position_ms: s.position_ms,
     }
 }
 
@@ -457,7 +575,7 @@ async fn get_item(
     let details = items::details(&state.db, id)
         .await?
         .ok_or_else(|| ApiError::not_found("Eintrag nicht gefunden."))?;
-    let summary = browse::summaries(&state.db, &[id])
+    let summary = browse::summaries(&state.db, &[id], Some(user.user_id))
         .await?
         .pop()
         .ok_or_else(|| ApiError::not_found("Eintrag nicht gefunden."))?;

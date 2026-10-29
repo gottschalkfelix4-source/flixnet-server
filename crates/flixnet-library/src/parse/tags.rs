@@ -150,6 +150,23 @@ fn classify(token: &str) -> Option<Tag> {
     })
 }
 
+/// Resolution, source, codecs, HDR, 3D: tags that only ever follow the year.
+pub fn is_technical_tag(token: &str) -> bool {
+    matches!(
+        classify(token),
+        Some(
+            Tag::Resolution(_)
+                | Tag::Source(_)
+                | Tag::Video(_)
+                | Tag::Audio(_)
+                | Tag::Channels(_)
+                | Tag::Hdr(_)
+                | Tag::ThreeD
+                | Tag::Atmos
+        )
+    ) || token.eq_ignore_ascii_case("web-dl")
+}
+
 /// True for tokens that end a title (resolution, source, codec, language …).
 pub fn is_tag_token(token: &str) -> bool {
     classify(token).is_some() || token.eq_ignore_ascii_case("web-dl")

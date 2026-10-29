@@ -112,6 +112,8 @@ impl JobHandler for RefreshMetadata {
         {
             crate::providers::refresh_remote(ctx.db(), &tmdb, item.id).await?;
         }
+        // Provider ids may have changed: user data follows the new identity.
+        flixnet_db::userdata::update_identity(ctx.db(), item.id).await?;
         Ok(())
     }
 }

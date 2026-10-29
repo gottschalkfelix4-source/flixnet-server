@@ -12,6 +12,7 @@ flixnet-media.workspace = true
 anyhow.workspace = true
 blurhash.workspace = true
 image.workspace = true
+notify.workspace = true
 quick-xml.workspace = true
 regex.workspace = true
 reqwest.workspace = true

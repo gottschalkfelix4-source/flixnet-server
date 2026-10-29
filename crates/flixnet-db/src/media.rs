@@ -83,6 +83,26 @@ pub async fn mark_changed(
     Ok(())
 }
 
+/// A file was moved or renamed: keep the row (and so its item and history).
+pub async fn move_file(
+    conn: &mut SqliteConnection,
+    id: i64,
+    path: &str,
+    relative_path: &str,
+) -> Result<()> {
+    sqlx::query(
+        "UPDATE media_files SET path = ?, relative_path = ?, missing_since = NULL, updated_at = ?
+         WHERE id = ?",
+    )
+    .bind(path)
+    .bind(relative_path)
+    .bind(now_ms())
+    .bind(id)
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
 /// A file that was missing is back (unchanged).
 pub async fn mark_present(conn: &mut SqliteConnection, id: i64) -> Result<()> {
     sqlx::query("UPDATE media_files SET missing_since = NULL WHERE id = ?")

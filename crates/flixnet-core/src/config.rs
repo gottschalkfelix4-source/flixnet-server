@@ -30,6 +30,8 @@ pub struct MediaConfig {
     pub ffmpeg: PathBuf,
     /// ffprobe binary (name on PATH or full path).
     pub ffprobe: PathBuf,
+    /// Watch library folders for changes (periodic rescans run either way).
+    pub watch_folders: bool,
 }
 
 impl Default for MediaConfig {
@@ -37,6 +39,7 @@ impl Default for MediaConfig {
         Self {
             ffmpeg: PathBuf::from("ffmpeg"),
             ffprobe: PathBuf::from("ffprobe"),
+            watch_folders: true,
         }
     }
 }

@@ -780,6 +780,24 @@
             }
           },
           {
+            "name": "played",
+            "in": "query",
+            "description": "Only watched (`true`) or unwatched (`false`) items.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "favorite",
+            "in": "query",
+            "description": "Only favorites.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "1–200, default 60.",
@@ -950,6 +968,24 @@
             }
           },
           {
+            "name": "played",
+            "in": "query",
+            "description": "Only watched (`true`) or unwatched (`false`) items.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "favorite",
+            "in": "query",
+            "description": "Only favorites.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "description": "1–200, default 60.",
@@ -1035,6 +1071,96 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/favorite": {
+      "put": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Add to favorites.",
+        "operationId": "addFavorite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Added"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Remove from favorites.",
+        "operationId": "removeFavorite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
           },
           "401": {
             "description": "Missing or invalid token",
@@ -1216,6 +1342,96 @@
           },
           "409": {
             "description": "No TMDB key configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/played": {
+      "put": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Mark as watched (series/seasons: all their episodes).",
+        "operationId": "markPlayed",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Marked as watched"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "items"
+        ],
+        "summary": "Mark as not watched.",
+        "operationId": "markUnplayed",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Marked as not watched"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
             "content": {
               "application/json": {
                 "schema": {
@@ -3396,7 +3612,10 @@
           "kind",
           "title",
           "date_added",
-          "child_count"
+          "child_count",
+          "played",
+          "favorite",
+          "position_ms"
         ],
         "properties": {
           "backdrop_url": {
@@ -3421,6 +3640,9 @@
           "date_added": {
             "type": "integer",
             "format": "int64"
+          },
+          "favorite": {
+            "type": "boolean"
           },
           "id": {
             "type": "integer",
@@ -3466,6 +3688,15 @@
               "null"
             ],
             "format": "int64"
+          },
+          "played": {
+            "type": "boolean",
+            "description": "Watched by the signed-in user."
+          },
+          "position_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Resume position in milliseconds (0 = from the start)."
           },
           "poster_blurhash": {
             "type": [

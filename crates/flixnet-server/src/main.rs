@@ -132,6 +132,20 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         )
         .await?;
 
+    // Library folder watching (best effort; periodic rescans are the safety net).
+    let watcher = if config.media.watch_folders {
+        let watcher = flixnet_library::watch::LibraryWatcher::start(
+            jobs.queue().clone(),
+            Duration::from_secs(30),
+        );
+        if let Err(err) = watcher.sync(&db).await {
+            tracing::warn!(%err, "file watcher unavailable; relying on periodic scans");
+        }
+        Some(watcher)
+    } else {
+        None
+    };
+
     let services = Services {
         events,
         jobs,
@@ -140,6 +154,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             config.paths.config_dir.join("cache").join("images"),
         ),
         url_secret: url_signing_secret(&db).await?,
+        watcher,
     };
     let app = flixnet_api::router(AppState::new(config, db.clone(), services))
         .fallback_service(web::router());

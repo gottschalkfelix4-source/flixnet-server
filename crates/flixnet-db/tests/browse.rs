@@ -391,7 +391,7 @@ async fn explain_browse_plans() {
     }
     let ids: Vec<i64> = (1..=60).collect();
     let start = Instant::now();
-    let rows = browse::summaries(&db, &ids).await.unwrap();
+    let rows = browse::summaries(&db, &ids, None).await.unwrap();
     eprintln!("summaries x{} ({:?})", rows.len(), start.elapsed());
     let plan: Vec<(i64, i64, i64, String)> = sqlx::query_as(
         "EXPLAIN QUERY PLAN SELECT (SELECT im.id FROM images im WHERE im.item_id = i.id AND im.kind = 'poster'

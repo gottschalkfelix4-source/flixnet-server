@@ -53,8 +53,8 @@ pub async fn upsert(conn: &mut SqliteConnection, item: &NewItem<'_>) -> Result<i
     let (id,): (i64,) = sqlx::query_as(
         "INSERT INTO items (library_id, kind, parent_id, series_id, title, sort_title, year,
                             index_number, index_end, parent_index_number, premiere_date,
-                            content_key, date_added, date_modified)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            content_key, identity_key, date_added, date_modified)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (library_id, content_key) DO UPDATE SET
              index_end = CASE WHEN excluded.index_end IS NULL THEN items.index_end
                               ELSE MAX(COALESCE(items.index_end, 0), excluded.index_end) END
@@ -71,6 +71,7 @@ pub async fn upsert(conn: &mut SqliteConnection, item: &NewItem<'_>) -> Result<i
     .bind(item.index_end)
     .bind(item.parent_index_number)
     .bind(item.premiere_date)
+    .bind(item.content_key)
     .bind(item.content_key)
     .bind(now)
     .bind(now)

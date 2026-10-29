@@ -29,7 +29,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
   - **Offen (Felix):** TMDB-API-Schlüssel unter Einstellungen → Metadaten eintragen
 - [x] 2.6 Items-API (Filter-DSL, Sortierung, Paging, A–Z, FTS5) – *fertig wenn* p95 < 50 ms bei 50k Items → gemessen p95 ≈ 10–13 ms (Test `p95_under_50ms_on_50k_items`); Altersgrenze (unbewertet = verborgen, Folgen erben von der Serie) und Bibliotheksrechte überall; Detail-API mit Personen, Artwork, Dateien/Streams/Kapiteln
   - Offen: Personenbilder kommen noch direkt von TMDB (später über den Bild-Cache)
-- [ ] 2.7 Watcher, Rename-Erkennung – *fertig wenn* Watch-State nach Rename erhalten bleibt
+- [x] 2.7 Watcher, Rename-Erkennung – *fertig wenn* Watch-State nach Rename erhalten bleibt (Test `watch_state_survives_renames_moves_and_matching`); stabile Identität (Provider-ID bzw. Content-Key, Folgen erben von der Serie), Verschiebe-Erkennung über Größe+mtime, notify-Watcher mit Debounce, Gesehen/Favoriten-API und -Filter
 - [ ] 2.8 TVDB, fanart.tv, Personen/Credits
 
 ## Phase 3 – Browsing-UI

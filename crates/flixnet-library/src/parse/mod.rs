@@ -79,6 +79,10 @@ pub fn parse_movie(relative: &Path) -> ParsedMovie {
         .map(|f| title::split_title(&hints::extract(f).1))
         .find(|parsed| parsed.year.is_some() && !parsed.title.is_empty());
 
+    // "Alpha Remastered (2020)/Alpha.mkv": the folder may carry the edition.
+    let folder_edition = from_folder
+        .as_ref()
+        .and_then(|folder| tags::parse(&folder.rest).edition);
     let (title, year) = match from_folder {
         Some(folder) => (folder.title, folder.year),
         None => (from_file.title, from_file.year),
@@ -87,7 +91,9 @@ pub fn parse_movie(relative: &Path) -> ParsedMovie {
     ParsedMovie {
         title,
         year,
-        edition: edition_hint.or_else(|| tags.edition.clone()),
+        edition: edition_hint
+            .or_else(|| tags.edition.clone())
+            .or(folder_edition),
         part,
         ids,
         tags,

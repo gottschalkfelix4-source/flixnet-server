@@ -35,6 +35,10 @@ pub struct ItemFilter {
     pub letter: Option<char>,
     /// Content age limit of the viewer; unrated content is hidden when set.
     pub max_age: Option<i64>,
+    /// The viewer, for watched/favorite state on cards and filters.
+    pub user_id: Option<i64>,
+    pub is_played: Option<bool>,
+    pub is_favorite: Option<bool>,
     pub sort: Sort,
     pub descending: bool,
     pub limit: i64,
@@ -65,6 +69,10 @@ pub struct ItemSummary {
     pub backdrop_id: Option<i64>,
     /// Seasons of a series / episodes of a season.
     pub child_count: i64,
+    /// The viewer's state (false/0 without a user).
+    pub played: bool,
+    pub favorite: bool,
+    pub position_ms: i64,
 }
 
 /// FTS5 query from free text: each word quoted, the last one as a prefix.
@@ -146,6 +154,17 @@ fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
         }
         _ => {}
     }
+    if let (Some(user), Some(played)) = (f.user_id, f.is_played) {
+        qb.push(if played { " AND " } else { " AND NOT " })
+            .push("EXISTS (SELECT 1 FROM user_item_data ud WHERE ud.user_id = ")
+            .push_bind(user)
+            .push(" AND ud.identity_key = i.identity_key AND ud.played = 1)");
+    }
+    if let (Some(user), Some(true)) = (f.user_id, f.is_favorite) {
+        qb.push(" AND EXISTS (SELECT 1 FROM user_item_data ud WHERE ud.user_id = ")
+            .push_bind(user)
+            .push(" AND ud.identity_key = i.identity_key AND ud.favorite = 1)");
+    }
     if let Some(max_age) = f.max_age {
         // Episodes and seasons inherit the series rating; unrated content is hidden.
         qb.push(
@@ -217,7 +236,12 @@ pub async fn list(db: &Db, f: &ItemFilter) -> Result<(Vec<ItemSummary>, i64)> {
     if ids.is_empty() {
         return Ok((Vec::new(), total));
     }
-    let mut rows = summaries(db, &ids.iter().map(|(id,)| *id).collect::<Vec<_>>()).await?;
+    let mut rows = summaries(
+        db,
+        &ids.iter().map(|(id,)| *id).collect::<Vec<_>>(),
+        f.user_id,
+    )
+    .await?;
     // Restore the page order.
     let position: std::collections::HashMap<i64, usize> = ids
         .iter()
@@ -228,8 +252,8 @@ pub async fn list(db: &Db, f: &ItemFilter) -> Result<(Vec<ItemSummary>, i64)> {
     Ok((rows, total))
 }
 
-/// Card details (poster, backdrop, child count) for specific items.
-pub async fn summaries(db: &Db, ids: &[i64]) -> Result<Vec<ItemSummary>> {
+/// Card details (poster, backdrop, child count, the viewer's state) for specific items.
+pub async fn summaries(db: &Db, ids: &[i64], user_id: Option<i64>) -> Result<Vec<ItemSummary>> {
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(
         "SELECT i.id, i.library_id, i.kind, i.parent_id, i.series_id, i.title, i.year,
                 i.index_number, i.index_end, i.parent_index_number, i.premiere_date, i.runtime_ms,
@@ -245,9 +269,15 @@ pub async fn summaries(db: &Db, ids: &[i64]) -> Result<Vec<ItemSummary>> {
                 (SELECT im.id FROM images im WHERE im.item_id = i.id AND im.kind = 'backdrop'
                    ORDER BY CASE im.source WHEN 'local' THEN 0 WHEN 'nfo' THEN 1 ELSE 2 END, im.score DESC, im.id
                    LIMIT 1) AS backdrop_id,
-                (SELECT COUNT(*) FROM items c WHERE c.parent_id = i.id) AS child_count
-         FROM items i WHERE i.id IN (",
+                (SELECT COUNT(*) FROM items c WHERE c.parent_id = i.id) AS child_count,
+                COALESCE(ud.played, 0) AS played,
+                COALESCE(ud.favorite, 0) AS favorite,
+                COALESCE(ud.position_ms, 0) AS position_ms
+         FROM items i
+         LEFT JOIN user_item_data ud ON ud.identity_key = i.identity_key AND ud.user_id = ",
     );
+    qb.push_bind(user_id.unwrap_or(-1));
+    qb.push(" WHERE i.id IN (");
     {
         let mut list = qb.separated(", ");
         for id in ids {

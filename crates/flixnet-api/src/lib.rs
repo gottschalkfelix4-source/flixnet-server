@@ -11,6 +11,7 @@ use flixnet_core::jobs::JobsHandle;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use flixnet_library::images::ImageCache;
+use flixnet_library::watch::LibraryWatcher;
 use tower_http::trace::TraceLayer;
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
@@ -47,6 +48,7 @@ pub struct AppState {
     pub tasks: TaskRegistry,
     pub images: ImageCache,
     pub signer: Arc<signing::UrlSigner>,
+    pub watcher: Option<LibraryWatcher>,
 }
 
 /// Long-lived services the API talks to.
@@ -57,6 +59,8 @@ pub struct Services {
     pub images: ImageCache,
     /// Secret for signed media URLs (persisted, so URLs survive restarts).
     pub url_secret: Vec<u8>,
+    /// File watcher, re-synced when libraries change (`None` = disabled).
+    pub watcher: Option<LibraryWatcher>,
 }
 
 impl AppState {
@@ -70,6 +74,7 @@ impl AppState {
             tasks: services.tasks,
             images: services.images,
             signer: Arc::new(signing::UrlSigner::new(services.url_secret)),
+            watcher: services.watcher,
         }
     }
 }

@@ -37,6 +37,7 @@ pub async fn app() -> TestApp {
         tasks: TaskRegistry::new(flixnet_core::maintenance::tasks()),
         images: ImageCache::new(dir.path().join("cache/images")),
         url_secret: b"test-secret".to_vec(),
+        watcher: None,
     };
     let router = router(AppState::new(Config::default(), db.clone(), services));
     TestApp {

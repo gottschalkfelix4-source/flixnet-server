@@ -234,6 +234,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/items/{id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Add to favorites. */
+        put: operations["addFavorite"];
+        post?: never;
+        /** Remove from favorites. */
+        delete: operations["removeFavorite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/items/{id}/identify": {
         parameters: {
             query?: never;
@@ -247,6 +265,24 @@ export interface paths {
         /** Pin a movie or series to a TMDB entry and load its metadata. */
         post: operations["identifyItem"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/played": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Mark as watched (series/seasons: all their episodes). */
+        put: operations["markPlayed"];
+        post?: never;
+        /** Mark as not watched. */
+        delete: operations["markUnplayed"];
         options?: never;
         head?: never;
         patch?: never;
@@ -841,6 +877,7 @@ export interface components {
             community_rating?: number | null;
             /** Format: int64 */
             date_added: number;
+            favorite: boolean;
             /** Format: int64 */
             id: number;
             /** Format: int64 */
@@ -855,6 +892,13 @@ export interface components {
             parent_id?: number | null;
             /** Format: int64 */
             parent_index_number?: number | null;
+            /** @description Watched by the signed-in user. */
+            played: boolean;
+            /**
+             * Format: int64
+             * @description Resume position in milliseconds (0 = from the start).
+             */
+            position_ms: number;
             /** @description Blurhash placeholder for the poster. */
             poster_blurhash?: string | null;
             /** @description Signed poster URL (episodes: still image), 342 px wide. */
@@ -1706,6 +1750,10 @@ export interface operations {
                 letter?: string;
                 sort?: "title" | "date_added" | "year" | "rating" | "premiere_date" | "relevance";
                 order?: "asc" | "desc";
+                /** @description Only watched (`true`) or unwatched (`false`) items. */
+                played?: boolean;
+                /** @description Only favorites. */
+                favorite?: boolean;
                 /** @description 1–200, default 60. */
                 limit?: number;
                 offset?: number;
@@ -1762,6 +1810,10 @@ export interface operations {
                 letter?: string;
                 sort?: "title" | "date_added" | "year" | "rating" | "premiere_date" | "relevance";
                 order?: "asc" | "desc";
+                /** @description Only watched (`true`) or unwatched (`false`) items. */
+                played?: boolean;
+                /** @description Only favorites. */
+                favorite?: boolean;
                 /** @description 1–200, default 60. */
                 limit?: number;
                 offset?: number;
@@ -1821,6 +1873,84 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ItemDetailDto"];
                 };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    addFavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Added */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    removeFavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Missing or invalid token */
             401: {
@@ -1957,6 +2087,84 @@ export interface operations {
             };
             /** @description No TMDB key configured */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    markPlayed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked as watched */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    markUnplayed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked as not watched */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

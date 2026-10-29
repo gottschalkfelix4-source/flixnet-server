@@ -93,21 +93,30 @@ pub fn split_title(raw: &str) -> TitleYear {
     let normalized = normalize(raw);
     let tokens: Vec<&str> = normalized.split(' ').filter(|t| !t.is_empty()).collect();
 
-    // Only look for the year before the first release tag (a year inside the tag
-    // block would be odd, but titles never extend past tags).
+    // Titles end at the first release tag. The year may still follow soft tags such as
+    // editions or languages ("Alpha Remastered (2020)"), but never technical ones
+    // (resolution, source, codec), which only appear after the year.
     let first_tag = tokens
         .iter()
         .enumerate()
         .skip(1)
         .find(|(_, t)| tags::is_tag_token(t))
         .map_or(tokens.len(), |(i, _)| i);
+    let first_technical = tokens
+        .iter()
+        .enumerate()
+        .skip(1)
+        .find(|(_, t)| tags::is_technical_tag(t))
+        .map_or(tokens.len(), |(i, _)| i);
 
     // A lone year as the only word is a title ("1917"), hence the search starts at 1.
-    let year_index = (1..first_tag.min(tokens.len()))
+    let year_index = (1..first_technical.min(tokens.len()))
         .rev()
         .find(|&i| year_of(tokens[i]).is_some());
 
     let (title_end, year, rest_start) = match year_index {
+        // Tags between title and year ("Remastered") stay in `rest` for tag parsing.
+        Some(i) if first_tag < i => (first_tag, year_of(tokens[i]), first_tag),
         Some(i) => (i, year_of(tokens[i]), i + 1),
         None => (first_tag, None, first_tag),
     };

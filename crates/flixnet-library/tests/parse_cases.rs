@@ -691,3 +691,26 @@ fn total_case_count_meets_the_milestone_gate() {
         generated + hand_written
     );
 }
+
+#[test]
+fn soft_tags_between_title_and_year() {
+    assert_movie(
+        "Alpha Remastered (2020)/Alpha.Remastered.2020.2160p.mkv",
+        "Alpha",
+        Some(2020),
+    );
+    assert_movie(
+        "Aliens Extended Edition (1986)/Aliens.mkv",
+        "Aliens",
+        Some(1986),
+    );
+    assert_movie("Das Boot German Uncut 1981.mkv", "Das Boot", Some(1981));
+    assert_eq!(
+        movie("Alpha Remastered (2020)/Alpha.mkv")
+            .edition
+            .as_deref(),
+        Some("Remastered")
+    );
+    // A year after technical tags is not the release year.
+    assert_movie("Movie.Title.1080p.2160p.mkv", "Movie Title", None);
+}

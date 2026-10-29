@@ -31,6 +31,8 @@ const BATCH: usize = 200;
 pub struct ScanReport {
     pub added: usize,
     pub changed: usize,
+    /// Files renamed or moved (they keep their item and history).
+    pub moved: usize,
     pub unchanged: usize,
     pub restored: usize,
     pub missing: usize,
@@ -100,18 +102,63 @@ pub async fn scan_library(
         }
     }
     let now = flixnet_db::now_ms();
-    let missing: Vec<i64> = existing
+    // Gone (or already missing) files under readable folders are move candidates.
+    let gone: Vec<&media::FileState> = existing
         .values()
-        .filter(|f| f.missing_since.is_none() && !seen.contains(&f.path))
+        .filter(|f| !seen.contains(&f.path))
         .filter(|f| {
             reachable
                 .iter()
                 .any(|root| Path::new(&f.path).starts_with(root))
         })
+        .collect();
+
+    // Renames/moves keep size and modification time: pair a gone file with a new one
+    // that has exactly the same (size, mtime), as long as the pairing is unambiguous.
+    let mut moves: Vec<(i64, FoundFile)> = Vec::new();
+    {
+        let mut by_signature: HashMap<(i64, i64), Vec<i64>> = HashMap::new();
+        for f in &gone {
+            by_signature
+                .entry((f.size, f.mtime))
+                .or_default()
+                .push(f.id);
+        }
+        let mut new_by_signature: HashMap<(i64, i64), usize> = HashMap::new();
+        for f in &new_files {
+            *new_by_signature
+                .entry((f.size as i64, f.mtime_ms))
+                .or_default() += 1;
+        }
+        new_files.retain(|f| {
+            let signature = (f.size as i64, f.mtime_ms);
+            match by_signature.get(&signature) {
+                Some(ids) if ids.len() == 1 && new_by_signature.get(&signature) == Some(&1) => {
+                    moves.push((ids[0], f.clone()));
+                    false
+                }
+                _ => true,
+            }
+        });
+    }
+    let moved_ids: std::collections::HashSet<i64> = moves.iter().map(|(id, _)| *id).collect();
+    let missing: Vec<i64> = gone
+        .iter()
+        .filter(|f| f.missing_since.is_none() && !moved_ids.contains(&f.id))
         .map(|f| f.id)
         .collect();
 
     // 3. Write in short batches.
+    if !moves.is_empty() {
+        let mut tx = db.writer().begin().await?;
+        for (id, file) in &moves {
+            let path = file.path.to_string_lossy();
+            let relative = file.relative.to_string_lossy().replace('\\', "/");
+            media::move_file(&mut tx, *id, &path, &relative).await?;
+        }
+        tx.commit().await?;
+        report.moved = moves.len();
+    }
     let mut to_probe: Vec<(i64, i64)> = Vec::new(); // (file id, priority)
     let mut to_refresh: Vec<i64> = Vec::new(); // items that got new files
     let mut item_ids: HashMap<String, i64> = HashMap::new();
