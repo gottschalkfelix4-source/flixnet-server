@@ -12,7 +12,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 0.3 OpenAPI (utoipa 6) + Scalar-UI unter `/api/v1/docs`, `flixnet-server openapi --output web/openapi.json` – Redocly-Lint ohne Fehler
 - [x] 0.4 Web-Shell (React/Vite, Theme, Sidebar, generierter Client), per rust-embed ausgeliefert – *fertig wenn* Playwright-Smoke grün
 - [x] 0.5 `xtask fixtures` (8 Testmedien inkl. HDR10, AV1, VP9, MPEG-2 interlaced, Staffel mit gemeinsamem Intro), Dockerfile (jellyfin-ffmpeg 7.1, PUID/PGID, tini), GitHub Actions (Rust, Web, E2E, GHCR), Unraid-Template – lokal im Container verifiziert
-- [ ] 0.5b Container auf Unraid installieren (`docker/unraid-template.xml`) – braucht Felix (GHCR-Paket ist privat → Login auf Unraid oder Paket öffentlich machen)
+- [x] 0.5b Container auf Unraid installieren — läuft über `docker/unraid-template.xml` (Port 8099), Paket und Repo öffentlich
 
 ## Phase 1 – Auth und Nutzer
 - [x] 1.1 Setup-Assistent, argon2, Login → Device-Token, Auth-Extractor – *fertig wenn* jede OpenAPI-Operation ohne Token 401 liefert
@@ -41,7 +41,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 4.2 DeviceProfile + Decision-Engine + playback-info — reine `decide()`-Funktion (Direct Play / Remux / Transcode mit Gründen, Tonemapping, Bitraten-Leiter, Burn-in) mit Tabellen-Test über Medien × Profile; Browser-Profil per `canPlayType`; Player zeigt die Gründe
 - [x] 4.3 HLS-Transcode (Software) + TranscodeManager — serverseitige VOD-Playlist, ffmpeg-Neustart beim Seek auf der absoluten Zeitachse (erzwungene Keyframes; seit 4.4 `-copyts`), Drosselung, Reaper, Stop beim Schließen; hls.js im Player. *Gate (E2E, Chromium ohne HEVC):* HEVC 10-Bit spielt, Seek auf 80 % < 3 s, danach keine Session/ffmpeg. Firefox-Projekt in Playwright steht noch aus
 - [x] 4.4 Remux mit Keyframe-Index, Audio-Transcode — Keyframe-Index per ffprobe (nur Pakete) mit DB-Cache, ein HLS-Segment pro GOP; alle Läufe mit `-copyts` + `frag_discont`, sodass Init und Segmente verschiedener Läufe exakt zusammenpassen (auch Transcodes: ein Keyframe pro 6-s-Slot der absoluten Zeitachse); E2E: H.264 + AC-3 wird geremuxt und springt in < 3 s
-- [ ] 4.5 QSV/VAAPI/NVENC + HDR→SDR-Tonemapping
+- [ ] 4.5 QSV/VAAPI/NVENC + HDR→SDR-Tonemapping — gebaut: Erkennung beim Start (Testencode + GPU-Tonemapping-Test), GPU-Pipelines, Software-Fallback, Einstellungs-Tab „Transcoding“; NVENC und QSV (Windows) lokal verifiziert. *Offen:* Abnahme auf Unraid (QSV/VAAPI mit jellyfin-ffmpeg 7, 4K HDR > 2× Echtzeit)
 - [ ] 4.6 Untertitel (WebVTT, PGS-Burn-in), Spurwechsel
 - [ ] 4.7 Fortschritt, Weiterschauen, Nächste Folge, Sessions
 - [ ] 4.8 Eigener Player, Trickplay, Kapitelbilder, Autoplay
@@ -49,7 +49,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 ## Phase 5 – Analyse und Organisation
 - [ ] 5.1 Intro/Credits-Erkennung + Skip
 - [ ] 5.2 OpenSubtitles
-- [ ] 5.3 Collections, Playlists, Smart Playlists
+- [x] 5.3 Collections, Playlists, Smart Playlists — automatische Sammlungen aus TMDB, manuelle Sammlungen, Playlists (privat/für alle Profile sichtbar), Smart Playlists über die Browse-Filter; Einträge per Identität (überleben Umbenennen)
 - [ ] 5.4 Jugendschutz
 
 ## Phase 6 – KI
