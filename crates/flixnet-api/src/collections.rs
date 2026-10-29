@@ -112,7 +112,9 @@ pub struct CollectionImageQuery {
 pub(crate) async fn viewer_filter(state: &AppState, user: &AuthUser) -> ApiResult<ItemFilter> {
     Ok(ItemFilter {
         library_ids: visible_libraries(state, user, None).await?,
-        max_age: user.max_age_rating,
+        max_age: user.restriction.max_age,
+        allow_unrated: user.restriction.allow_unrated,
+        blocked_genres: user.restriction.blocked_genres.clone(),
         user_id: Some(user.user_id),
         ..Default::default()
     })

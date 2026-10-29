@@ -50,6 +50,34 @@ pub fn age_rating(age: Option<i64>) -> ApiResult<()> {
     }
 }
 
+/// Blocked genres of a profile, as stored: a JSON array (trimmed, without duplicates),
+/// `None` for an empty list.
+pub fn genre_list(genres: &[String]) -> ApiResult<Option<String>> {
+    let mut list: Vec<String> = Vec::new();
+    for genre in genres {
+        let genre = genre.trim();
+        if genre.is_empty() {
+            continue;
+        }
+        if genre.chars().count() > 100 || genre.chars().any(char::is_control) {
+            return Err(ApiError::validation("Ungültiger Genre-Name."));
+        }
+        if !list.iter().any(|g| g.eq_ignore_ascii_case(genre)) {
+            list.push(genre.to_owned());
+        }
+    }
+    if list.len() > 100 {
+        return Err(ApiError::validation("Höchstens 100 Genres sperren."));
+    }
+    if list.is_empty() {
+        return Ok(None);
+    }
+    list.sort();
+    Ok(Some(
+        serde_json::to_string(&list).map_err(ApiError::internal)?,
+    ))
+}
+
 /// Distinguishes an absent field (`None`) from an explicit `null` (`Some(None)`).
 pub fn double_option<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
 where

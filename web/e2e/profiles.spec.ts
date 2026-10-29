@@ -88,3 +88,49 @@ test('invitation link creates a new account', async ({ page, browser }) => {
   await page.reload()
   await expect(page.getByText(/Eingelöst/)).toBeVisible()
 })
+
+test('parental controls: unrated toggle is saved, a less restricted profile without PIN is locked', async ({
+  page,
+}) => {
+  await signIn(page)
+  const suffix = Date.now().toString().slice(-5)
+  const child = `Kleine${suffix}`
+  const grandma = `Omi${suffix}`
+
+  // A restricted profile that may see unrated content.
+  await page.goto('/settings?tab=users')
+  await page.getByRole('button', { name: 'Nutzer anlegen' }).click()
+  let dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Name').fill(child)
+  await expect(dialog.getByLabel('Nicht eingestufte Inhalte erlauben')).toHaveCount(0)
+  await dialog.getByLabel('Altersfreigabe').selectOption({ label: 'Ab 6 (FSK 6)' })
+  await dialog.getByLabel('Nicht eingestufte Inhalte erlauben').check()
+  await dialog.getByRole('button', { name: 'Speichern' }).click()
+  await expect(dialog).toBeHidden()
+
+  // An unrestricted profile without PIN or password.
+  await page.getByRole('button', { name: 'Nutzer anlegen' }).click()
+  dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Name').fill(grandma)
+  await dialog.getByRole('button', { name: 'Speichern' }).click()
+  await expect(dialog).toBeHidden()
+
+  // The settings are stored.
+  await page.getByRole('button', { name: new RegExp(child) }).click()
+  dialog = page.getByRole('dialog')
+  await expect(dialog.getByLabel('Altersfreigabe')).toHaveValue('6')
+  await expect(dialog.getByLabel('Nicht eingestufte Inhalte erlauben')).toBeChecked()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+
+  // From the child's profile, the unrestricted profile without PIN cannot be reached.
+  await page.goto('/profiles')
+  await page.getByRole('button', { name: child }).click()
+  await expect(page.getByTestId('current-user')).toHaveText(child)
+  await page.goto('/profiles')
+  await page.getByRole('button', { name: grandma }).click()
+  await expect(page.getByRole('alert')).toContainText('keine PIN')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.goto('/')
+  await expect(page.getByTestId('current-user')).toHaveText(child)
+})

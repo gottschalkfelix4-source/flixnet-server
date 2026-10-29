@@ -7,6 +7,7 @@ pub mod jobs;
 pub mod nfo;
 pub mod parse;
 pub mod providers;
+pub mod ratings;
 pub mod refresh;
 pub mod scan;
 pub mod watch;

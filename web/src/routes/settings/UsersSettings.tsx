@@ -1,6 +1,7 @@
 import { EyeOff, Lock, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import type { Schemas } from '@/api/client'
+import { useGenres } from '@/api/queries/items'
 import { useLibraries, useLibraryAccess, useSetLibraryAccess } from '@/api/queries/libraries'
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from '@/api/queries/users'
 import { FormError } from '@/components/layout/AuthLayout'
@@ -47,6 +48,8 @@ export function UsersSettings() {
                 </p>
                 <p className="text-xs text-subtle">
                   {user.is_admin ? 'Administrator' : 'Mitglied'} · {ageLabel(user.max_age_rating)}
+                  {user.blocked_genres.length > 0 &&
+                    ` · ${user.blocked_genres.length} ${user.blocked_genres.length === 1 ? 'Genre' : 'Genres'} gesperrt`}
                   {!user.has_password && ' · nur Profil'}
                 </p>
               </div>
@@ -65,6 +68,41 @@ export function UsersSettings() {
   )
 }
 
+/** Genres to hide from a profile: every genre of the libraries plus already blocked ones. */
+function GenrePicker({ selected, onChange }: { selected: string[]; onChange: (genres: string[]) => void }) {
+  const genres = useGenres()
+  const names = [...new Set([...(genres.data?.map((g) => g.name) ?? []), ...selected])].sort((a, b) =>
+    a.localeCompare(b, 'de'),
+  )
+  if (names.length === 0) return null
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-semibold">Gesperrte Genres</p>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Gesperrte Genres">
+        {names.map((name) => {
+          const on = selected.includes(name)
+          return (
+            <button
+              key={name}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onChange(on ? selected.filter((g) => g !== name) : [...selected, name])}
+              className={
+                on
+                  ? 'rounded-full border border-red-400/60 bg-red-500/15 px-3 py-1 text-xs font-semibold text-red-300'
+                  : 'rounded-full border border-line px-3 py-1 text-xs font-semibold text-muted hover:text-fg'
+              }
+            >
+              {name}
+            </button>
+          )
+        })}
+      </div>
+      <p className="text-xs text-subtle">Gesperrte Genres gelten auch für die Staffeln und Folgen einer Serie.</p>
+    </div>
+  )
+}
+
 function UserDialog({ user, onClose }: { user: User | null; onClose: () => void }) {
   const session = useSession()
   const create = useCreateUser()
@@ -76,6 +114,8 @@ function UserDialog({ user, onClose }: { user: User | null; onClose: () => void 
   const [isAdmin, setIsAdmin] = useState(user?.is_admin ?? false)
   const [isHidden, setIsHidden] = useState(user?.is_hidden ?? false)
   const [age, setAge] = useState<string>(user?.max_age_rating?.toString() ?? '')
+  const [allowUnrated, setAllowUnrated] = useState(user?.allow_unrated ?? false)
+  const [blockedGenres, setBlockedGenres] = useState<string[]>(user?.blocked_genres ?? [])
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Library access: loaded values until the admin changes something.
   const libraries = useLibraries()
@@ -97,6 +137,8 @@ function UserDialog({ user, onClose }: { user: User | null; onClose: () => void 
           is_admin: isAdmin,
           is_hidden: isHidden,
           max_age_rating: maxAge,
+          allow_unrated: allowUnrated,
+          blocked_genres: blockedGenres,
           ...(password ? { password } : {}),
           ...(pin ? { pin } : {}),
         },
@@ -116,6 +158,8 @@ function UserDialog({ user, onClose }: { user: User | null; onClose: () => void 
           is_admin: isAdmin,
           is_hidden: isHidden,
           max_age_rating: maxAge,
+          allow_unrated: allowUnrated,
+          blocked_genres: blockedGenres,
         },
         { onSuccess: onClose },
       )
@@ -148,12 +192,24 @@ function UserDialog({ user, onClose }: { user: User | null; onClose: () => void 
           value={pin}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
         />
-        <SelectField
-          label="Altersfreigabe"
-          value={age}
-          onChange={setAge}
-          options={AGE_OPTIONS.map((o) => ({ value: o.value?.toString() ?? '', label: o.label }))}
-        />
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-line p-3">
+          <legend className="px-1 text-sm font-semibold text-muted">Jugendschutz</legend>
+          <SelectField
+            label="Altersfreigabe"
+            value={age}
+            onChange={setAge}
+            options={AGE_OPTIONS.map((o) => ({ value: o.value?.toString() ?? '', label: o.label }))}
+          />
+          {age !== '' && (
+            <Checkbox
+              label="Nicht eingestufte Inhalte erlauben"
+              hint="Sonst bleiben Filme und Serien ohne Einstufung für dieses Profil verborgen."
+              checked={allowUnrated}
+              onChange={setAllowUnrated}
+            />
+          )}
+          <GenrePicker selected={blockedGenres} onChange={setBlockedGenres} />
+        </fieldset>
         <Checkbox label="Administrator" checked={isAdmin} onChange={setIsAdmin} />
         <Checkbox
           label="In der Profilauswahl verstecken"

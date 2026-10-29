@@ -5,6 +5,7 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use flixnet_core::auth;
+use flixnet_db::browse::Restriction;
 use flixnet_db::{sessions, users};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -63,6 +64,10 @@ pub struct UserDto {
     pub has_pin: bool,
     /// Content age limit; `null` = unrestricted.
     pub max_age_rating: Option<i64>,
+    /// With an age limit: content without an age rating is shown anyway.
+    pub allow_unrated: bool,
+    /// Genres hidden from this profile.
+    pub blocked_genres: Vec<String>,
 }
 
 /// A newly issued device token plus the signed-in user.
@@ -87,6 +92,9 @@ pub enum Unlock {
     None,
     Pin,
     Password,
+    /// Not reachable from the current (more restricted) profile: the target is less
+    /// restricted and has neither PIN nor password.
+    Locked,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -235,7 +243,7 @@ async fn list_profiles(
         .filter(|u| !u.is_hidden || u.id == user.user_id)
         .map(|u| ProfileDto {
             is_current: u.id == user.user_id,
-            unlock: unlock_for(&u),
+            unlock: unlock_for(&u, &user.restriction),
             id: u.id,
             name: u.name,
             is_admin: u.is_admin,
@@ -277,8 +285,15 @@ async fn switch_profile(
     let unlock = if target.id == current.user_id {
         Unlock::None
     } else {
-        unlock_for(&target)
+        unlock_for(&target, &current.restriction)
     };
+    if unlock == Unlock::Locked {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "profile_locked",
+            "Dieses Profil braucht eine PIN, bevor von hier aus gewechselt werden kann.",
+        ));
+    }
     if unlock != Unlock::None {
         state.limits.unlock.check(&limit_key)?;
         let (secret, stored) = match unlock {
@@ -308,12 +323,20 @@ async fn switch_profile(
     issue_session(&state, target, &body.device).await.map(Json)
 }
 
-/// What a device must provide to switch to this profile.
-fn unlock_for(user: &users::User) -> Unlock {
+/// What a device signed in with a profile restricted by `current` must provide to
+/// switch to `user`. From a restricted profile, a less restricted one is never open:
+/// it needs its PIN (or password); without either it cannot be reached by switching.
+fn unlock_for(user: &users::User, current: &Restriction) -> Unlock {
     if user.pin_hash.is_some() {
         Unlock::Pin
     } else if user.is_admin {
         Unlock::Password
+    } else if current.is_restricted() && !user.restriction().at_least_as_strict_as(current) {
+        if user.password_hash.is_some() {
+            Unlock::Password
+        } else {
+            Unlock::Locked
+        }
     } else {
         Unlock::None
     }
@@ -361,7 +384,10 @@ pub(crate) async fn verify_secret(secret: String, stored: Option<String>) -> Api
 
 impl From<users::User> for UserDto {
     fn from(user: users::User) -> Self {
+        let restriction = user.restriction();
         Self {
+            allow_unrated: restriction.allow_unrated,
+            blocked_genres: restriction.blocked_genres,
             has_password: user.password_hash.is_some(),
             has_pin: user.pin_hash.is_some(),
             id: user.id,

@@ -8,6 +8,7 @@
 use axum::extract::{FromRequestParts, OptionalFromRequestParts};
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
+use flixnet_db::browse::Restriction;
 use flixnet_db::sessions;
 
 use crate::AppState;
@@ -22,8 +23,12 @@ pub struct AuthUser {
     pub user_id: i64,
     pub name: String,
     pub is_admin: bool,
-    /// Content age limit of this profile (`None` = unrestricted).
+    /// Content age limit of this profile (`None` = unrestricted); also part of
+    /// `restriction`.
     pub max_age_rating: Option<i64>,
+    /// All parental controls of this profile. Pass this (not just the age limit) to
+    /// visibility checks and browse filters.
+    pub restriction: Restriction,
     pub token_id: i64,
     pub device_id: i64,
 }
@@ -52,11 +57,13 @@ impl FromRequestParts<AppState> for AuthUser {
             });
         }
 
+        let restriction = session.restriction();
         Ok(AuthUser {
             user_id: session.user_id,
             name: session.user_name,
             is_admin: session.is_admin,
             max_age_rating: session.max_age_rating,
+            restriction,
             token_id: session.token_id,
             device_id: session.device_id,
         })

@@ -321,31 +321,9 @@ pub fn parse(xml: &str) -> Option<Nfo> {
     Some(nfo)
 }
 
-/// Minimum age for a certification: FSK, MPAA and US TV ratings.
+/// Minimum age for a certification without a known country (see [`crate::ratings`]).
 pub fn age_from_certification(cert: &str) -> Option<i64> {
-    let c = cert.trim().to_ascii_uppercase();
-    let c = c
-        .trim_start_matches("DE:")
-        .trim_start_matches("DE-")
-        .trim_start_matches("DE/")
-        .trim_start_matches("US:")
-        .trim_start_matches("RATED ")
-        .trim();
-    if let Some(rest) = c.strip_prefix("FSK") {
-        return rest
-            .trim_matches(|ch: char| !ch.is_ascii_digit())
-            .parse()
-            .ok();
-    }
-    Some(match c {
-        "0" | "6" | "12" | "16" | "18" => c.parse().ok()?,
-        "G" | "TV-Y" | "TV-G" | "U" => 0,
-        "PG" | "TV-Y7" | "TV-PG" => 6,
-        "PG-13" | "TV-14" | "12A" => 12,
-        "R" | "TV-MA" | "15" => 16,
-        "NC-17" | "X" => 18,
-        _ => return None,
-    })
+    crate::ratings::age_for(cert, None)
 }
 
 #[cfg(test)]
@@ -433,9 +411,9 @@ https://www.themoviedb.org/movie/238"#;
         assert_eq!(age_from_certification("FSK 12"), Some(12));
         assert_eq!(age_from_certification("de/16"), Some(16));
         assert_eq!(age_from_certification("DE:FSK18"), Some(18));
-        assert_eq!(age_from_certification("PG-13"), Some(12));
-        assert_eq!(age_from_certification("Rated R"), Some(16));
-        assert_eq!(age_from_certification("TV-MA"), Some(16));
+        assert_eq!(age_from_certification("PG-13"), Some(13));
+        assert_eq!(age_from_certification("Rated R"), Some(17));
+        assert_eq!(age_from_certification("TV-MA"), Some(17));
         assert_eq!(age_from_certification("G"), Some(0));
         assert_eq!(age_from_certification("Unbekannt"), None);
     }

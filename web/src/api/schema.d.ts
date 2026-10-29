@@ -1397,6 +1397,10 @@ export interface components {
             smart_filter?: components["schemas"]["SmartFilterDto"] | null;
         };
         CreateUserRequest: {
+            /** @description With an age limit: show content without an age rating anyway. */
+            allow_unrated?: boolean;
+            /** @description Genres to hide from the profile. */
+            blocked_genres?: string[];
             is_admin?: boolean;
             is_hidden?: boolean;
             /** Format: int64 */
@@ -2148,7 +2152,7 @@ export interface components {
          * @description What switching to a profile requires.
          * @enum {string}
          */
-        Unlock: "none" | "pin" | "password";
+        Unlock: "none" | "pin" | "password" | "locked";
         UpdateCollectionRequest: {
             name?: string | null;
             /** @description `null` clears the description. */
@@ -2181,6 +2185,10 @@ export interface components {
         };
         /** @description Every field is optional; `null` clears nullable fields (password, PIN, age limit). */
         UpdateUserRequest: {
+            /** @description With an age limit: show content without an age rating anyway. */
+            allow_unrated?: boolean | null;
+            /** @description Genres to hide from the profile (replaces the list; `[]` clears it). */
+            blocked_genres?: string[] | null;
             is_admin?: boolean | null;
             is_hidden?: boolean | null;
             /** Format: int64 */
@@ -2191,6 +2199,10 @@ export interface components {
             pin?: string | null;
         };
         UserDto: {
+            /** @description With an age limit: content without an age rating is shown anyway. */
+            allow_unrated: boolean;
+            /** @description Genres hidden from this profile. */
+            blocked_genres: string[];
             /** @description Can sign in with a password (profiles without one are reachable by switching only). */
             has_password: boolean;
             /** @description Profile switching to this user requires a PIN. */

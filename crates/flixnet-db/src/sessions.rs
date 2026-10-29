@@ -21,6 +21,19 @@ pub struct Session {
     pub user_name: String,
     pub is_admin: bool,
     pub max_age_rating: Option<i64>,
+    pub allow_unrated: bool,
+    pub blocked_genres_json: Option<String>,
+}
+
+impl Session {
+    /// The profile's parental controls.
+    pub fn restriction(&self) -> crate::browse::Restriction {
+        crate::browse::Restriction::from_profile(
+            self.max_age_rating,
+            self.allow_unrated,
+            self.blocked_genres_json.as_deref(),
+        )
+    }
 }
 
 /// Registers (or refreshes) the device and issues a new token for it, revoking any
@@ -73,7 +86,8 @@ pub async fn create(db: &Db, s: &NewSession<'_>) -> Result<i64> {
 pub async fn find_by_token_hash(db: &Db, token_hash: &str) -> Result<Option<Session>> {
     let session = sqlx::query_as(
         "SELECT t.id AS token_id, t.user_id, t.device_id, t.last_used_at,
-                u.name AS user_name, u.is_admin, u.max_age_rating
+                u.name AS user_name, u.is_admin, u.max_age_rating,
+                u.allow_unrated, u.blocked_genres_json
          FROM access_tokens t JOIN users u ON u.id = t.user_id
          WHERE t.token_hash = ? AND t.revoked_at IS NULL",
     )

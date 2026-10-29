@@ -13,7 +13,7 @@ use axum::body::Body;
 use axum::extract::{Path, Query, Request, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::Response;
-use flixnet_db::{items, libraries, media, users};
+use flixnet_db::{browse, items, media, users};
 use flixnet_media::decision::{
     DeviceProfile, PlayMethod, PlaybackChoice, PlaybackPlan, SourceAudio, SourceMedia,
     SourceSubtitle, SourceVideo, StreamAction, decide,
@@ -28,7 +28,7 @@ use utoipa_axum::routes;
 
 use crate::AppState;
 use crate::auth::AuthUser;
-use crate::browse::ensure_visible;
+use crate::browse::{ensure_visible, libraries_of};
 use crate::error::{ApiError, ApiResult, ErrorBody};
 use crate::tracks::{self, AudioTrackDto, SubtitleTrackDto};
 
@@ -273,12 +273,13 @@ pub(crate) async fn accessible_file(
         .ok_or_else(not_found)?;
     let item_id = file.item_id.ok_or_else(not_found)?;
     if let Some(user_id) = signed_user {
+        // The user's current libraries and parental controls, not those of when the
+        // URL was issued: a lowered age limit applies to old URLs at once.
         let user = users::get(&state.db, user_id)
             .await?
             .ok_or_else(ApiError::unauthorized)?;
-        if !user.is_admin
-            && !libraries::user_can_access(&state.db, user.id, file.library_id).await?
-        {
+        let library_ids = libraries_of(state, user.id, user.is_admin, None).await?;
+        if !browse::is_visible(&state.db, item_id, &library_ids, user.restriction()).await? {
             return Err(not_found());
         }
     } else if let Some(user) = user {

@@ -13,13 +13,29 @@ pub struct User {
     pub max_age_rating: Option<i64>,
     pub all_libraries: bool,
     pub created_at: i64,
+    /// Parental controls: unrated content stays visible despite an age limit.
+    pub allow_unrated: bool,
+    /// Parental controls: JSON array of hidden genre names.
+    pub blocked_genres_json: Option<String>,
+}
+
+impl User {
+    /// The profile's parental controls.
+    pub fn restriction(&self) -> crate::browse::Restriction {
+        crate::browse::Restriction::from_profile(
+            self.max_age_rating,
+            self.allow_unrated,
+            self.blocked_genres_json.as_deref(),
+        )
+    }
 }
 
 /// Column list matching [`User`]; a macro so queries stay `&'static str` (sqlx 0.9
 /// rejects runtime-built SQL as an injection guard).
 macro_rules! user_columns {
     () => {
-        "id, name, password_hash, pin_hash, is_admin, is_hidden, max_age_rating, all_libraries, created_at"
+        "id, name, password_hash, pin_hash, is_admin, is_hidden, max_age_rating, all_libraries, created_at,
+         allow_unrated, blocked_genres_json"
     };
 }
 
@@ -42,6 +58,9 @@ pub struct UserPatch<'a> {
     pub max_age_rating: Option<Option<i64>>,
     pub password_hash: Option<Option<&'a str>>,
     pub pin_hash: Option<Option<&'a str>>,
+    pub allow_unrated: Option<bool>,
+    /// JSON array of genre names; `Some(None)` clears the list.
+    pub blocked_genres_json: Option<Option<&'a str>>,
 }
 
 pub async fn count(db: &Db) -> Result<i64> {
@@ -155,6 +174,8 @@ pub async fn update(db: &Db, id: i64, patch: &UserPatch<'_>) -> Result<Option<Us
             max_age_rating = CASE WHEN ? THEN ? ELSE max_age_rating END,
             password_hash  = CASE WHEN ? THEN ? ELSE password_hash END,
             pin_hash       = CASE WHEN ? THEN ? ELSE pin_hash END,
+            allow_unrated  = COALESCE(?, allow_unrated),
+            blocked_genres_json = CASE WHEN ? THEN ? ELSE blocked_genres_json END,
             updated_at     = ?
          WHERE id = ?
          RETURNING ",
@@ -169,6 +190,9 @@ pub async fn update(db: &Db, id: i64, patch: &UserPatch<'_>) -> Result<Option<Us
     .bind(patch.password_hash.flatten())
     .bind(patch.pin_hash.is_some())
     .bind(patch.pin_hash.flatten())
+    .bind(patch.allow_unrated)
+    .bind(patch.blocked_genres_json.is_some())
+    .bind(patch.blocked_genres_json.flatten())
     .bind(now_ms())
     .bind(id)
     .fetch_optional(db.writer())

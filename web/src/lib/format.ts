@@ -21,6 +21,7 @@ export const AGE_OPTIONS: { value: number | null; label: string }[] = [
   { value: 0, label: 'Ab 0 (FSK 0)' },
   { value: 6, label: 'Ab 6 (FSK 6)' },
   { value: 12, label: 'Ab 12 (FSK 12)' },
+  { value: 14, label: 'Ab 14' },
   { value: 16, label: 'Ab 16 (FSK 16)' },
   { value: 18, label: 'Ab 18 (FSK 18)' },
 ]

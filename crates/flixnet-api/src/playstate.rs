@@ -462,7 +462,7 @@ pub struct HomeRowQuery {
 async fn visibility(state: &AppState, user: &AuthUser) -> ApiResult<Visibility> {
     Ok(Visibility {
         library_ids: visible_libraries(state, user, None).await?,
-        max_age: user.max_age_rating,
+        restriction: user.restriction.clone(),
     })
 }
 
@@ -539,7 +539,7 @@ async fn single_card(state: &AppState, user: &AuthUser, id: Option<i64>) -> ApiR
         return Ok(StatusCode::NO_CONTENT.into_response());
     };
     let library_ids = visible_libraries(state, user, None).await?;
-    if !browse::is_visible(&state.db, id, &library_ids, user.max_age_rating).await? {
+    if !browse::is_visible(&state.db, id, &library_ids, &user.restriction).await? {
         return Ok(StatusCode::NO_CONTENT.into_response());
     }
     Ok(match cards(state, user, &[id]).await?.pop() {

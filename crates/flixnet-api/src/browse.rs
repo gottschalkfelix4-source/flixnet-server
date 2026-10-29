@@ -72,7 +72,7 @@ async fn get_person(
     for (item_id, role, character) in metadata::person_credits(&state.db, id).await? {
         // One entry per item (an actor-director appears once, as actor first).
         if !seen.insert(item_id)
-            || !browse::is_visible(&state.db, item_id, &library_ids, user.max_age_rating).await?
+            || !browse::is_visible(&state.db, item_id, &library_ids, &user.restriction).await?
         {
             continue;
         }
@@ -100,7 +100,7 @@ async fn get_person(
 
 pub(crate) async fn ensure_visible(state: &AppState, user: &AuthUser, id: i64) -> ApiResult<()> {
     let library_ids = visible_libraries(state, user, None).await?;
-    if browse::is_visible(&state.db, id, &library_ids, user.max_age_rating).await? {
+    if browse::is_visible(&state.db, id, &library_ids, &user.restriction).await? {
         Ok(())
     } else {
         Err(ApiError::not_found("Eintrag nicht gefunden."))
@@ -423,10 +423,20 @@ pub(crate) async fn visible_libraries(
     user: &AuthUser,
     only: Option<i64>,
 ) -> ApiResult<Vec<i64>> {
-    let all = if user.is_admin {
+    libraries_of(state, user.user_id, user.is_admin, only).await
+}
+
+/// Libraries a user (by id) may see, optionally narrowed to one.
+pub(crate) async fn libraries_of(
+    state: &AppState,
+    user_id: i64,
+    is_admin: bool,
+    only: Option<i64>,
+) -> ApiResult<Vec<i64>> {
+    let all = if is_admin {
         libraries::list(&state.db).await?
     } else {
-        libraries::list_for_user(&state.db, user.user_id).await?
+        libraries::list_for_user(&state.db, user_id).await?
     };
     Ok(all
         .into_iter()
@@ -497,7 +507,9 @@ fn filter_from(
         year_from: query.year_from,
         year_to: query.year_to,
         letter,
-        max_age: user.max_age_rating,
+        max_age: user.restriction.max_age,
+        allow_unrated: user.restriction.allow_unrated,
+        blocked_genres: user.restriction.blocked_genres.clone(),
         user_id: Some(user.user_id),
         is_played: query.played,
         is_favorite: query.favorite,
@@ -624,7 +636,7 @@ async fn list_genres(
     Query(query): Query<GenresQuery>,
 ) -> ApiResult<Json<Vec<GenreDto>>> {
     let library_ids = visible_libraries(&state, &user, query.library_id).await?;
-    let genres = browse::genres(&state.db, &library_ids).await?;
+    let genres = browse::genres(&state.db, &library_ids, &user.restriction).await?;
     Ok(Json(
         genres
             .into_iter()
@@ -652,7 +664,7 @@ async fn get_item(
     Path(id): Path<i64>,
 ) -> ApiResult<Json<ItemDetailDto>> {
     let library_ids = visible_libraries(&state, &user, None).await?;
-    if !browse::is_visible(&state.db, id, &library_ids, user.max_age_rating).await? {
+    if !browse::is_visible(&state.db, id, &library_ids, &user.restriction).await? {
         return Err(ApiError::not_found("Eintrag nicht gefunden."));
     }
     let details = items::details(&state.db, id)

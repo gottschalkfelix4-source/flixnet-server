@@ -327,7 +327,7 @@ async fn resume_list_is_newest_first_and_respects_visibility() {
 
     let all = Visibility {
         library_ids: vec![lib],
-        max_age: None,
+        restriction: None.into(),
     };
     assert_eq!(
         playstate::resume_items(&db, felix, &all, 20).await.unwrap(),
@@ -335,7 +335,7 @@ async fn resume_list_is_newest_first_and_respects_visibility() {
     );
     let kids = Visibility {
         library_ids: vec![lib],
-        max_age: Some(12),
+        restriction: Some(12).into(),
     };
     assert!(
         playstate::resume_items(&db, felix, &kids, 20)
@@ -377,7 +377,7 @@ async fn next_up_follows_the_furthest_watched_episode() {
     .await;
     let all = Visibility {
         library_ids: vec![lib],
-        max_age: None,
+        restriction: None.into(),
     };
     let since = now_ms() - playstate::NEXT_UP_MAX_AGE_MS;
 
@@ -503,7 +503,7 @@ async fn next_up_orders_series_by_activity_and_drops_stale_ones() {
     let since = now_ms() - playstate::NEXT_UP_MAX_AGE_MS;
     let all = Visibility {
         library_ids: vec![lib],
-        max_age: None,
+        restriction: None.into(),
     };
     assert_eq!(
         playstate::next_up(&db, felix, &all, since, 20)
@@ -514,7 +514,7 @@ async fn next_up_orders_series_by_activity_and_drops_stale_ones() {
     );
     let teen = Visibility {
         library_ids: vec![lib],
-        max_age: Some(12),
+        restriction: Some(12).into(),
     };
     assert_eq!(
         playstate::next_up(&db, felix, &teen, since, 20)
@@ -525,7 +525,7 @@ async fn next_up_orders_series_by_activity_and_drops_stale_ones() {
     );
     let none = Visibility {
         library_ids: vec![],
-        max_age: None,
+        restriction: None.into(),
     };
     assert!(
         playstate::next_up(&db, felix, &none, since, 20)

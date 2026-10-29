@@ -5854,6 +5854,17 @@
           "name"
         ],
         "properties": {
+          "allow_unrated": {
+            "type": "boolean",
+            "description": "With an age limit: show content without an age rating anyway."
+          },
+          "blocked_genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Genres to hide from the profile."
+          },
           "is_admin": {
             "type": "boolean"
           },
@@ -7939,7 +7950,8 @@
         "enum": [
           "none",
           "pin",
-          "password"
+          "password",
+          "locked"
         ]
       },
       "UpdateCollectionRequest": {
@@ -8062,6 +8074,23 @@
         "type": "object",
         "description": "Every field is optional; `null` clears nullable fields (password, PIN, age limit).",
         "properties": {
+          "allow_unrated": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "With an age limit: show content without an age rating anyway."
+          },
+          "blocked_genres": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Genres to hide from the profile (replaces the list; `[]` clears it)."
+          },
           "is_admin": {
             "type": [
               "boolean",
@@ -8110,9 +8139,22 @@
           "is_admin",
           "is_hidden",
           "has_password",
-          "has_pin"
+          "has_pin",
+          "allow_unrated",
+          "blocked_genres"
         ],
         "properties": {
+          "allow_unrated": {
+            "type": "boolean",
+            "description": "With an age limit: content without an age rating is shown anyway."
+          },
+          "blocked_genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Genres hidden from this profile."
+          },
           "has_password": {
             "type": "boolean",
             "description": "Can sign in with a password (profiles without one are reachable by switching only)."

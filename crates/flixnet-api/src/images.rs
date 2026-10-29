@@ -4,7 +4,7 @@ use axum::body::Body;
 use axum::extract::{Path, Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::Response;
-use flixnet_db::{items, libraries, metadata};
+use flixnet_db::{browse, metadata};
 use serde::Deserialize;
 use utoipa::IntoParams;
 use utoipa_axum::router::OpenApiRouter;
@@ -12,6 +12,7 @@ use utoipa_axum::routes;
 
 use crate::AppState;
 use crate::auth::AuthUser;
+use crate::browse::visible_libraries;
 use crate::error::{ApiError, ApiResult, ErrorBody};
 
 pub(crate) fn router() -> OpenApiRouter<AppState> {
@@ -60,13 +61,10 @@ async fn get_image(
         .ok_or_else(|| ApiError::not_found("Bild nicht gefunden."))?;
     if !signed {
         let user = user.ok_or_else(ApiError::unauthorized)?;
-        // Without a signature, the caller must be allowed to see the library.
-        let item = items::get(&state.db, image.item_id)
-            .await?
-            .ok_or_else(|| ApiError::not_found("Bild nicht gefunden."))?;
-        if !user.is_admin
-            && !libraries::user_can_access(&state.db, user.user_id, item.library_id).await?
-        {
+        // Without a signature, the caller must be allowed to see the item (library
+        // access and parental controls).
+        let library_ids = visible_libraries(&state, &user, None).await?;
+        if !browse::is_visible(&state.db, image.item_id, &library_ids, &user.restriction).await? {
             return Err(ApiError::not_found("Bild nicht gefunden."));
         }
     }
