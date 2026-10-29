@@ -254,6 +254,11 @@ pub async fn store_probe(db: &Db, file_id: i64, data: &ProbeData) -> Result<()> 
         .bind(file_id)
         .execute(&mut *tx)
         .await?;
+    // A re-probe means the file changed: its keyframe index is stale.
+    sqlx::query("DELETE FROM keyframes WHERE file_id = ?")
+        .bind(file_id)
+        .execute(&mut *tx)
+        .await?;
     sqlx::query("DELETE FROM chapters WHERE file_id = ?")
         .bind(file_id)
         .execute(&mut *tx)
@@ -354,4 +359,40 @@ pub async fn chapters(db: &Db, file_id: i64) -> Result<Vec<Chapter>> {
     .fetch_all(db.reader())
     .await?;
     Ok(rows)
+}
+
+/// Cached keyframe times (ms) of a video stream, if computed.
+pub async fn keyframes(db: &Db, file_id: i64, stream_index: i64) -> Result<Option<Vec<i64>>> {
+    let row: Option<(String,)> =
+        sqlx::query_as("SELECT times_ms FROM keyframes WHERE file_id = ? AND stream_index = ?")
+            .bind(file_id)
+            .bind(stream_index)
+            .fetch_optional(db.reader())
+            .await?;
+    Ok(row.map(|(times,)| times.split(',').filter_map(|t| t.parse().ok()).collect()))
+}
+
+pub async fn store_keyframes(
+    db: &Db,
+    file_id: i64,
+    stream_index: i64,
+    times_ms: &[i64],
+) -> Result<()> {
+    let times = times_ms
+        .iter()
+        .map(i64::to_string)
+        .collect::<Vec<_>>()
+        .join(",");
+    sqlx::query(
+        "INSERT INTO keyframes (file_id, stream_index, times_ms, computed_at) VALUES (?, ?, ?, ?)
+         ON CONFLICT (file_id, stream_index) DO UPDATE
+         SET times_ms = excluded.times_ms, computed_at = excluded.computed_at",
+    )
+    .bind(file_id)
+    .bind(stream_index)
+    .bind(times)
+    .bind(now_ms())
+    .execute(db.writer())
+    .await?;
+    Ok(())
 }

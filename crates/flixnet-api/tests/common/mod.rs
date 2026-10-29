@@ -44,6 +44,7 @@ pub async fn app() -> TestApp {
             dir.path().join("transcode"),
             TranscodeSettings::default(),
         ),
+        ffprobe: flixnet_media::Ffprobe::new("ffprobe"),
     };
     let router = router(AppState::new(Config::default(), db.clone(), services));
     TestApp {

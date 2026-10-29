@@ -420,3 +420,96 @@ async fn transcode_sessions_serve_hls() {
     assert_eq!(sessions.json, json!([]));
     assert_eq!(raw(&app, &playlist_url, &[]).await.0, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn remux_sessions_cut_at_the_files_keyframes() {
+    let app = app().await;
+    let root = tempfile::tempdir().unwrap();
+    let folder = root.path().join("Filme/Remux (2020)");
+    std::fs::create_dir_all(&folder).unwrap();
+    // H.264 with a keyframe every 2 s (50 frames) and MP3 audio, in Matroska.
+    let status = std::process::Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y"])
+        .args(["-f", "lavfi", "-i", "testsrc=s=320x240:r=25:d=9"])
+        .args(["-f", "lavfi", "-i", "sine=duration=9"])
+        .args([
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-g",
+            "50",
+            "-sc_threshold",
+            "0",
+        ])
+        .args(["-c:a", "libmp3lame"])
+        .arg(folder.join("Remux.2020.mkv"))
+        .status()
+        .expect("ffmpeg on PATH");
+    assert!(status.success());
+    let library = libraries::create(
+        &app.db,
+        "Filme",
+        "movies",
+        &[root.path().join("Filme").to_string_lossy().into_owned()],
+    )
+    .await
+    .unwrap()
+    .id;
+    let queue = JobRuntime::new(app.db.clone(), EventBus::new())
+        .handle()
+        .queue()
+        .clone();
+    scan_library(&app.db, &queue, library).await.unwrap();
+    let ffprobe = flixnet_media::Ffprobe::new("ffprobe");
+    let file_id = media::file_states(&app.db, library).await.unwrap()[0].id;
+    flixnet_library::jobs::probe_file(&app.db, &ffprobe, file_id)
+        .await
+        .unwrap();
+    let token = app.setup_admin().await;
+    let movie = app.get("/api/v1/items?kind=movie", Some(&token)).await.json["items"][0]["id"]
+        .as_i64()
+        .unwrap();
+
+    // A browser: H.264 and AAC, but neither Matroska nor MP3.
+    let profile = json!({ "device_profile": {
+        "containers": ["mp4"],
+        "video_codecs": [{ "codec": "h264", "max_height": 2160 }],
+        "audio_codecs": [{ "codec": "aac", "max_channels": 2 }],
+    }});
+    let info = app
+        .post(
+            &format!("/api/v1/items/{movie}/playback-info"),
+            profile,
+            Some(&token),
+        )
+        .await;
+    let plan = &info.json["sources"][0]["plan"];
+    assert_eq!(plan["method"], "remux", "{}", info.json);
+    assert_eq!(plan["video"]["action"], "copy");
+    assert_eq!(plan["audio"]["action"], "transcode");
+
+    // The keyframe index was computed once and cached.
+    let keyframes = media::keyframes(&app.db, file_id, 0)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(keyframes, [0, 2000, 4000, 6000, 8000]);
+
+    // One segment per GOP; the last runs to the end of the file.
+    let url = info.json["sources"][0]["hls_url"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let (status, _, body) = raw(&app, &url, &[]).await;
+    assert_eq!(status, StatusCode::OK);
+    let playlist = String::from_utf8(body).unwrap();
+    assert_eq!(playlist.matches("#EXTINF:2.000,").count(), 4, "{playlist}");
+    // The file runs slightly past 9 s (MP3 padding).
+    assert!(playlist.contains("#EXTINF:1.0"), "{playlist}");
+    assert!(playlist.ends_with("4.m4s\n#EXT-X-ENDLIST\n"), "{playlist}");
+    let base = url.trim_end_matches("main.m3u8");
+    let (status, _, segment) = raw(&app, &format!("{base}3.m4s"), &[]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(segment.len() > 1000);
+}

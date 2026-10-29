@@ -163,6 +163,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         url_secret: url_signing_secret(&db).await?,
         watcher,
         transcoder: transcoder.clone(),
+        ffprobe: flixnet_media::Ffprobe::new(&config.media.ffprobe),
     };
     let app = flixnet_api::router(AppState::new(config, db.clone(), services))
         .fallback_service(web::router());

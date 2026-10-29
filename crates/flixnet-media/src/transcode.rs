@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use tokio::process::Child;
 
 use crate::decision::PlaybackPlan;
-use crate::hls::{self, FFMPEG_PLAYLIST, HlsJob, INIT_FILE};
+use crate::hls::{self, FFMPEG_PLAYLIST, HlsJob, INIT_FILE, Segments};
 use crate::process::command;
 
 #[derive(Debug, thiserror::Error)]
@@ -42,7 +42,8 @@ pub struct SessionSpec {
     pub item_id: i64,
     pub file_id: i64,
     pub input: PathBuf,
-    pub duration_ms: i64,
+    /// Fixed for transcodes, the keyframe index for copied video.
+    pub segments: Segments,
     pub plan: PlaybackPlan,
 }
 
@@ -196,7 +197,7 @@ impl TranscodeManager {
     /// The full VOD playlist.
     pub fn playlist(&self, id: &str) -> Result<String, TranscodeError> {
         let session = self.session(id)?;
-        Ok(hls::vod_playlist(session.spec.duration_ms))
+        Ok(hls::vod_playlist(&session.spec.segments))
     }
 
     /// Path of the init segment, once a run has written it.
@@ -240,7 +241,7 @@ impl TranscodeManager {
     /// Path of segment `index`, transcoding it first if needed.
     pub async fn segment(&self, id: &str, index: u32) -> Result<PathBuf, TranscodeError> {
         let session = self.session(id)?;
-        if index >= hls::segment_count(session.spec.duration_ms) {
+        if index >= session.spec.segments.count() {
             return Err(TranscodeError::OutOfRange(index));
         }
         let path = session.dir.join(hls::segment_file(index));
@@ -292,6 +293,7 @@ impl TranscodeManager {
             input: &session.spec.input,
             out_dir: &session.dir,
             start_segment: segment,
+            segments: &session.spec.segments,
             plan: &session.spec.plan,
         });
         // ffmpeg resolves the init segment's name against its working directory.

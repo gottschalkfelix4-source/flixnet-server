@@ -5,6 +5,7 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 use flixnet_media::decision::{AudioPlan, PlayMethod, PlaybackPlan, StreamAction, VideoPlan};
+use flixnet_media::hls::Segments;
 use flixnet_media::transcode::{SessionSpec, TranscodeManager, TranscodeSettings};
 
 /// 30 s of test picture and tone in Matroska (MPEG-4 Part 2 + MP3: needs a transcode).
@@ -28,7 +29,7 @@ fn spec(input: PathBuf) -> SessionSpec {
         item_id: 1,
         file_id: 1,
         input,
-        duration_ms: 30_000,
+        segments: Segments::fixed(30_000),
         plan: PlaybackPlan {
             method: PlayMethod::Transcode,
             video: Some(VideoPlan {
@@ -171,5 +172,92 @@ async fn ffmpeg_pauses_when_far_ahead_and_resumes_on_demand() {
     // Asking for the end still works.
     let last = manager.segment(&id, 4).await.unwrap();
     assert!(last.exists());
+    manager.stop_all().await;
+}
+
+/// Start and duration of a segment as a player sees it (init + segment).
+fn segment_span(init: &Path, segment: &Path, scratch: &Path) -> (f64, f64) {
+    let joined = scratch.join("span.mp4");
+    let mut bytes = std::fs::read(init).unwrap();
+    bytes.extend(std::fs::read(segment).unwrap());
+    std::fs::write(&joined, bytes).unwrap();
+    let out = Command::new("ffprobe")
+        .args(["-v", "error", "-select_streams", "v:0"])
+        .args([
+            "-count_packets",
+            "-show_entries",
+            "stream=start_time,nb_read_packets",
+        ])
+        .args(["-of", "csv=p=0"])
+        .arg(&joined)
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    let (start, packets) = text.trim().split_once(',').unwrap();
+    // 25 fps: one packet per 40 ms.
+    let packets: f64 = packets.parse().unwrap();
+    (start.parse().unwrap(), packets * 0.04)
+}
+
+#[tokio::test]
+async fn remux_segments_follow_the_keyframe_index() {
+    let dir = tempfile::tempdir().unwrap();
+    // H.264 with irregular GOPs (forced keyframes only) and MP3 audio.
+    let input = dir.path().join("remux.mkv");
+    let status = Command::new("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-y"])
+        .args(["-f", "lavfi", "-i", "testsrc=s=320x240:r=25:d=20"])
+        .args(["-f", "lavfi", "-i", "sine=duration=20"])
+        .args([
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-g",
+            "1000",
+            "-sc_threshold",
+            "0",
+        ])
+        .args(["-force_key_frames", "0,1.3,4.1,5,9.7,13,17.5"])
+        .args(["-c:a", "libmp3lame"])
+        .arg(&input)
+        .status()
+        .unwrap();
+    assert!(status.success());
+
+    let keyframes = flixnet_media::Ffprobe::new("ffprobe")
+        .keyframes(&input, 0)
+        .await
+        .unwrap();
+    assert_eq!(keyframes.len(), 7, "{keyframes:?}");
+    let segments = Segments::keyframes(&keyframes, 20_000).unwrap();
+
+    let mut session = spec(input);
+    session.segments = segments.clone();
+    let video = session.plan.video.as_mut().unwrap();
+    video.action = StreamAction::Copy;
+    let manager = TranscodeManager::new(
+        "ffmpeg",
+        dir.path().join("transcode"),
+        TranscodeSettings::default(),
+    );
+    let id = manager.create(session);
+
+    // Seek into the middle first, then go back: every cut sits on its keyframe.
+    for index in [4, 1, 5] {
+        let segment = manager.segment(&id, index).await.unwrap();
+        let init = manager.init(&id).await.unwrap();
+        let (start, duration) = segment_span(&init, &segment, dir.path());
+        let expected_start = segments.start_ms(index) as f64 / 1000.0;
+        let expected_length = segments.length_ms(index) as f64 / 1000.0;
+        assert!(
+            (start - expected_start).abs() < 0.05,
+            "segment {index} starts at {start}, expected {expected_start}"
+        );
+        assert!(
+            (duration - expected_length).abs() < 0.1,
+            "segment {index} lasts {duration}, expected {expected_length}"
+        );
+    }
     manager.stop_all().await;
 }

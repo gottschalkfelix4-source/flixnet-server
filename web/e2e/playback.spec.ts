@@ -4,10 +4,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { type Page, expect, test } from '@playwright/test'
 
-// Playwright's Chromium plays VP9 and H.264/AAC but not HEVC: the VP9 file is
-// direct-played, the HEVC 10-bit one has to be transcoded to HLS.
+// Playwright's Chromium plays VP9 and H.264/AAC but neither HEVC nor AC-3: the VP9
+// file is direct-played, H.264 with AC-3 in Matroska is remuxed (video copied, audio
+// converted) and HEVC 10-bit is transcoded.
 const DIRECT = 'Abspieltest'
 const HEVC = 'Zehnbitfilm'
+const REMUX = 'Umpacktest'
 
 function encode(path: string, seconds: number, codec: string[]) {
   execFileSync('ffmpeg', [
@@ -26,6 +28,10 @@ function libraryRoot(): string {
   encode(join(root, `${HEVC} (2021)`, `${HEVC}.2021.German.2160p.HDR.x265-FLX.mkv`), 60, [
     '-c:v', 'libx265', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p10le', '-x265-params', 'log-level=error',
     '-c:a', 'aac',
+  ])
+  mkdirSync(join(root, `${REMUX} (2021)`))
+  encode(join(root, `${REMUX} (2021)`, `${REMUX}.2021.German.AC3.1080p.x264-FLX.mkv`), 30, [
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-g', '50', '-sc_threshold', '0', '-c:a', 'ac3',
   ])
   return root
 }
@@ -57,7 +63,7 @@ test('library with playable files gets scanned', async ({ page }) => {
   await dialog.getByLabel('Ordnerpfad').fill(libraryRoot())
   await dialog.getByRole('button', { name: 'Speichern' }).click()
   const entry = page.getByTestId('library-list').getByRole('listitem').filter({ hasText: 'Wiedergabe' })
-  await expect(entry.getByTestId('library-counts')).toContainText('2 Filme', { timeout: 30_000 })
+  await expect(entry.getByTestId('library-counts')).toContainText('3 Filme', { timeout: 30_000 })
   await expect(entry.getByTestId('library-counts')).not.toContainText('analysiert', { timeout: 30_000 })
 })
 
@@ -115,5 +121,38 @@ test('HEVC 10-bit is transcoded to HLS, seeks fast and stops on close', async ({
   // Closing the player ends the session and its ffmpeg.
   await page.getByRole('button', { name: 'Zurück' }).click()
   await expect(page.getByRole('heading', { name: HEVC })).toBeVisible()
+  await expect.poll(() => api(page, '/api/v1/transcode/sessions'), { timeout: 5_000 }).toEqual([])
+})
+
+test('H.264 with AC-3 is remuxed: video copied on keyframes, audio converted', async ({ page }) => {
+  await openPlayer(page, REMUX)
+  await expect(page.getByTestId('play-method')).toHaveText('Remux')
+
+  const video = page.getByTestId('player-video')
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.muted = true
+    return v.play()
+  })
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 15_000 }).toBeGreaterThan(1)
+  expect(await video.evaluate((v: HTMLVideoElement) => Math.round(v.duration))).toBe(30)
+
+  // Seek into an unencoded part: ffmpeg restarts at that GOP.
+  const seekMs = await video.evaluate(async (v: HTMLVideoElement) => {
+    const started = performance.now()
+    v.currentTime = 24
+    await new Promise<void>((resolve) => {
+      const check = () => {
+        if (!v.seeking && v.readyState >= 3 && v.currentTime >= 24) resolve()
+        else setTimeout(check, 50)
+      }
+      check()
+    })
+    return performance.now() - started
+  })
+  expect(seekMs).toBeLessThan(3000)
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime)).toBeGreaterThan(24.5)
+
+  await page.getByRole('button', { name: 'Zurück' }).click()
+  await expect(page.getByRole('heading', { name: REMUX })).toBeVisible()
   await expect.poll(() => api(page, '/api/v1/transcode/sessions'), { timeout: 5_000 }).toEqual([])
 })

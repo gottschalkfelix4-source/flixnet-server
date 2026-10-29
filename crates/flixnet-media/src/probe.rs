@@ -72,6 +72,60 @@ impl Ffprobe {
         }
         parse(&output.stdout, file)
     }
+
+    /// Keyframe times (ms, ascending) of one video stream. Reads packets only — no
+    /// decoding — so even long films take seconds, not minutes.
+    pub async fn keyframes(&self, file: &Path, stream_index: i64) -> Result<Vec<i64>, ProbeError> {
+        let timeout = Duration::from_secs(600);
+        let mut cmd = command(&self.path);
+        cmd.args(["-v", "error", "-select_streams"])
+            .arg(stream_index.to_string())
+            .args([
+                "-show_entries",
+                "packet=pts_time,flags",
+                "-of",
+                "csv=p=0",
+                "-i",
+            ])
+            .arg(file)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let child = cmd.spawn().map_err(|source| ProbeError::Spawn {
+            path: self.path.clone(),
+            source,
+        })?;
+        let output = tokio::time::timeout(timeout, child.wait_with_output())
+            .await
+            .map_err(|_| ProbeError::Timeout(timeout))?
+            .map_err(|source| ProbeError::Spawn {
+                path: self.path.clone(),
+                source,
+            })?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let message = stderr.lines().last().unwrap_or("unknown error").trim();
+            return Err(ProbeError::Failed(message.to_owned()));
+        }
+        Ok(parse_keyframes(&String::from_utf8_lossy(&output.stdout)))
+    }
+}
+
+/// `pts_time,flags` lines → keyframe times in ms.
+fn parse_keyframes(csv: &str) -> Vec<i64> {
+    let mut times: Vec<i64> = csv
+        .lines()
+        .filter_map(|line| {
+            let (pts, flags) = line.trim().split_once(',')?;
+            if !flags.starts_with('K') {
+                return None;
+            }
+            let secs: f64 = pts.parse().ok()?;
+            Some((secs * 1000.0).round() as i64)
+        })
+        .collect();
+    times.sort_unstable();
+    times.dedup();
+    times
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -386,6 +440,18 @@ pub fn parse(json: &[u8], file: &Path) -> Result<MediaInfo, ProbeError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn keyframes_from_packet_csv() {
+        let csv = "0.000000,K__
+0.040000,___
+2.002000,K_
+N/A,K__
+1.001000,K__
+2.002000,K__
+";
+        assert_eq!(parse_keyframes(csv), [0, 1001, 2002]);
+    }
 
     const SAMPLE: &str = r#"{
       "streams": [

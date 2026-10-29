@@ -1,10 +1,18 @@
 //! HLS output: ffmpeg arguments for a segment run and the playlist the server hands out.
 //!
-//! The server writes the full VOD playlist itself (every segment exactly
-//! [`SEGMENT_SECS`] long), so players can seek anywhere before anything is encoded.
-//! ffmpeg is (re)started at any segment: `-ss` seeks the input, `-output_ts_offset`
-//! puts the output back on the absolute timeline and forced keyframes every
-//! [`SEGMENT_SECS`] make the cuts land exactly where the playlist says.
+//! The server writes the full VOD playlist itself, so players can seek anywhere before
+//! anything is produced. ffmpeg is (re)started at any segment, and segments from
+//! different runs must fit together:
+//!
+//! * `-copyts -start_at_zero` keeps the file's own timeline, and `frag_discont` makes
+//!   the fMP4 fragments carry those absolute times — so the init segment is the same
+//!   for every run (no per-run edit list) and a segment's time never depends on where
+//!   its run started.
+//! * With a tiny `hls_time` the muxer cuts at *every* keyframe. Copied video has the
+//!   file's keyframes (one segment per GOP, from the keyframe index); transcodes get
+//!   exactly one keyframe per [`SEGMENT_SECS`] slot of the absolute timeline (the
+//!   first frame at or after each multiple), so both cut at the same frames from any
+//!   starting point.
 //!
 //! Every argument is built from typed values and paths chosen by the server — never
 //! from request strings.
@@ -27,31 +35,89 @@ pub fn segment_file(index: u32) -> String {
     format!("seg{index}.m4s")
 }
 
-/// Number of segments for a duration.
-pub fn segment_count(duration_ms: i64) -> u32 {
-    let segment_ms = i64::from(SEGMENT_SECS) * 1000;
-    u32::try_from((duration_ms.max(1) + segment_ms - 1) / segment_ms).unwrap_or(u32::MAX)
+/// Where the segments of a session start; the last one ends with the media.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Segments {
+    starts_ms: Vec<i64>,
+    duration_ms: i64,
+    keyframe_aligned: bool,
 }
 
-/// The complete playlist for a file of the given length. Segment and init URIs are
-/// relative (`init.mp4`, `{n}.m4s`), so they inherit the playlist's location.
-pub fn vod_playlist(duration_ms: i64) -> String {
-    let count = segment_count(duration_ms);
+impl Segments {
+    /// Equal [`SEGMENT_SECS`] segments (transcodes, which force their own keyframes).
+    pub fn fixed(duration_ms: i64) -> Self {
+        let duration_ms = duration_ms.max(1);
+        let step = i64::from(SEGMENT_SECS) * 1000;
+        Self {
+            starts_ms: (0..duration_ms).step_by(step as usize).collect(),
+            duration_ms,
+            keyframe_aligned: false,
+        }
+    }
+
+    /// One segment per GOP (copied video). Keyframe times are taken relative to the
+    /// first one, which is where the file starts.
+    pub fn keyframes(keyframes_ms: &[i64], duration_ms: i64) -> Option<Self> {
+        let first = *keyframes_ms.first()?;
+        let duration_ms = duration_ms.max(1);
+        let starts_ms = keyframes_ms
+            .iter()
+            .map(|k| k - first)
+            .filter(|k| *k < duration_ms)
+            .collect();
+        Some(Self {
+            starts_ms,
+            duration_ms,
+            keyframe_aligned: true,
+        })
+    }
+
+    pub fn count(&self) -> u32 {
+        u32::try_from(self.starts_ms.len()).unwrap_or(u32::MAX)
+    }
+
+    pub fn start_ms(&self, index: u32) -> i64 {
+        self.starts_ms
+            .get(index as usize)
+            .copied()
+            .unwrap_or(self.duration_ms)
+    }
+
+    pub fn length_ms(&self, index: u32) -> i64 {
+        (self.start_ms(index + 1) - self.start_ms(index)).max(1)
+    }
+
+    pub fn is_keyframe_aligned(&self) -> bool {
+        self.keyframe_aligned
+    }
+}
+
+/// The complete playlist. Segment and init URIs are relative (`init.mp4`, `{n}.m4s`),
+/// so they inherit the playlist's location.
+pub fn vod_playlist(segments: &Segments) -> String {
+    let count = segments.count();
+    let longest = (0..count)
+        .map(|n| segments.length_ms(n))
+        .max()
+        .unwrap_or(1000);
     let mut out = String::with_capacity(64 + count as usize * 24);
     out.push_str("#EXTM3U\n#EXT-X-VERSION:7\n");
-    let _ = writeln!(out, "#EXT-X-TARGETDURATION:{SEGMENT_SECS}");
+    let _ = writeln!(out, "#EXT-X-TARGETDURATION:{}", (longest + 999) / 1000);
     out.push_str(
         "#EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-INDEPENDENT-SEGMENTS\n",
     );
     let _ = writeln!(out, "#EXT-X-MAP:URI=\"{INIT_FILE}\"");
-    let segment_ms = i64::from(SEGMENT_SECS) * 1000;
     for n in 0..count {
-        let remaining = duration_ms - i64::from(n) * segment_ms;
-        let length = remaining.clamp(1, segment_ms);
+        let length = segments.length_ms(n);
         let _ = writeln!(out, "#EXTINF:{:.3},\n{n}.m4s", length as f64 / 1000.0);
     }
     out.push_str("#EXT-X-ENDLIST\n");
     out
+}
+
+/// `12345` ms → `12.345` (ffmpeg time syntax).
+fn seconds(ms: i64) -> String {
+    format!("{}.{:03}", ms / 1000, ms % 1000)
 }
 
 /// Software tone mapping HDR → SDR (needs ffmpeg with zimg, as jellyfin-ffmpeg has).
@@ -64,6 +130,7 @@ pub struct HlsJob<'a> {
     pub input: &'a Path,
     pub out_dir: &'a Path,
     pub start_segment: u32,
+    pub segments: &'a Segments,
     pub plan: &'a PlaybackPlan,
 }
 
@@ -72,10 +139,14 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
     let mut push = |values: &[&str]| args.extend(values.iter().map(OsString::from));
     push(&["-hide_banner", "-loglevel", "error", "-nostdin", "-y"]);
 
-    let start_secs = job.start_segment * SEGMENT_SECS;
-    if start_secs > 0 {
-        push(&["-ss", &start_secs.to_string()]);
+    let start_ms = job.segments.start_ms(job.start_segment);
+    if start_ms > 0 {
+        // Copying seeks to the keyframe at or before the position: aim 1 ms past the
+        // segment's keyframe so rounding can never land on the previous one.
+        let seek_ms = start_ms + i64::from(job.segments.is_keyframe_aligned());
+        push(&["-ss", &seconds(seek_ms)]);
     }
+    push(&["-copyts", "-start_at_zero"]);
     args.push("-i".into());
     args.push(job.input.as_os_str().to_owned());
     let mut push = |values: &[&str]| args.extend(values.iter().map(OsString::from));
@@ -84,7 +155,13 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
         Some(video) => {
             push(&["-map", &format!("0:{}", video.stream_index)]);
             match video.action {
-                StreamAction::Copy => push(&["-c:v", "copy"]),
+                StreamAction::Copy => {
+                    push(&["-c:v", "copy"]);
+                    if video.codec == "hevc" {
+                        // Apple players only accept HEVC tagged as hvc1.
+                        push(&["-tag:v", "hvc1"]);
+                    }
+                }
                 StreamAction::Transcode => {
                     let mut filters = format!("scale={}:{}", video.width, video.height);
                     if video.tonemap {
@@ -104,10 +181,13 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
                         "high",
                         "-vf",
                         &filters,
+                        // No keyframes of its own: they would add cuts.
+                        "-x264-params",
+                        "keyint=infinite:scenecut=0",
                         "-force_key_frames",
-                        &format!("expr:gte(t,n_forced*{SEGMENT_SECS})"),
-                        "-sc_threshold",
-                        "0",
+                        &format!(
+                            "expr:if(isnan(prev_forced_t),1,gt(floor(t/{SEGMENT_SECS}),floor(prev_forced_t/{SEGMENT_SECS})))"
+                        ),
                     ]);
                     if let Some(bitrate) = video.bitrate {
                         push(&[
@@ -150,12 +230,15 @@ pub fn hls_args(job: &HlsJob<'_>) -> Vec<OsString> {
         "-dn",
         "-max_muxing_queue_size",
         "2048",
-        "-output_ts_offset",
-        &start_secs.to_string(),
+        "-avoid_negative_ts",
+        "disabled",
         "-f",
         "hls",
+        // Cut at every keyframe (see the module docs).
         "-hls_time",
-        &SEGMENT_SECS.to_string(),
+        "0.001",
+        "-hls_segment_options",
+        "movflags=+frag_discont",
         "-hls_segment_type",
         "fmp4",
         "-hls_fmp4_init_filename",
@@ -224,22 +307,28 @@ mod tests {
     #[test]
     fn transcode_from_a_later_segment() {
         let plan = plan(false, StreamAction::Transcode);
+        let segments = Segments::fixed(120_000);
         let args = hls_args(&HlsJob {
             input: Path::new("/media/Film (2020)/film.mkv"),
             out_dir: Path::new("/transcode/abc"),
             start_segment: 10,
+            segments: &segments,
             plan: &plan,
         });
         let line = joined(&args);
-        assert!(line.starts_with("-hide_banner -loglevel error -nostdin -y -ss 60 -i "));
+        assert!(line.starts_with(
+            "-hide_banner -loglevel error -nostdin -y -ss 60.000 -copyts -start_at_zero -i "
+        ));
         // The path is one argument, spaces and all.
         assert!(args.iter().any(|a| a == "/media/Film (2020)/film.mkv"));
         assert!(line.contains("-map 0:0 -c:v libx264 -preset veryfast"));
         assert!(line.contains("-vf scale=1280:720,format=yuv420p"));
-        assert!(line.contains("-force_key_frames expr:gte(t,n_forced*6)"));
+        assert!(line.contains("-x264-params keyint=infinite:scenecut=0 -force_key_frames expr:if(isnan(prev_forced_t),1,gt(floor(t/6),floor(prev_forced_t/6)))"));
         assert!(line.contains("-maxrate 3000000 -bufsize 6000000"));
         assert!(line.contains("-map 0:2 -c:a aac -ac 6 -b:a 384000"));
-        assert!(line.contains("-output_ts_offset 60 -f hls -hls_time 6 -hls_segment_type fmp4"));
+        assert!(line.contains(
+            "-avoid_negative_ts disabled -f hls -hls_time 0.001 -hls_segment_options movflags=+frag_discont -hls_segment_type fmp4"
+        ));
         assert!(line.contains("-start_number 10"));
         assert!(line.ends_with(
             "-hls_segment_filename /transcode/abc/seg%d.m4s /transcode/abc/ffmpeg.m3u8"
@@ -253,6 +342,7 @@ mod tests {
             input: Path::new("in.mkv"),
             out_dir: Path::new("out"),
             start_segment: 0,
+            segments: &Segments::fixed(60_000),
             plan: &plan,
         }));
         assert!(!line.contains("-ss"));
@@ -264,9 +354,33 @@ mod tests {
     }
 
     #[test]
-    fn playlist_covers_the_whole_duration() {
-        let playlist = vod_playlist(14_500);
-        assert_eq!(segment_count(14_500), 3);
+    fn copied_video_cuts_at_every_keyframe() {
+        let mut plan = plan(false, StreamAction::Transcode);
+        let video = plan.video.as_mut().unwrap();
+        video.action = StreamAction::Copy;
+        video.codec = "hevc".into();
+        let segments = Segments::keyframes(&[40, 2_040, 4_540, 10_040], 12_000).unwrap();
+        let line = joined(&hls_args(&HlsJob {
+            input: Path::new("in.mkv"),
+            out_dir: Path::new("out"),
+            start_segment: 2,
+            segments: &segments,
+            plan: &plan,
+        }));
+        // 1 ms past the keyframe, so the seek cannot fall back to the previous one.
+        assert!(line.contains("-ss 4.501 -copyts -start_at_zero -i in.mkv"));
+        assert!(line.contains("-c:v copy -tag:v hvc1"));
+        assert!(!line.contains("force_key_frames"));
+        assert!(line.contains("-f hls -hls_time 0.001"));
+        assert!(!line.contains("output_ts_offset"));
+        assert!(line.contains("-start_number 2"));
+    }
+
+    #[test]
+    fn fixed_playlist_covers_the_whole_duration() {
+        let segments = Segments::fixed(14_500);
+        assert_eq!(segments.count(), 3);
+        let playlist = vod_playlist(&segments);
         assert!(playlist.starts_with("#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-TARGETDURATION:6\n"));
         assert!(playlist.contains("#EXT-X-MAP:URI=\"init.mp4\"\n"));
         assert!(
@@ -275,10 +389,28 @@ mod tests {
         );
         assert!(playlist.ends_with("#EXT-X-ENDLIST\n"));
         assert_eq!(
-            segment_count(12_000),
+            Segments::fixed(12_000).count(),
             2,
             "exact multiples have no empty tail"
         );
+    }
+
+    #[test]
+    fn keyframe_playlist_has_one_segment_per_gop() {
+        // The first keyframe is the file's start; the last GOP runs to the end.
+        let segments = Segments::keyframes(&[40, 2_040, 4_540, 10_040], 12_000).unwrap();
+        assert_eq!(segments.count(), 4);
+        assert_eq!(
+            (0..4).map(|n| segments.length_ms(n)).collect::<Vec<_>>(),
+            [2_000, 2_500, 5_500, 2_000]
+        );
+        let playlist = vod_playlist(&segments);
+        assert!(
+            playlist.contains("#EXT-X-TARGETDURATION:6\n"),
+            "longest GOP, rounded up"
+        );
+        assert!(playlist.contains("#EXTINF:5.500,\n2.m4s\n"));
+        assert!(Segments::keyframes(&[], 1000).is_none());
     }
 
     #[test]

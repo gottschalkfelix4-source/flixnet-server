@@ -18,6 +18,7 @@ use flixnet_media::decision::{
     DeviceProfile, PlayMethod, PlaybackChoice, PlaybackPlan, SourceAudio, SourceMedia,
     SourceSubtitle, SourceVideo, StreamAction, decide,
 };
+use flixnet_media::hls::Segments;
 use flixnet_media::transcode::SessionSpec;
 use serde::{Deserialize, Serialize};
 use tower_http::services::ServeFile;
@@ -112,17 +113,20 @@ async fn get_playback_info(
             &request.device_profile,
             choice,
         );
-        let hls_url = (plan.method != PlayMethod::DirectPlay).then(|| {
+        let hls_url = if plan.method == PlayMethod::DirectPlay {
+            None
+        } else {
+            let (session_plan, segments) = session_layout(&state, &file, &plan).await?;
             let session = state.transcoder.create(SessionSpec {
                 user_id: user.user_id,
                 item_id: id,
                 file_id: file.id,
                 input: PathBuf::from(&file.path),
-                duration_ms: file.duration_ms.unwrap_or(0),
-                plan: session_plan(&plan),
+                segments,
+                plan: session_plan,
             });
-            format!("/api/v1/transcode/{session}/main.m3u8")
-        });
+            Some(format!("/api/v1/transcode/{session}/main.m3u8"))
+        };
         sources.push(MediaSourceDto {
             direct_url: state.signer.stream_url(file.id, user.user_id),
             hls_url,
@@ -145,19 +149,46 @@ async fn get_playback_info(
     }))
 }
 
-/// What the transcode session runs. Copying video into HLS needs segment cuts on the
-/// file's own keyframes (milestone 4.4); until then remuxes re-encode the video too.
-fn session_plan(plan: &PlaybackPlan) -> PlaybackPlan {
+/// What a session runs and how it is cut. Copied video needs the file's keyframe
+/// index (cached in the database, computed on first use); without one the video is
+/// re-encoded instead.
+async fn session_layout(
+    state: &AppState,
+    file: &media::MediaFile,
+    plan: &PlaybackPlan,
+) -> ApiResult<(PlaybackPlan, Segments)> {
+    let duration_ms = file.duration_ms.unwrap_or(0);
     let mut plan = plan.clone();
-    if let Some(video) = plan
+    let Some(video) = plan
         .video
         .as_mut()
         .filter(|v| v.action == StreamAction::Copy)
-    {
-        video.action = StreamAction::Transcode;
-        video.codec = "h264".to_owned();
+    else {
+        return Ok((plan, Segments::fixed(duration_ms)));
+    };
+    let keyframes = match media::keyframes(&state.db, file.id, video.stream_index).await? {
+        Some(cached) => Some(cached),
+        None => match state
+            .ffprobe
+            .keyframes(FsPath::new(&file.path), video.stream_index)
+            .await
+        {
+            Ok(times) => {
+                media::store_keyframes(&state.db, file.id, video.stream_index, &times).await?;
+                Some(times)
+            }
+            Err(err) => {
+                tracing::warn!(file = file.id, %err, "no keyframe index; transcoding the video");
+                None
+            }
+        },
+    };
+    if let Some(segments) = keyframes.and_then(|k| Segments::keyframes(&k, duration_ms)) {
+        return Ok((plan, segments));
     }
-    plan
+    video.action = StreamAction::Transcode;
+    video.codec = "h264".to_owned();
+    Ok((plan, Segments::fixed(duration_ms)))
 }
 
 /// Embedded cover art shows up as a video stream; it is not the movie.
