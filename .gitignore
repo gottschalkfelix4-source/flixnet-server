@@ -7,3 +7,6 @@
 *.db-shm
 *.db-wal
 .env
+/web/playwright-report
+/web/test-results
+/web/node_modules/.tmp

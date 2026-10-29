@@ -11,6 +11,13 @@ Architektur: `docs/architecture.md`. Fortschritt: `docs/roadmap.md`.
 - Neue Crates nur, wenn eine Abhängigkeit es erzwingt.
 - Git: Repo `gottschalkfelix4-source/flixnet-server` (privat). Abgeschlossene, grüne Arbeitsschritte direkt auf `main` committen und pushen; nichts committen, wenn Tests oder clippy rot sind.
 
+## Dev-Loop
+- Backend: `cargo run -p flixnet-server` (Port 8097, Daten in `dev-config/`). Debug-Builds lesen `web/dist` von der Platte.
+- Frontend: in `web/` `npm run dev` (Vite auf 5173, Proxy für `/api`) bzw. `npm run build` für das eingebettete UI.
+- E2E: `npm run build && npm run test:e2e` in `web/` (startet den Server selbst mit leerer Temp-DB auf Port 18097).
+- TypeScript bleibt auf 5.9, bis typescript-eslint und openapi-typescript TS 6/7 unterstützen.
+- UI-Texte sind deutsch; Design-Tokens stehen in `web/src/styles/index.css`.
+
 ## Harte Regeln
 - ffmpeg/ffprobe nur über den typisierten `FfmpegArgs`-Builder starten, nie über eine Shell, nie mit rohen Strings aus Requests.
 - Keine Schreibtransaktion über externe I/O (HTTP, ffprobe, Dateisystem) hinweg halten. Erst berechnen, dann in Batches schreiben.

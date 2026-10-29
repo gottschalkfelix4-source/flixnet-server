@@ -1,0 +1,49 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/manrope';
+
+/*
+ * Flixnet design tokens: near-black neutral surfaces, a single warm accent ("ember").
+ * Tailwind 4 turns every --color-* token into utilities (bg-canvas, text-muted, …).
+ */
+@theme {
+  --font-sans: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
+
+  --color-canvas: #0f0f12;
+  --color-sidebar: #0b0b0e;
+  --color-surface: #16161b;
+  --color-surface-2: #1d1d23;
+  --color-surface-3: #26262e;
+  --color-line: #2a2a33;
+
+  --color-fg: #ececf1;
+  --color-muted: #a0a0ad;
+  --color-subtle: #6c6c7a;
+
+  --color-accent: #ff6b3d;
+  --color-accent-hover: #ff8259;
+  --color-accent-fg: #1b0c05;
+
+  --radius-card: 12px;
+  --shadow-card: 0 10px 30px -12px rgb(0 0 0 / 0.6);
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-canvas text-fg font-sans antialiased;
+    min-height: 100dvh;
+  }
+
+  /* A faint glow at the top of every page gives depth without a brand color wash. */
+  #root {
+    min-height: 100dvh;
+    background: radial-gradient(1200px 400px at 50% -200px, rgb(255 255 255 / 0.05), transparent);
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+}

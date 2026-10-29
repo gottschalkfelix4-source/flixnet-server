@@ -10,7 +10,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 0.1 Workspace, axum, tracing, Config, `GET /api/v1/system/info` – *fertig wenn* `cargo test` + `cargo clippy -- -D warnings` grün
 - [x] 0.2 flixnet-db: Migrationen, WAL, Writer-/Read-Pool, Settings – *fertig wenn* Migrationstest auf Temp-DB grün
 - [x] 0.3 OpenAPI (utoipa 6) + Scalar-UI unter `/api/v1/docs`, `flixnet-server openapi --output web/openapi.json` – Redocly-Lint ohne Fehler
-- [ ] 0.4 Web-Shell (React/Vite, Theme, Sidebar, generierter Client), per rust-embed ausgeliefert – *fertig wenn* Playwright-Smoke grün
+- [x] 0.4 Web-Shell (React/Vite, Theme, Sidebar, generierter Client), per rust-embed ausgeliefert – *fertig wenn* Playwright-Smoke grün
 - [ ] 0.5 `xtask fixtures`, Dockerfile, GitHub Actions, Unraid – *fertig wenn* Container auf Unraid die UI zeigt
 
 ## Phase 1 – Auth und Nutzer

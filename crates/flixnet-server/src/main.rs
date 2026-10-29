@@ -7,6 +7,8 @@ use flixnet_core::Config;
 use flixnet_db::Db;
 use tracing_subscriber::EnvFilter;
 
+mod web;
+
 #[derive(Debug, Parser)]
 #[command(name = "flixnet-server", version, about = "Flixnet media server")]
 struct Cli {
@@ -92,7 +94,8 @@ fn init_tracing(default_level: &str) {
 async fn serve(config: Config) -> anyhow::Result<()> {
     let bind = config.server.bind;
     let db = open_db(&config).await?;
-    let app = flixnet_api::router(AppState::new(config, db.clone()));
+    let app =
+        flixnet_api::router(AppState::new(config, db.clone())).fallback_service(web::router());
 
     let listener = tokio::net::TcpListener::bind(bind)
         .await
