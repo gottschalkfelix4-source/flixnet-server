@@ -556,6 +556,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/transcoding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hardware transcoding: what was detected at startup and what transcodes use. */
+        get: operations["getTranscodingInfo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks": {
         parameters: {
             query?: never;
@@ -835,6 +852,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * @description A GPU encoding method.
+         * @enum {string}
+         */
+        Accel: "nvenc" | "qsv" | "vaapi";
         ArtworkDto: {
             backdrop_blurhash?: string | null;
             backdrop_url?: string | null;
@@ -1000,6 +1022,36 @@ export interface components {
             /** @description The listed folder (`null` for the roots). */
             path?: string | null;
         };
+        /**
+         * @description Which encoder a session runs.
+         * @enum {string}
+         */
+        EncoderKind: "software" | "nvenc" | "qsv" | "vaapi";
+        /** @description Result of testing one method. */
+        EncoderProbe: {
+            accel: components["schemas"]["Accel"];
+            /** @description The test encode worked. */
+            available: boolean;
+            /** @description Why GPU decoding does not work. */
+            decode_error?: string | null;
+            /** @description Render node used (VA-API, Quick Sync on Linux). */
+            device?: string | null;
+            /**
+             * Format: int64
+             * @description Time the tests took (ms).
+             */
+            duration_ms: number;
+            /** @description Why encoding does not work (ffmpeg's last lines). */
+            error?: string | null;
+            /** @description The GPU decodes HEVC Main 10 too. */
+            hw_decode: boolean;
+            /** @description Intel's low-power encoder was needed. */
+            low_power: boolean;
+            /** @description How HDR is tone-mapped with this method. */
+            tonemap: components["schemas"]["Tonemap"];
+            /** @description Why GPU tone mapping does not work. */
+            tonemap_error?: string | null;
+        };
         /** @description Error body returned by every failing API call. */
         ErrorBody: {
             /**
@@ -1018,6 +1070,11 @@ export interface components {
             count: number;
             name: string;
         };
+        /**
+         * @description `media.hardware_acceleration`.
+         * @enum {string}
+         */
+        HardwareMode: "auto" | "none" | "qsv" | "vaapi" | "nvenc";
         IdentifyRequest: {
             /** Format: int64 */
             tmdb_id: number;
@@ -1416,6 +1473,11 @@ export interface components {
             /** Format: int64 */
             next_run?: number | null;
         };
+        /**
+         * @description How HDR is tone-mapped to SDR.
+         * @enum {string}
+         */
+        Tonemap: "software" | "cuda" | "vpp_qsv" | "vaapi";
         TranscodeSessionDto: {
             /** Format: int64 */
             file_id: number;
@@ -1428,6 +1490,29 @@ export interface components {
             transcoding: boolean;
             /** Format: int64 */
             user_id: number;
+        };
+        /** @description What transcodes run on, for the admin diagnostics. */
+        TranscodingInfo: {
+            /** @description Detection has finished (until then transcodes use software). */
+            detected: boolean;
+            /** @description Encoder new transcodes use. */
+            encoder: components["schemas"]["EncoderKind"];
+            /**
+             * Format: int64
+             * @description Hardware runs that failed and were retried with a simpler pipeline since the
+             *     server started.
+             */
+            fallbacks: number;
+            /** @description First line of `ffmpeg -version`. */
+            ffmpeg_version?: string | null;
+            /** @description The GPU decodes too (where it can decode the source). */
+            hw_decode: boolean;
+            /** @description Configured `media.hardware_acceleration`. */
+            mode: components["schemas"]["HardwareMode"];
+            /** @description Every method that was tested, in test order. */
+            probes: components["schemas"]["EncoderProbe"][];
+            /** @description How HDR is tone-mapped to SDR. */
+            tonemap: components["schemas"]["Tonemap"];
         };
         /**
          * @description What switching to a profile requires.
@@ -3322,6 +3407,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemInfo"];
+                };
+            };
+        };
+    };
+    getTranscodingInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Encoders, tone mapping and ffmpeg version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscodingInfo"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
         };

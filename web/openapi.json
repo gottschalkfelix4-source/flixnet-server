@@ -2494,6 +2494,47 @@
         ]
       }
     },
+    "/api/v1/system/transcoding": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Hardware transcoding: what was detected at startup and what transcodes use.",
+        "operationId": "getTranscodingInfo",
+        "responses": {
+          "200": {
+            "description": "Encoders, tone mapping and ffmpeg version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscodingInfo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tasks": {
       "get": {
         "tags": [
@@ -3546,6 +3587,15 @@
   },
   "components": {
     "schemas": {
+      "Accel": {
+        "type": "string",
+        "description": "A GPU encoding method.",
+        "enum": [
+          "nvenc",
+          "qsv",
+          "vaapi"
+        ]
+      },
       "ArtworkDto": {
         "type": "object",
         "properties": {
@@ -4031,6 +4081,82 @@
           }
         }
       },
+      "EncoderKind": {
+        "type": "string",
+        "description": "Which encoder a session runs.",
+        "enum": [
+          "software",
+          "nvenc",
+          "qsv",
+          "vaapi"
+        ]
+      },
+      "EncoderProbe": {
+        "type": "object",
+        "description": "Result of testing one method.",
+        "required": [
+          "accel",
+          "available",
+          "low_power",
+          "hw_decode",
+          "tonemap",
+          "duration_ms"
+        ],
+        "properties": {
+          "accel": {
+            "$ref": "#/components/schemas/Accel"
+          },
+          "available": {
+            "type": "boolean",
+            "description": "The test encode worked."
+          },
+          "decode_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why GPU decoding does not work."
+          },
+          "device": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Render node used (VA-API, Quick Sync on Linux)."
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Time the tests took (ms)."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why encoding does not work (ffmpeg's last lines)."
+          },
+          "hw_decode": {
+            "type": "boolean",
+            "description": "The GPU decodes HEVC Main 10 too."
+          },
+          "low_power": {
+            "type": "boolean",
+            "description": "Intel's low-power encoder was needed."
+          },
+          "tonemap": {
+            "$ref": "#/components/schemas/Tonemap",
+            "description": "How HDR is tone-mapped with this method."
+          },
+          "tonemap_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why GPU tone mapping does not work."
+          }
+        }
+      },
       "ErrorBody": {
         "type": "object",
         "description": "Error body returned by every failing API call.",
@@ -4066,6 +4192,17 @@
             "type": "string"
           }
         }
+      },
+      "HardwareMode": {
+        "type": "string",
+        "description": "`media.hardware_acceleration`.",
+        "enum": [
+          "auto",
+          "none",
+          "qsv",
+          "vaapi",
+          "nvenc"
+        ]
       },
       "IdentifyRequest": {
         "type": "object",
@@ -5307,6 +5444,16 @@
           }
         }
       },
+      "Tonemap": {
+        "type": "string",
+        "description": "How HDR is tone-mapped to SDR.",
+        "enum": [
+          "software",
+          "cuda",
+          "vpp_qsv",
+          "vaapi"
+        ]
+      },
       "TranscodeSessionDto": {
         "type": "object",
         "required": [
@@ -5343,6 +5490,61 @@
           "user_id": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "TranscodingInfo": {
+        "type": "object",
+        "description": "What transcodes run on, for the admin diagnostics.",
+        "required": [
+          "mode",
+          "detected",
+          "encoder",
+          "hw_decode",
+          "tonemap",
+          "probes",
+          "fallbacks"
+        ],
+        "properties": {
+          "detected": {
+            "type": "boolean",
+            "description": "Detection has finished (until then transcodes use software)."
+          },
+          "encoder": {
+            "$ref": "#/components/schemas/EncoderKind",
+            "description": "Encoder new transcodes use."
+          },
+          "fallbacks": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Hardware runs that failed and were retried with a simpler pipeline since the\nserver started.",
+            "minimum": 0
+          },
+          "ffmpeg_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "First line of `ffmpeg -version`."
+          },
+          "hw_decode": {
+            "type": "boolean",
+            "description": "The GPU decodes too (where it can decode the source)."
+          },
+          "mode": {
+            "$ref": "#/components/schemas/HardwareMode",
+            "description": "Configured `media.hardware_acceleration`."
+          },
+          "probes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EncoderProbe"
+            },
+            "description": "Every method that was tested, in test order."
+          },
+          "tonemap": {
+            "$ref": "#/components/schemas/Tonemap",
+            "description": "How HDR is tone-mapped to SDR."
           }
         }
       },
