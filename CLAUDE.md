@@ -8,6 +8,7 @@ Architektur: `docs/architecture.md`. Fortschritt: `docs/roadmap.md`.
 - Vor dem Abschluss: `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`; im Web `npm run lint` und `npm run build`.
 - Nach API-Änderungen OpenAPI neu erzeugen (`cargo run -p flixnet-server -- openapi > web/openapi.json`) und den TS-Client regenerieren.
 - Neue Crates nur, wenn eine Abhängigkeit es erzwingt.
+- Git: Repo `gottschalkfelix4-source/flixnet-server` (privat). Abgeschlossene, grüne Arbeitsschritte direkt auf `main` committen und pushen; nichts committen, wenn Tests oder clippy rot sind.
 
 ## Harte Regeln
 - ffmpeg/ffprobe nur über den typisierten `FfmpegArgs`-Builder starten, nie über eine Shell, nie mit rohen Strings aus Requests.
