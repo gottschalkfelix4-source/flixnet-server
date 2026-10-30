@@ -459,12 +459,16 @@ pub struct EpgSource {
     pub last_error: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
+    /// `xmltv` | `schedules_direct` (url = lineup id) | `tvheadend` (the EPG of
+    /// `tuner_host_id`)
+    pub kind: String,
+    pub tuner_host_id: Option<i64>,
 }
 
 macro_rules! source_columns {
     () => {
         "id, name, url, enabled, generation, channel_count, program_count, last_refresh_at,
-         last_error, created_at, updated_at"
+         last_error, created_at, updated_at, kind, tuner_host_id"
     };
 }
 
@@ -490,13 +494,27 @@ pub async fn get_source(db: &Db, id: i64) -> Result<Option<EpgSource>> {
 }
 
 pub async fn create_source(db: &Db, name: &str, url: &str) -> Result<i64> {
+    create_source_of_kind(db, name, url, "xmltv", None).await
+}
+
+/// A guide source of another kind (Schedules Direct lineup, tvheadend EPG).
+pub async fn create_source_of_kind(
+    db: &Db,
+    name: &str,
+    url: &str,
+    kind: &str,
+    tuner_host_id: Option<i64>,
+) -> Result<i64> {
     let now = now_ms();
     Ok(sqlx::query_scalar(
-        "INSERT INTO epg_sources (name, url, created_at, updated_at) VALUES (?, ?, ?, ?)
+        "INSERT INTO epg_sources (name, url, kind, tuner_host_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)
          RETURNING id",
     )
     .bind(name)
     .bind(url)
+    .bind(kind)
+    .bind(tuner_host_id)
     .bind(now)
     .bind(now)
     .fetch_one(db.writer())

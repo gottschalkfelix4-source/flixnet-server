@@ -14,6 +14,7 @@ use axum::response::{IntoResponse, Response};
 use flixnet_core::jobs::priority;
 use flixnet_db::livetv::{self, Channel, EpgMatch, HostUpdate, NewTunerHost, Program};
 use flixnet_livetv::config::{self, LiveTvConfig};
+use flixnet_livetv::schedules_direct::{self, SdCredentials, SdError};
 use flixnet_livetv::stream::{WatchRequest, is_session_id};
 use flixnet_livetv::tuner::{is_stream_url, stream_source};
 use flixnet_livetv::{LiveError, TunerKind, hdhomerun, http, jobs, matching};
@@ -56,6 +57,8 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(get_live_segment))
         .routes(routes!(list_live_streams))
         .routes(routes!(get_livetv_settings, update_livetv_settings))
+        .routes(routes!(get_schedules_direct, update_schedules_direct))
+        .routes(routes!(list_schedules_direct_lineups))
 }
 
 // ---- Tuners ------------------------------------------------------------------------
@@ -69,6 +72,8 @@ pub enum TunerKindDto {
     Xtream,
     /// HDHomeRun network tuner.
     Hdhomerun,
+    /// tvheadend server (HTTP API; its EPG becomes a guide source).
+    Tvheadend,
 }
 
 impl TunerKindDto {
@@ -77,6 +82,7 @@ impl TunerKindDto {
             TunerKindDto::M3u => TunerKind::M3u,
             TunerKindDto::Xtream => TunerKind::Xtream,
             TunerKindDto::Hdhomerun => TunerKind::HdHomeRun,
+            TunerKindDto::Tvheadend => TunerKind::Tvheadend,
         }
     }
 
@@ -84,6 +90,7 @@ impl TunerKindDto {
         match TunerKind::parse(kind) {
             Some(TunerKind::Xtream) => TunerKindDto::Xtream,
             Some(TunerKind::HdHomeRun) => TunerKindDto::Hdhomerun,
+            Some(TunerKind::Tvheadend) => TunerKindDto::Tvheadend,
             _ => TunerKindDto::M3u,
         }
     }
@@ -138,11 +145,11 @@ pub struct CreateTunerRequest {
     pub kind: TunerKindDto,
     pub name: String,
     /// M3U: playlist URL or absolute file path; Xtream: server URL; HDHomeRun: IP
-    /// address or URL of the device.
+    /// address or URL of the device; tvheadend: `http://host:9981`.
     pub url: String,
-    /// Xtream Codes only.
+    /// Xtream Codes and tvheadend.
     pub username: Option<String>,
-    /// Xtream Codes only.
+    /// Xtream Codes and tvheadend.
     pub password: Option<String>,
     /// Sent when fetching the playlist and streams (some providers require one).
     pub user_agent: Option<String>,
@@ -183,7 +190,7 @@ fn validate_location(kind: TunerKind, url: &str) -> ApiResult<String> {
     }
     let ok = match kind {
         TunerKind::M3u => http::is_http(url) || is_absolute_path(url),
-        TunerKind::Xtream => http::is_http(url),
+        TunerKind::Xtream | TunerKind::Tvheadend => http::is_http(url),
         TunerKind::HdHomeRun => !url.contains(char::is_whitespace),
     };
     if !ok {
@@ -191,7 +198,9 @@ fn validate_location(kind: TunerKind, url: &str) -> ApiResult<String> {
             TunerKind::M3u => {
                 "Die Playlist braucht eine http(s)-Adresse oder einen absoluten Dateipfad."
             }
-            TunerKind::Xtream => "Die Server-Adresse muss mit http:// oder https:// beginnen.",
+            TunerKind::Xtream | TunerKind::Tvheadend => {
+                "Die Server-Adresse muss mit http:// oder https:// beginnen."
+            }
             TunerKind::HdHomeRun => "Bitte die IP-Adresse des HDHomeRun angeben.",
         }));
     }
@@ -285,6 +294,18 @@ async fn create_tuner(
     )
     .await?;
     jobs::queue_import(state.jobs.queue(), Some(id), priority::INTERACTIVE).await?;
+    if kind == TunerKind::Tvheadend {
+        // Its EPG comes along as a guide source.
+        let source = livetv::create_source_of_kind(
+            &state.db,
+            &format!("{name} (EPG)"),
+            &url,
+            "tvheadend",
+            Some(id),
+        )
+        .await?;
+        jobs::queue_refresh(state.jobs.queue(), Some(source), priority::INTERACTIVE).await?;
+    }
     let host = livetv::get_host(&state.db, id)
         .await?
         .ok_or_else(|| ApiError::not_found("Tuner nicht gefunden."))?;
@@ -376,6 +397,12 @@ async fn delete_tuner(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<StatusCode> {
+    // Its guide (tvheadend EPG) goes too, programs in batches.
+    for source in livetv::list_sources(&state.db).await? {
+        if source.tuner_host_id == Some(id) {
+            livetv::delete_source(&state.db, source.id).await?;
+        }
+    }
     if livetv::delete_host(&state.db, id).await? {
         Ok(StatusCode::NO_CONTENT)
     } else {
@@ -513,11 +540,36 @@ async fn discover_tuners(
 
 // ---- Guide sources -----------------------------------------------------------------
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum EpgSourceKind {
+    /// XMLTV file or URL.
+    Xmltv,
+    /// A Schedules Direct lineup (credentials in `updateSchedulesDirect`).
+    SchedulesDirect,
+    /// The EPG of a tvheadend tuner (created with it).
+    Tvheadend,
+}
+
+impl EpgSourceKind {
+    fn parse(kind: &str) -> Self {
+        match kind {
+            "schedules_direct" => EpgSourceKind::SchedulesDirect,
+            "tvheadend" => EpgSourceKind::Tvheadend,
+            _ => EpgSourceKind::Xmltv,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct EpgSourceDto {
     pub id: i64,
+    pub kind: EpgSourceKind,
+    /// The tvheadend tuner this guide belongs to.
+    pub tuner_id: Option<i64>,
     pub name: String,
-    /// XMLTV URL or file path (gzip allowed).
+    /// XMLTV URL or file path (gzip allowed); Schedules Direct: the lineup id;
+    /// tvheadend: the server.
     pub url: String,
     pub enabled: bool,
     pub channel_count: i64,
@@ -528,6 +580,8 @@ pub struct EpgSourceDto {
 
 fn source_dto(s: livetv::EpgSource) -> EpgSourceDto {
     EpgSourceDto {
+        kind: EpgSourceKind::parse(&s.kind),
+        tuner_id: s.tuner_host_id,
         id: s.id,
         name: s.name,
         url: s.url,
@@ -542,8 +596,27 @@ fn source_dto(s: livetv::EpgSource) -> EpgSourceDto {
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateEpgSourceRequest {
     pub name: String,
-    /// XMLTV URL (http/https) or absolute file path; `.gz` files are unpacked.
+    /// XMLTV: URL (http/https) or absolute file path (`.gz` files are unpacked);
+    /// Schedules Direct: the lineup id, e.g. `DEU-1000097-DEFAULT`.
     pub url: String,
+    /// Default `xmltv`; tvheadend guides come with their tuner.
+    pub kind: Option<EpgSourceKind>,
+}
+
+/// `DEU-1000097-DEFAULT`
+fn validate_lineup(lineup: &str) -> ApiResult<String> {
+    let lineup = lineup.trim();
+    if lineup.is_empty()
+        || lineup.len() > 64
+        || !lineup
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(ApiError::validation(
+            "Bitte ein Schedules-Direct-Lineup angeben, z. B. „DEU-1000097-DEFAULT“.",
+        ));
+    }
+    Ok(lineup.to_owned())
 }
 
 #[derive(Debug, Default, Deserialize, ToSchema)]
@@ -607,8 +680,22 @@ async fn create_epg_source(
     Json(body): Json<CreateEpgSourceRequest>,
 ) -> ApiResult<(StatusCode, Json<EpgSourceDto>)> {
     let name = validate::name(&body.name)?;
-    let url = validate_guide_location(&body.url)?;
-    let id = livetv::create_source(&state.db, &name, &url).await?;
+    let id = match body.kind.unwrap_or(EpgSourceKind::Xmltv) {
+        EpgSourceKind::Xmltv => {
+            let url = validate_guide_location(&body.url)?;
+            livetv::create_source(&state.db, &name, &url).await?
+        }
+        EpgSourceKind::SchedulesDirect => {
+            let lineup = validate_lineup(&body.url)?;
+            livetv::create_source_of_kind(&state.db, &name, &lineup, "schedules_direct", None)
+                .await?
+        }
+        EpgSourceKind::Tvheadend => {
+            return Err(ApiError::validation(
+                "tvheadend-Programmdaten kommen mit dem tvheadend-Tuner.",
+            ));
+        }
+    };
     jobs::queue_refresh(state.jobs.queue(), Some(id), priority::INTERACTIVE).await?;
     let source = livetv::get_source(&state.db, id)
         .await?
@@ -639,11 +726,19 @@ async fn update_epg_source(
     Json(body): Json<UpdateEpgSourceRequest>,
 ) -> ApiResult<Json<EpgSourceDto>> {
     let name = body.name.as_deref().map(validate::name).transpose()?;
-    let url = body
-        .url
-        .as_deref()
-        .map(validate_guide_location)
-        .transpose()?;
+    let current = livetv::get_source(&state.db, id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("Programmquelle nicht gefunden."))?;
+    let url = match current.kind.as_str() {
+        "schedules_direct" => body.url.as_deref().map(validate_lineup).transpose()?,
+        // The tvheadend guide follows its tuner's address.
+        "tvheadend" => None,
+        _ => body
+            .url
+            .as_deref()
+            .map(validate_guide_location)
+            .transpose()?,
+    };
     if !livetv::update_source(&state.db, id, name.as_deref(), url.as_deref(), body.enabled).await? {
         return Err(ApiError::not_found("Programmquelle nicht gefunden."));
     }
@@ -1945,6 +2040,153 @@ async fn update_livetv_settings(
     config::save(&state.db, &current).await?;
     state.livetv.set_buffer(current.timeshift());
     Ok(Json(settings_dto(&state, &current)))
+}
+
+// ---- Schedules Direct ----------------------------------------------------------------
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SchedulesDirectDto {
+    pub username: Option<String>,
+    /// Whether a password is stored (only its SHA-1, as the API wants it).
+    pub has_password: bool,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct UpdateSchedulesDirect {
+    pub username: String,
+    /// Omit to keep the stored one.
+    pub password: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct SdLineupDto {
+    /// Lineup id for a guide source, e.g. `DEU-1000097-DEFAULT`.
+    pub lineup: String,
+    pub name: Option<String>,
+    pub location: Option<String>,
+}
+
+async fn sd_credentials(state: &AppState) -> ApiResult<Option<SdCredentials>> {
+    Ok(flixnet_db::settings::get(&state.db, schedules_direct::SETTINGS_KEY).await?)
+}
+
+fn sd_error(err: SdError) -> ApiError {
+    match err {
+        SdError::Http(_) => ApiError::new(
+            StatusCode::BAD_GATEWAY,
+            "schedules_direct_unreachable",
+            "Schedules Direct ist nicht erreichbar.",
+        ),
+        SdError::MissingCredentials => {
+            ApiError::validation("Bitte zuerst die Schedules-Direct-Zugangsdaten eintragen.")
+        }
+        SdError::Api(message) => {
+            ApiError::validation(format!("Schedules Direct lehnt ab: {message}"))
+        }
+    }
+}
+
+/// The Schedules Direct account (administrators).
+#[utoipa::path(
+    get,
+    path = "/livetv/schedules-direct",
+    operation_id = "getSchedulesDirect",
+    tag = "livetv",
+    responses(
+        (status = OK, description = "The account", body = SchedulesDirectDto),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Not an administrator", body = ErrorBody),
+    )
+)]
+async fn get_schedules_direct(
+    _: AdminUser,
+    State(state): State<AppState>,
+) -> ApiResult<Json<SchedulesDirectDto>> {
+    let current = sd_credentials(&state).await?;
+    Ok(Json(SchedulesDirectDto {
+        has_password: current
+            .as_ref()
+            .is_some_and(|c| !c.password_sha1.is_empty()),
+        username: current.map(|c| c.username).filter(|u| !u.is_empty()),
+    }))
+}
+
+/// Stores the Schedules Direct account after signing in with it.
+#[utoipa::path(
+    put,
+    path = "/livetv/schedules-direct",
+    operation_id = "updateSchedulesDirect",
+    tag = "livetv",
+    request_body = UpdateSchedulesDirect,
+    responses(
+        (status = OK, description = "Stored", body = SchedulesDirectDto),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Not an administrator", body = ErrorBody),
+        (status = UNPROCESSABLE_ENTITY, description = "Schedules Direct refused the account", body = ErrorBody),
+        (status = BAD_GATEWAY, description = "Schedules Direct unreachable", body = ErrorBody),
+    )
+)]
+async fn update_schedules_direct(
+    _: AdminUser,
+    State(state): State<AppState>,
+    Json(body): Json<UpdateSchedulesDirect>,
+) -> ApiResult<Json<SchedulesDirectDto>> {
+    let current = sd_credentials(&state).await?.unwrap_or_default();
+    let username = optional_text(Some(&body.username), 128)?
+        .ok_or_else(|| ApiError::validation("Bitte den Benutzernamen angeben."))?;
+    let password_sha1 = match body.password.as_deref().filter(|p| !p.is_empty()) {
+        Some(password) => schedules_direct::password_hash(password),
+        None => current.password_sha1.clone(),
+    };
+    let credentials = SdCredentials {
+        username,
+        password_sha1,
+        base_url: current.base_url,
+    };
+    schedules_direct::token(&http::client(), &credentials)
+        .await
+        .map_err(sd_error)?;
+    flixnet_db::settings::set(&state.db, schedules_direct::SETTINGS_KEY, &credentials).await?;
+    Ok(Json(SchedulesDirectDto {
+        username: Some(credentials.username),
+        has_password: true,
+    }))
+}
+
+/// Lineups of the Schedules Direct account, to add as guide sources.
+#[utoipa::path(
+    get,
+    path = "/livetv/schedules-direct/lineups",
+    operation_id = "listSchedulesDirectLineups",
+    tag = "livetv",
+    responses(
+        (status = OK, description = "Lineups", body = [SdLineupDto]),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Not an administrator", body = ErrorBody),
+        (status = UNPROCESSABLE_ENTITY, description = "No or refused account", body = ErrorBody),
+        (status = BAD_GATEWAY, description = "Schedules Direct unreachable", body = ErrorBody),
+    )
+)]
+async fn list_schedules_direct_lineups(
+    _: AdminUser,
+    State(state): State<AppState>,
+) -> ApiResult<Json<Vec<SdLineupDto>>> {
+    let credentials = sd_credentials(&state)
+        .await?
+        .ok_or_else(|| sd_error(SdError::MissingCredentials))?;
+    let lineups = schedules_direct::lineups(&http::client(), &credentials)
+        .await
+        .map_err(sd_error)?;
+    Ok(Json(
+        lineups
+            .into_iter()
+            .map(|l| SdLineupDto {
+                lineup: l.lineup,
+                name: l.name,
+                location: l.location,
+            })
+            .collect(),
+    ))
 }
 
 /// Applies the stored Live TV settings to the running services (server start).

@@ -1,5 +1,6 @@
-//! Live TV: tuner sources (M3U, Xtream Codes, HDHomeRun) behind one [`tuner::Tuner`]
-//! trait, the XMLTV guide (streaming parser, channel matching, refresh) and live
+//! Live TV: tuner sources (M3U, Xtream Codes, HDHomeRun, tvheadend) behind one
+//! [`tuner::Tuner`] trait, guide sources (XMLTV streaming parser, Schedules Direct,
+//! tvheadend EPG; channel matching, refresh), the DVR ([`dvr`]) and live
 //! streams — one ffmpeg per watched channel producing a rolling HLS window that all
 //! viewers of that channel share.
 //!
@@ -17,8 +18,10 @@ pub mod jobs;
 pub mod m3u;
 pub mod matching;
 mod process;
+pub mod schedules_direct;
 pub mod stream;
 pub mod tuner;
+pub mod tvheadend;
 pub mod xmltv;
 pub mod xtream;
 

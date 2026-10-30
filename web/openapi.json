@@ -5487,6 +5487,180 @@
         }
       }
     },
+    "/api/v1/livetv/schedules-direct": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "The Schedules Direct account (administrators).",
+        "operationId": "getSchedulesDirect",
+        "responses": {
+          "200": {
+            "description": "The account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulesDirectDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Stores the Schedules Direct account after signing in with it.",
+        "operationId": "updateSchedulesDirect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSchedulesDirect"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulesDirectDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Schedules Direct refused the account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Schedules Direct unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/schedules-direct/lineups": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Lineups of the Schedules Direct account, to add as guide sources.",
+        "operationId": "listSchedulesDirectLineups",
+        "responses": {
+          "200": {
+            "description": "Lineups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SdLineupDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No or refused account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Schedules Direct unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/livetv/sessions/{session}": {
       "delete": {
         "tags": [
@@ -9281,12 +9455,23 @@
           "url"
         ],
         "properties": {
+          "kind": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EpgSourceKind",
+                "description": "Default `xmltv`; tvheadend guides come with their tuner."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "type": "string"
           },
           "url": {
             "type": "string",
-            "description": "XMLTV URL (http/https) or absolute file path; `.gz` files are unpacked."
+            "description": "XMLTV: URL (http/https) or absolute file path (`.gz` files are unpacked);\nSchedules Direct: the lineup id, e.g. `DEU-1000097-DEFAULT`."
           }
         }
       },
@@ -9512,7 +9697,7 @@
               "string",
               "null"
             ],
-            "description": "Xtream Codes only."
+            "description": "Xtream Codes and tvheadend."
           },
           "tuner_count": {
             "type": [
@@ -9524,7 +9709,7 @@
           },
           "url": {
             "type": "string",
-            "description": "M3U: playlist URL or absolute file path; Xtream: server URL; HDHomeRun: IP\naddress or URL of the device."
+            "description": "M3U: playlist URL or absolute file path; Xtream: server URL; HDHomeRun: IP\naddress or URL of the device; tvheadend: `http://host:9981`."
           },
           "user_agent": {
             "type": [
@@ -9538,7 +9723,7 @@
               "string",
               "null"
             ],
-            "description": "Xtream Codes only."
+            "description": "Xtream Codes and tvheadend."
           }
         }
       },
@@ -10022,6 +10207,7 @@
         "type": "object",
         "required": [
           "id",
+          "kind",
           "name",
           "url",
           "enabled",
@@ -10039,6 +10225,9 @@
           "id": {
             "type": "integer",
             "format": "int64"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EpgSourceKind"
           },
           "last_error": {
             "type": [
@@ -10060,11 +10249,27 @@
             "type": "integer",
             "format": "int64"
           },
+          "tuner_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The tvheadend tuner this guide belongs to."
+          },
           "url": {
             "type": "string",
-            "description": "XMLTV URL or file path (gzip allowed)."
+            "description": "XMLTV URL or file path (gzip allowed); Schedules Direct: the lineup id;\ntvheadend: the server."
           }
         }
+      },
+      "EpgSourceKind": {
+        "type": "string",
+        "enum": [
+          "xmltv",
+          "schedules_direct",
+          "tvheadend"
+        ]
       },
       "ErrorBody": {
         "type": "object",
@@ -12155,6 +12360,48 @@
           }
         }
       },
+      "SchedulesDirectDto": {
+        "type": "object",
+        "required": [
+          "has_password"
+        ],
+        "properties": {
+          "has_password": {
+            "type": "boolean",
+            "description": "Whether a password is stored (only its SHA-1, as the API wants it)."
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SdLineupDto": {
+        "type": "object",
+        "required": [
+          "lineup"
+        ],
+        "properties": {
+          "lineup": {
+            "type": "string",
+            "description": "Lineup id for a guide source, e.g. `DEU-1000097-DEFAULT`."
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "SegmentKind": {
         "type": "string",
         "enum": [
@@ -13040,7 +13287,8 @@
         "enum": [
           "m3u",
           "xtream",
-          "hdhomerun"
+          "hdhomerun",
+          "tvheadend"
         ]
       },
       "Unlock": {
@@ -13310,6 +13558,24 @@
             ],
             "format": "int64",
             "description": "Set both, or `null` both to remove the window."
+          }
+        }
+      },
+      "UpdateSchedulesDirect": {
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "properties": {
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Omit to keep the stored one."
+          },
+          "username": {
+            "type": "string"
           }
         }
       },

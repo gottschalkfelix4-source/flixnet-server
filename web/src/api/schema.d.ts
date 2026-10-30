@@ -1176,6 +1176,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/livetv/schedules-direct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Schedules Direct account (administrators). */
+        get: operations["getSchedulesDirect"];
+        /** Stores the Schedules Direct account after signing in with it. */
+        put: operations["updateSchedulesDirect"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/schedules-direct/lineups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lineups of the Schedules Direct account, to add as guide sources. */
+        get: operations["listSchedulesDirectLineups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/livetv/sessions/{session}": {
         parameters: {
             query?: never;
@@ -2149,8 +2184,12 @@ export interface components {
             overview?: string | null;
         };
         CreateEpgSourceRequest: {
+            kind?: components["schemas"]["EpgSourceKind"] | null;
             name: string;
-            /** @description XMLTV URL (http/https) or absolute file path; `.gz` files are unpacked. */
+            /**
+             * @description XMLTV: URL (http/https) or absolute file path (`.gz` files are unpacked);
+             *     Schedules Direct: the lineup id, e.g. `DEU-1000097-DEFAULT`.
+             */
             url: string;
         };
         CreateInvitationRequest: {
@@ -2241,7 +2280,7 @@ export interface components {
         CreateTunerRequest: {
             kind: components["schemas"]["TunerKindDto"];
             name: string;
-            /** @description Xtream Codes only. */
+            /** @description Xtream Codes and tvheadend. */
             password?: string | null;
             /**
              * Format: int64
@@ -2250,12 +2289,12 @@ export interface components {
             tuner_count?: number | null;
             /**
              * @description M3U: playlist URL or absolute file path; Xtream: server URL; HDHomeRun: IP
-             *     address or URL of the device.
+             *     address or URL of the device; tvheadend: `http://host:9981`.
              */
             url: string;
             /** @description Sent when fetching the playlist and streams (some providers require one). */
             user_agent?: string | null;
-            /** @description Xtream Codes only. */
+            /** @description Xtream Codes and tvheadend. */
             username?: string | null;
         };
         CreateUserRequest: {
@@ -2446,15 +2485,26 @@ export interface components {
             enabled: boolean;
             /** Format: int64 */
             id: number;
+            kind: components["schemas"]["EpgSourceKind"];
             last_error?: string | null;
             /** Format: int64 */
             last_refresh_at?: number | null;
             name: string;
             /** Format: int64 */
             program_count: number;
-            /** @description XMLTV URL or file path (gzip allowed). */
+            /**
+             * Format: int64
+             * @description The tvheadend tuner this guide belongs to.
+             */
+            tuner_id?: number | null;
+            /**
+             * @description XMLTV URL or file path (gzip allowed); Schedules Direct: the lineup id;
+             *     tvheadend: the server.
+             */
             url: string;
         };
+        /** @enum {string} */
+        EpgSourceKind: "xmltv" | "schedules_direct" | "tvheadend";
         /** @description Error body returned by every failing API call. */
         ErrorBody: {
             /**
@@ -3196,6 +3246,17 @@ export interface components {
              */
             job_id?: number | null;
         };
+        SchedulesDirectDto: {
+            /** @description Whether a password is stored (only its SHA-1, as the API wants it). */
+            has_password: boolean;
+            username?: string | null;
+        };
+        SdLineupDto: {
+            /** @description Lineup id for a guide source, e.g. `DEU-1000097-DEFAULT`. */
+            lineup: string;
+            location?: string | null;
+            name?: string | null;
+        };
         /** @enum {string} */
         SegmentKind: "intro" | "credits" | "recap";
         /** @enum {string} */
@@ -3557,7 +3618,7 @@ export interface components {
             username?: string | null;
         };
         /** @enum {string} */
-        TunerKindDto: "m3u" | "xtream" | "hdhomerun";
+        TunerKindDto: "m3u" | "xtream" | "hdhomerun" | "tvheadend";
         /**
          * @description What switching to a profile requires.
          * @enum {string}
@@ -3640,6 +3701,11 @@ export interface components {
              * @description Set both, or `null` both to remove the window.
              */
             window_start_min?: number | null;
+        };
+        UpdateSchedulesDirect: {
+            /** @description Omit to keep the stored one. */
+            password?: string | null;
+            username: string;
         };
         UpdateSubtitleSettings: {
             /** @description OpenSubtitles.com API key (consumer key); `null` removes it. */
@@ -7809,6 +7875,160 @@ export interface operations {
             };
             /** @description The recording is not running */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getSchedulesDirect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulesDirectDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateSchedulesDirect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSchedulesDirect"];
+            };
+        };
+        responses: {
+            /** @description Stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulesDirectDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Schedules Direct refused the account */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Schedules Direct unreachable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listSchedulesDirectLineups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lineups */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdLineupDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No or refused account */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Schedules Direct unreachable */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

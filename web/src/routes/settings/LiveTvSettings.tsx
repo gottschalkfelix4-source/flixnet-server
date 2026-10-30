@@ -5,7 +5,9 @@ import {
   type Channel,
   type DiscoveredTuner,
   type EpgChannel,
+  EPG_KIND_LABELS,
   type EpgSource,
+  type EpgSourceKind,
   TUNER_KIND_LABELS,
   type Tuner,
   type TunerKind,
@@ -21,6 +23,9 @@ import {
   useLiveStreams,
   useLiveTvProfiles,
   useLiveTvSettings,
+  useSchedulesDirect,
+  useSchedulesDirectLineups,
+  useUpdateSchedulesDirect,
   useSetLiveTvAccess,
   useUpdateLiveTvSettings,
   useRefreshEpgSource,
@@ -43,6 +48,7 @@ export function LiveTvSettings() {
     <div className="flex flex-col gap-6">
       <TunersSection />
       <EpgSourcesSection />
+      <SchedulesDirectSection />
       <ChannelsSection />
       <RecordingSettingsSection />
       <ProfilesSection />
@@ -136,6 +142,12 @@ const URL_LABELS: Record<TunerKind, { label: string; placeholder: string }> = {
   m3u: { label: 'Playlist (URL oder Datei)', placeholder: 'http://anbieter.example/playlist.m3u' },
   xtream: { label: 'Server-Adresse', placeholder: 'http://anbieter.example:8080' },
   hdhomerun: { label: 'IP-Adresse des Geräts', placeholder: '192.168.1.50' },
+  tvheadend: { label: 'Server-Adresse', placeholder: 'http://tvheadend.local:9981' },
+}
+
+/** Tuner kinds with an account. */
+function hasAccount(kind: TunerKind): boolean {
+  return kind === 'xtream' || kind === 'tvheadend'
 }
 
 function TunerDialog({ tuner, onClose }: { tuner: Tuner | null; onClose: () => void }) {
@@ -163,8 +175,8 @@ function TunerDialog({ tuner, onClose }: { tuner: Tuner | null; onClose: () => v
           id: tuner.id,
           name: name.trim(),
           url: url.trim(),
-          username: kind === 'xtream' ? username.trim() || null : undefined,
-          password: kind === 'xtream' && password ? password : undefined,
+          username: hasAccount(kind) ? username.trim() || null : undefined,
+          password: hasAccount(kind) && password ? password : undefined,
           user_agent: userAgent.trim() || null,
           tuner_count: tunerCount,
           enabled,
@@ -177,8 +189,8 @@ function TunerDialog({ tuner, onClose }: { tuner: Tuner | null; onClose: () => v
           kind,
           name: name.trim(),
           url: url.trim(),
-          username: kind === 'xtream' ? username.trim() : null,
-          password: kind === 'xtream' ? password : null,
+          username: hasAccount(kind) ? username.trim() || null : null,
+          password: hasAccount(kind) ? password || null : null,
           user_agent: userAgent.trim() || null,
           tuner_count: tunerCount,
         },
@@ -246,7 +258,13 @@ function TunerDialog({ tuner, onClose }: { tuner: Tuner | null; onClose: () => v
             ))}
           </div>
         )}
-        {kind === 'xtream' && (
+        {kind === 'tvheadend' && (
+          <p className="text-xs text-subtle">
+            Benutzer mit Streaming-Recht; in tvheadend „Plain und Digest“ als Anmeldeart. Das EPG wird als Programmquelle
+            mit angelegt.
+          </p>
+        )}
+        {hasAccount(kind) && (
           <div className="grid gap-4 md:grid-cols-2">
             <TextField label="Benutzername" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
             <TextField
@@ -329,6 +347,7 @@ function EpgSourcesSection() {
               <p className="text-sm font-bold">
                 {source.name}
                 {!source.enabled && <span className="ml-2 text-xs font-semibold text-subtle">deaktiviert</span>}
+                {source.kind !== 'xmltv' && <span className="ml-2 text-xs font-semibold text-subtle">{EPG_KIND_LABELS[source.kind]}</span>}
               </p>
               <p className="text-xs text-subtle" data-testid="epg-source-summary">
                 {source.last_refresh_at == null
@@ -370,14 +389,21 @@ function EpgSourceDialog({ source, onClose }: { source: EpgSource | null; onClos
   const remove = useDeleteEpgSource()
   const [name, setName] = useState(source?.name ?? '')
   const [url, setUrl] = useState(source?.url ?? '')
+  const [kind, setKind] = useState<EpgSourceKind>(source?.kind ?? 'xmltv')
   const [enabled, setEnabled] = useState(source?.enabled ?? true)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const account = useSchedulesDirect()
+  const lineups = useSchedulesDirectLineups(kind === 'schedules_direct' && !source && !!account.data?.has_password)
   const error = create.error ?? update.error ?? remove.error
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (source) update.mutate({ id: source.id, name: name.trim(), url: url.trim(), enabled }, { onSuccess: onClose })
-    else create.mutate({ name: name.trim(), url: url.trim() }, { onSuccess: onClose })
+    if (source) {
+      update.mutate(
+        { id: source.id, name: name.trim(), url: source.kind === 'tvheadend' ? undefined : url.trim(), enabled },
+        { onSuccess: onClose },
+      )
+    } else create.mutate({ name: name.trim(), url: url.trim(), kind }, { onSuccess: onClose })
   }
 
   return (
@@ -387,13 +413,52 @@ function EpgSourceDialog({ source, onClose }: { source: EpgSource | null; onClos
       title={source ? `${source.name} bearbeiten` : 'Programmquelle hinzufügen'}
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
+        {!source && (
+          <SelectField
+            label="Art"
+            value={kind}
+            onChange={(v) => setKind(v as EpgSourceKind)}
+            options={[
+              { value: 'xmltv', label: EPG_KIND_LABELS.xmltv },
+              { value: 'schedules_direct', label: EPG_KIND_LABELS.schedules_direct },
+            ]}
+          />
+        )}
         <TextField label="Name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} />
-        <TextField
-          label="XMLTV-Adresse oder Datei"
-          placeholder="http://epg.example/guide.xml.gz"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
+        {kind === 'tvheadend' ? (
+          <p className="text-sm text-muted">Programmdaten des tvheadend-Tuners {source?.url}.</p>
+        ) : kind === 'schedules_direct' ? (
+          <>
+            <TextField
+              label="Lineup"
+              placeholder="DEU-1000097-DEFAULT"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              hint={account.data?.has_password ? undefined : 'Zuerst unten das Schedules-Direct-Konto eintragen.'}
+            />
+            {lineups.data?.map((l) => (
+              <button
+                key={l.lineup}
+                type="button"
+                onClick={() => {
+                  setUrl(l.lineup)
+                  if (!name.trim()) setName(l.name ?? l.lineup)
+                }}
+                className="flex items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2 text-left text-sm hover:bg-surface-3"
+              >
+                <span className="font-semibold">{l.name ?? l.lineup}</span>
+                <span className="text-xs text-muted">{[l.location, l.lineup].filter(Boolean).join(' · ')}</span>
+              </button>
+            ))}
+          </>
+        ) : (
+          <TextField
+            label="XMLTV-Adresse oder Datei"
+            placeholder="http://epg.example/guide.xml.gz"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        )}
         {source && <Checkbox label="Aktiv" checked={enabled} onChange={setEnabled} />}
         <FormError error={error} />
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
@@ -416,12 +481,67 @@ function EpgSourceDialog({ source, onClose }: { source: EpgSource | null; onClos
           ) : (
             <span />
           )}
-          <Button type="submit" variant="accent" loading={create.isPending || update.isPending} disabled={!name.trim() || !url.trim()}>
+          <Button
+            type="submit"
+            variant="accent"
+            loading={create.isPending || update.isPending}
+            disabled={!name.trim() || (kind !== 'tvheadend' && !url.trim())}
+          >
             Speichern
           </Button>
         </div>
       </form>
     </Dialog>
+  )
+}
+
+// ---- Schedules Direct account -------------------------------------------------------
+
+function SchedulesDirectSection() {
+  const account = useSchedulesDirect()
+  if (!account.data) return null
+  return <SchedulesDirectForm username={account.data.username ?? ''} hasPassword={account.data.has_password} />
+}
+
+function SchedulesDirectForm({ username: initial, hasPassword }: { username: string; hasPassword: boolean }) {
+  const save = useUpdateSchedulesDirect()
+  const [username, setUsername] = useState(initial)
+  const [password, setPassword] = useState('')
+  return (
+    <Section
+      title="Schedules Direct"
+      description="Kostenpflichtiger Programmdienst (schedulesdirect.org). Mit Konto lassen sich Lineups als Programmquelle hinzufügen."
+    >
+      <form
+        className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+        onSubmit={(event) => {
+          event.preventDefault()
+          save.mutate({ username: username.trim(), password: password || null }, { onSuccess: () => setPassword('') })
+        }}
+        data-testid="schedules-direct"
+      >
+        <TextField label="Benutzername" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <TextField
+          label={hasPassword ? 'Neues Passwort (gespeichert)' : 'Passwort'}
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <Button type="submit" variant="accent" loading={save.isPending} disabled={!username.trim() || (!hasPassword && !password)}>
+          Anmelden
+        </Button>
+        <div className="md:col-span-3">
+          {save.isSuccess && (
+            <span className="inline-flex items-center gap-1 text-sm text-muted">
+              <CheckCircle2 className="size-4 text-accent" aria-hidden="true" />
+              Angemeldet
+            </span>
+          )}
+          <FormError error={save.error} />
+        </div>
+      </form>
+    </Section>
   )
 }
 

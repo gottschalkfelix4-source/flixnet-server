@@ -256,6 +256,41 @@ export const TUNER_KIND_LABELS: Record<TunerKind, string> = {
   m3u: 'M3U-Playlist',
   xtream: 'Xtream Codes',
   hdhomerun: 'HDHomeRun',
+  tvheadend: 'tvheadend',
+}
+
+export type EpgSourceKind = Schemas['EpgSourceKind']
+
+export const EPG_KIND_LABELS: Record<EpgSourceKind, string> = {
+  xmltv: 'XMLTV',
+  schedules_direct: 'Schedules Direct',
+  tvheadend: 'tvheadend-EPG',
+}
+
+export function useSchedulesDirect() {
+  return useQuery({
+    queryKey: ['livetv', 'schedules-direct'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/livetv/schedules-direct')),
+  })
+}
+
+export function useUpdateSchedulesDirect() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async (body: Schemas['UpdateSchedulesDirect']) =>
+      unwrap(await api.PUT('/api/v1/livetv/schedules-direct', { body })),
+    onSuccess: invalidate,
+  })
+}
+
+/** Lineups of the Schedules Direct account (only once an account is stored). */
+export function useSchedulesDirectLineups(enabled: boolean) {
+  return useQuery({
+    queryKey: ['livetv', 'schedules-direct', 'lineups'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/livetv/schedules-direct/lineups')),
+    enabled,
+    retry: false,
+  })
 }
 
 // ---- Recordings (DVR) ---------------------------------------------------------------
