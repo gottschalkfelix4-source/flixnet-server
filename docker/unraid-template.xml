@@ -10,6 +10,11 @@
   <Support>https://github.com/gottschalkfelix4-source/flixnet-server/issues</Support>
   <Project>https://github.com/gottschalkfelix4-source/flixnet-server</Project>
   <Overview>Flixnet: selbst gehosteter Media Server in Rust mit lokaler KI, Hardware-Transcoding (Intel QuickSync/VAAPI) und Live TV. Beim ersten Aufruf der Web-Oberfläche führt ein Assistent durch das Anlegen des Admin-Kontos; Bibliotheken danach unter Einstellungen → Bibliotheken mit Pfaden unter /media hinzufügen.</Overview>
+  <Changes>
+### Phase 9
+- Benachrichtigungen (Webhooks, ntfy, Discord, E-Mail), Trakt-Sync, Import aus Plex/Jellyfin
+- Server-Übersicht mit Bandbreite und Protokoll, tägliche Sicherungen, Single Sign-on (OpenID Connect)
+  </Changes>
   <Category>MediaServer:Video MediaServer:Music</Category>
   <WebUI>http://[IP]:[PORT:8097]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/gottschalkfelix4-source/flixnet-server/main/docker/unraid-template.xml</TemplateURL>
@@ -23,6 +28,7 @@
   <Config Name="WebUI-Port" Target="8097" Default="8099" Mode="tcp" Description="Port der Web-Oberfläche und API auf dem Server. 8099, weil 8097 oft schon belegt ist; frei wählbar." Type="Port" Display="always" Required="true" Mask="false">8099</Config>
   <Config Name="Config" Target="/config" Default="/mnt/cache/appdata/flixnet" Mode="rw" Description="Datenbank, Bild-Cache, KI-Modelle. Direkt auf dem Cache-Pool (/mnt/cache/...), NICHT /mnt/user, sonst drohen SQLite-Lockfehler." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/flixnet</Config>
   <Config Name="Medien" Target="/media" Default="/mnt/user/" Mode="ro,slave" Description="Medienordner, nur lesend. Netzwerkfreigaben (Unassigned Devices) liegen unter /mnt/remotes/…; im Container erscheint alles unter /media." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/</Config>
+  <Config Name="Sicherungen" Target="/backups" Default="/mnt/user/backups/flixnet" Mode="rw" Description="Optional: Ziel für die täglichen Datenbank-Sicherungen. Danach unter Einstellungen → Sicherung als Ordner /backups eintragen (sonst landen sie in /config/backups)." Type="Path" Display="advanced" Required="false" Mask="false">/mnt/user/backups/flixnet</Config>
   <Config Name="Transcode" Target="/transcode" Default="/tmp/flixnet-transcode" Mode="rw" Description="Temporäre Transcode-Segmente; /tmp liegt im RAM, das schont die Platten." Type="Path" Display="advanced" Required="false" Mask="false">/tmp/flixnet-transcode</Config>
   <Config Name="Intel/AMD GPU" Target="/dev/dri" Default="/dev/dri" Mode="" Description="Grafik-Device für Hardware-Transcoding (QuickSync/VAAPI). Leer lassen, wenn keine iGPU vorhanden ist." Type="Device" Display="always" Required="false" Mask="false">/dev/dri</Config>
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User-ID, unter der Flixnet läuft (Unraid: 99 = nobody)" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
