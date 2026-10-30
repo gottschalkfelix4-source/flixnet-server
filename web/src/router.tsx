@@ -14,6 +14,8 @@ import { getSession } from '@/lib/session'
 import { type BrowseSearch, BrowsePage } from '@/routes/BrowsePage'
 import { CollectionPage } from '@/routes/CollectionPage'
 import { CollectionsPage } from '@/routes/CollectionsPage'
+import { ForYouPage } from '@/routes/ForYouPage'
+import { GroupPage } from '@/routes/GroupPage'
 import { HomePage } from '@/routes/HomePage'
 import { ItemPage } from '@/routes/ItemPage'
 import { LivePlayerPage } from '@/routes/LivePlayerPage'
@@ -252,7 +254,8 @@ const routeTree = rootRoute.addChildren([
     searchRoute,
     liveRoute,
     placeholder('/music', 'Musik', 'Musikbibliotheken folgen in Phase 9.'),
-    placeholder('/for-you', 'Für dich', 'KI-Empfehlungen folgen in Phase 6.'),
+    createRoute({ getParentRoute: () => appRoute, path: '/for-you', component: ForYouPage }),
+    createRoute({ getParentRoute: () => appRoute, path: '/group', component: GroupPage }),
   ]),
 ])
 

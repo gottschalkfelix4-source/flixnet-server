@@ -7,6 +7,7 @@ export type SettingsTab =
   | 'livetv'
   | 'users'
   | 'invitations'
+  | 'ai'
   | 'jobs'
   | 'sessions'
 
@@ -19,6 +20,7 @@ export const SETTINGS_TABS: { id: SettingsTab; label: string; admin: boolean }[]
   { id: 'livetv', label: 'Live TV', admin: true },
   { id: 'users', label: 'Nutzer', admin: true },
   { id: 'invitations', label: 'Einladungen', admin: true },
+  { id: 'ai', label: 'KI', admin: true },
   { id: 'jobs', label: 'Aufgaben', admin: true },
   { id: 'sessions', label: 'Wiedergaben', admin: true },
 ]

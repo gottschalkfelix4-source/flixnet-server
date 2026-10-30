@@ -340,7 +340,7 @@ impl Ai {
 
     /// Embeds a search query with the model of the loaded index; `None` if semantic
     /// search is unavailable (no vectors, or the embedder cannot run).
-    pub async fn query_vector(&self, text: &str) -> Option<(Vec<f32>, f32)> {
+    pub async fn query_vector(&self, text: &str) -> Option<(Vec<f32>, embed::Relevance)> {
         if !self.ensure_index().await.ok()? {
             return None;
         }
@@ -362,7 +362,7 @@ impl Ai {
             return None;
         }
         match embedder.embed_query(text).await {
-            Ok(v) => Some((v, embedder.search_margin())),
+            Ok(v) => Some((v, embedder.search_relevance())),
             Err(err) => {
                 tracing::warn!(%err, "embedding the search query failed");
                 None

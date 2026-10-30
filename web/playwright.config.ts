@@ -54,6 +54,8 @@ export default defineConfig({
         FLIXNET_PATHS__CONFIG_DIR: configDir,
         FLIXNET_CONFIG: join(configDir, 'flixnet.toml'),
         FLIXNET_OPENSUBTITLES_URL: `http://127.0.0.1:${stubPort}/api/v1`,
+        // Deterministic test embeddings: no model download (e2e/foryou.spec.ts).
+        FLIXNET_AI__EMBEDDER: 'stub',
       },
     },
   ],

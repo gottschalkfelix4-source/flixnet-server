@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useSession } from '@/lib/session'
 import { AccountSettings } from './AccountSettings'
+import { AiSettings } from './AiSettings'
 import { InvitationsSettings } from './InvitationsSettings'
 import { JobsSettings } from './JobsSettings'
 import { LibrariesSettings } from './LibrariesSettings'
@@ -48,6 +49,7 @@ export function SettingsPage() {
         {active === 'livetv' && <LiveTvSettings />}
         {active === 'users' && <UsersSettings />}
         {active === 'invitations' && <InvitationsSettings />}
+        {active === 'ai' && <AiSettings />}
         {active === 'jobs' && <JobsSettings />}
         {active === 'sessions' && <SessionsSettings />}
       </div>

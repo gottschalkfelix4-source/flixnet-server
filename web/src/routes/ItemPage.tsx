@@ -6,6 +6,7 @@ import { type ItemCard, type ItemDetail, useItem, useItems, useRefreshItem, useS
 import { AddToCollectionDialog } from '@/components/media/AddToCollectionDialog'
 import { AddToPlaylistButton } from '@/components/media/AddToPlaylistDialog'
 import { BlurImage } from '@/components/media/BlurImage'
+import { useSimilarItems } from '@/api/queries/ai'
 import { CastRow } from '@/components/media/CastRow'
 import { CollectionRows } from '@/components/media/CollectionRows'
 import { IdentifyDialog } from '@/components/media/IdentifyDialog'
@@ -339,9 +340,12 @@ function TechnicalInfo({ item }: { item: ItemDetail }) {
   )
 }
 
+/** Semantically similar titles; without AI, the best rated of the same genre. */
 function MoreLikeThis({ item }: { item: ItemDetail }) {
+  const semantic = useSimilarItems(item.id)
   const genre = item.genres[0]
-  const similar = useItems({ kind: item.kind, genre, sort: 'rating', order: 'desc', limit: 20 }, !!genre)
-  const items = similar.data?.items.filter((i) => i.id !== item.id)
+  const fallback = semantic.data !== undefined && semantic.data.length === 0
+  const byGenre = useItems({ kind: item.kind, genre, sort: 'rating', order: 'desc', limit: 20 }, fallback && !!genre)
+  const items = fallback ? byGenre.data?.items.filter((i) => i.id !== item.id) : semantic.data
   return <Row title="Mehr wie das" items={items} />
 }

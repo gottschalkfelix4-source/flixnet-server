@@ -7,8 +7,9 @@ use std::collections::HashSet;
 use flixnet_db::browse::{self, ItemFilter, Sort};
 
 use crate::Ai;
+use crate::embed::Relevance;
 use crate::index::VectorIndex;
-use crate::math::{RRF_K, rrf};
+use crate::math::{RRF_K, dot, rrf};
 
 /// How many full-text hits take part in the fusion.
 const FTS_DEPTH: i64 = 200;
@@ -47,7 +48,7 @@ pub async fn hybrid_page(
     if kinds.is_empty() {
         return Ok(None);
     }
-    let Some((query, margin)) = ai.query_vector(raw).await else {
+    let Some((query, relevance)) = ai.query_vector(raw).await else {
         return Ok(None);
     };
     let db = ai.db();
@@ -65,14 +66,24 @@ pub async fn hybrid_page(
         .await?
         .into_iter()
         .collect();
-    let hits = {
+    let (hits, keyword_best) = {
         let loaded = ai.index().await;
-        loaded
-            .as_ref()
-            .map(|l| l.index.search(&query, VECTOR_DEPTH, Some(&allowed)))
-            .unwrap_or_default()
+        match loaded.as_ref() {
+            Some(l) => (
+                l.index.search(&query, VECTOR_DEPTH, Some(&allowed)),
+                // How well the best keyword hit matches the meaning of the query.
+                fts_ids
+                    .iter()
+                    .filter_map(|id| l.index.vector(*id))
+                    .map(|v| dot(&query, v))
+                    .fold(None, |best: Option<f32>, s| {
+                        Some(best.map_or(s, |b| b.max(s)))
+                    }),
+            ),
+            None => (Vec::new(), None),
+        }
     };
-    let vector_ids = relevant_hits(&hits, margin);
+    let vector_ids = relevant_hits(&hits, relevance, keyword_best, &fts_ids);
 
     let fused = rrf(&[&fts_ids, &vector_ids], RRF_K);
     let total = fused.len() as i64 + (fts_total - fts_ids.len() as i64).max(0);
@@ -85,14 +96,26 @@ pub async fn hybrid_page(
     Ok(Some(HybridPage { ids, total }))
 }
 
-/// Vector hits close enough to the best one: a query about dinosaurs should not list
-/// the whole library just because every item has *some* similarity.
-pub fn relevant_hits(hits: &[(i64, f32)], margin: f32) -> Vec<i64> {
+/// Vector hits that take part in the fusion.
+///
+/// * Only hits close to the best one: a query about dinosaurs should not list the
+///   whole library just because every item has *some* similarity.
+/// * When the full text found something, a title it did not find must match the
+///   query's meaning better than the best keyword hit (`keyword_best`). Looking up
+///   "Matrix" shows Matrix, not ten films that are merely similar; a description
+///   ("Film über Zeitreisen mit Dinosauriern") still gets its semantic matches.
+pub fn relevant_hits(
+    hits: &[(i64, f32)],
+    relevance: Relevance,
+    keyword_best: Option<f32>,
+    fts_ids: &[i64],
+) -> Vec<i64> {
     let Some(best) = hits.first().map(|h| h.1) else {
         return Vec::new();
     };
     hits.iter()
-        .take_while(|(_, score)| *score >= best - margin)
+        .take_while(|(_, score)| *score >= best - relevance.margin && *score >= relevance.floor)
+        .filter(|(id, score)| fts_ids.contains(id) || keyword_best.is_none_or(|k| *score > k))
         .map(|(id, _)| *id)
         .collect()
 }
@@ -129,8 +152,18 @@ mod tests {
     #[test]
     fn only_hits_near_the_best_one_count() {
         let hits = [(1, 0.9), (2, 0.88), (3, 0.86), (4, 0.7)];
-        assert_eq!(relevant_hits(&hits, 0.035), [1, 2]);
-        assert_eq!(relevant_hits(&hits, 0.25), [1, 2, 3, 4]);
-        assert!(relevant_hits(&[], 0.1).is_empty());
+        let r = |margin, floor| Relevance { margin, floor };
+        assert_eq!(relevant_hits(&hits, r(0.035, 0.0), None, &[]), [1, 2]);
+        assert_eq!(relevant_hits(&hits, r(0.25, 0.0), None, &[]), [1, 2, 3, 4]);
+        assert_eq!(relevant_hits(&hits, r(0.25, 0.8), None, &[]), [1, 2, 3]);
+        assert!(relevant_hits(&hits, r(0.25, 0.95), None, &[]).is_empty());
+        assert!(relevant_hits(&[], r(0.1, 0.0), None, &[]).is_empty());
+        // A keyword hit that matches the meaning best keeps lookalikes out …
+        assert_eq!(relevant_hits(&hits, r(0.25, 0.0), Some(0.9), &[1]), [1]);
+        // … a weak, accidental keyword hit does not.
+        assert_eq!(
+            relevant_hits(&hits, r(0.25, 0.0), Some(0.7), &[4]),
+            [1, 2, 3, 4]
+        );
     }
 }

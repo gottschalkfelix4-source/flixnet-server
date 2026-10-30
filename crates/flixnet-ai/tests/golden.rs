@@ -114,10 +114,8 @@ async fn stub_pipeline_embeds_the_catalogue_and_answers_the_golden_set() {
     // The stub only knows word stems and a handful of concepts; this guards the
     // plumbing, not quality (that is the e5 test below).
     assert!(vector >= 0.4, "stub vector recall {vector}");
-    assert!(
-        hybrid >= vector - 0.05,
-        "hybrid {hybrid} should not lose to vectors alone {vector}"
-    );
+    // Hybrid only keeps stub hits above its noise floor, so it may trail here.
+    assert!(hybrid >= 0.3, "stub hybrid recall {hybrid}");
 }
 
 #[tokio::test]
@@ -164,4 +162,8 @@ async fn e5_reaches_recall_at_5_of_0_8_on_the_golden_set() {
     let (vector, hybrid) = report(&ai, &cat, "multilingual-e5-base int8").await;
     assert!(hybrid >= 0.8, "hybrid Recall@5 {hybrid}");
     assert!(vector >= 0.8, "vector Recall@5 {vector}");
+    assert!(
+        hybrid >= vector - 0.05,
+        "hybrid {hybrid} should not lose to vectors alone {vector}"
+    );
 }

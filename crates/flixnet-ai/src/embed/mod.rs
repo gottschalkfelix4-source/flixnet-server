@@ -32,6 +32,13 @@ impl std::fmt::Debug for Embedder {
     }
 }
 
+/// Vector hits within `margin` of the best one and at least `floor` count.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Relevance {
+    pub margin: f32,
+    pub floor: f32,
+}
+
 /// Texts per model call.
 pub const BATCH: usize = 16;
 
@@ -46,14 +53,26 @@ impl Embedder {
         }
     }
 
-    /// How far below the best vector hit a search result may score and still count
-    /// as relevant (cosine; models compress similarities differently).
-    pub fn search_margin(&self) -> f32 {
+    /// Which vector hits count as relevant for a search (cosine; models compress
+    /// similarities differently).
+    pub fn search_relevance(&self) -> Relevance {
         match self {
-            Embedder::Stub => 0.25,
+            // Stub vectors of unrelated texts are near zero, of related ones well above.
+            Embedder::Stub => Relevance {
+                margin: 0.25,
+                floor: 0.2,
+            },
+            // e5 scores everything around 0.7–0.85; relevant titles sit within ~0.06
+            // of the best hit (measured on the golden set).
             #[cfg(feature = "onnx")]
-            Embedder::Local(_) => 0.06,
-            Embedder::OpenAi(_) => 0.1,
+            Embedder::Local(_) => Relevance {
+                margin: 0.06,
+                floor: 0.0,
+            },
+            Embedder::OpenAi(_) => Relevance {
+                margin: 0.1,
+                floor: 0.0,
+            },
         }
     }
 

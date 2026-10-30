@@ -5,7 +5,8 @@ import { type ItemCard, useItems } from '@/api/queries/items'
 import { PosterCard } from '@/components/media/PosterCard'
 import { EmptyState } from '@/components/ui/EmptyState'
 
-/** Search across movies, series and episodes, ranked by relevance (FTS5). */
+/** Search across movies, series and episodes: full text plus, once the library is
+ *  embedded, semantic matches ("Film über Zeitreisen mit Dinosauriern"). */
 export function SearchPage() {
   const { q = '' } = useSearch({ from: '/app/search' })
   const navigate = useNavigate({ from: '/search' })
@@ -54,7 +55,7 @@ export function SearchPage() {
 
       {!enabled && (
         <EmptyState icon={SearchIcon} title="Was möchtest du sehen?">
-          Suche nach Titeln, Originaltiteln, Inhalten oder Folgennamen.
+          Suche nach Titeln, Inhalten oder Folgennamen – oder beschreib einfach, worauf du Lust hast.
         </EmptyState>
       )}
       {nothing && (

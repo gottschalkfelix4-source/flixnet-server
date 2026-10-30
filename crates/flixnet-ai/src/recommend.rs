@@ -557,9 +557,11 @@ pub async fn because_rows(
             .iter()
             .copied()
             .filter(|id| !used.contains(id))
+            // Nothing in common at all is no "because".
+            .filter(|id| index.vector(*id).is_some_and(|v| dot(sv, v) > 0.05))
             .collect();
         let picks = rank(&available, index, |_, v| dot(sv, v) as f64, per_row, 0.85);
-        if picks.len() < 3 {
+        if picks.len() < 2 {
             continue;
         }
         used.extend(picks.iter().map(|(id, _)| *id));
