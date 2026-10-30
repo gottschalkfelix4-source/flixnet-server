@@ -22,6 +22,11 @@ import { PersonPage } from '@/routes/PersonPage'
 import { PlaylistPage } from '@/routes/PlaylistPage'
 import { PlaylistsPage } from '@/routes/PlaylistsPage'
 import { PlayerPage } from '@/routes/PlayerPage'
+import { albumQuery } from '@/api/queries/music'
+import { AlbumPage } from '@/routes/music/AlbumPage'
+import { ArtistPage } from '@/routes/music/ArtistPage'
+import { MusicPage } from '@/routes/music/MusicPage'
+import { validateMusicSearch } from '@/routes/music/search'
 import { type SearchMode, SearchPage } from '@/routes/SearchPage'
 import { InvitePage } from '@/routes/InvitePage'
 import { LoginPage } from '@/routes/LoginPage'
@@ -240,6 +245,26 @@ const searchRoute = createRoute({
   }),
 })
 
+const musicRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/music',
+  component: MusicPage,
+  validateSearch: validateMusicSearch,
+})
+
+const musicAlbumRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/music/album/$id',
+  component: AlbumPage,
+  loader: ({ context, params }) => context.queryClient.prefetchQuery(albumQuery(Number(params.id))),
+})
+
+const musicArtistRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/music/artist/$id',
+  component: ArtistPage,
+})
+
 function placeholder(path: string, title: string, note: string) {
   return createRoute({
     getParentRoute: () => appRoute,
@@ -269,7 +294,9 @@ const routeTree = rootRoute.addChildren([
     playlistRoute,
     searchRoute,
     liveRoute,
-    placeholder('/music', 'Musik', 'Musikbibliotheken folgen in Phase 9.'),
+    musicRoute,
+    musicAlbumRoute,
+    musicArtistRoute,
     placeholder('/for-you', 'Für dich', 'KI-Empfehlungen folgen in Phase 6.'),
   ]),
 ])

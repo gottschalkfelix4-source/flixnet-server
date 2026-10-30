@@ -552,7 +552,11 @@ async fn a_restricted_profile_sees_nothing_above_its_limit_anywhere() {
                 "GET {uri} served a restricted image"
             );
         }
-        for prefix in ["/api/v1/stream/", "/api/v1/subtitles/"] {
+        for prefix in [
+            "/api/v1/stream/",
+            "/api/v1/subtitles/",
+            "/api/v1/music/stream/",
+        ] {
             if let Some(id) = id_of(prefix) {
                 assert!(
                     !(restricted_files.contains(&id) && status.is_success()),

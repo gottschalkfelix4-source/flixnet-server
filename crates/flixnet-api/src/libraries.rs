@@ -30,6 +30,8 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
 pub enum LibraryKind {
     Movies,
     Shows,
+    /// Audio files; items come from the tags (artist → album → track).
+    Music,
 }
 
 impl LibraryKind {
@@ -37,6 +39,7 @@ impl LibraryKind {
         match self {
             LibraryKind::Movies => "movies",
             LibraryKind::Shows => "shows",
+            LibraryKind::Music => "music",
         }
     }
 }
@@ -46,6 +49,10 @@ pub struct LibraryCountsDto {
     pub movies: i64,
     pub series: i64,
     pub episodes: i64,
+    /// Music libraries: album artists, albums and tracks.
+    pub artists: i64,
+    pub albums: i64,
+    pub tracks: i64,
     pub files: i64,
     /// Files whose technical details are still being read.
     pub unprobed: i64,
@@ -396,6 +403,7 @@ async fn to_dto(
     with_paths: bool,
 ) -> ApiResult<LibraryDto> {
     let counts = libraries::counts(&state.db, library.id).await?;
+    let (artists, albums, tracks) = flixnet_db::music::counts(&state.db, library.id).await?;
     let paths = if with_paths {
         Some(libraries::paths(&state.db, library.id).await?)
     } else {
@@ -410,6 +418,9 @@ async fn to_dto(
             movies: counts.movies,
             series: counts.series,
             episodes: counts.episodes,
+            artists,
+            albums,
+            tracks,
             files: counts.files,
             unprobed: counts.unprobed,
         },

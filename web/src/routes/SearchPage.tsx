@@ -4,8 +4,11 @@ import { Clapperboard, MessageSquareQuote, Play, Search as SearchIcon, Sparkles,
 import { useEffect, useState } from 'react'
 import { type NaturalSearch, type SceneHit, useNaturalSearch, useSceneSearch } from '@/api/queries/assistant'
 import { type ItemCard, useItems } from '@/api/queries/items'
+import { useTracks } from '@/api/queries/music'
 import { BlurImage } from '@/components/media/BlurImage'
 import { PosterCard } from '@/components/media/PosterCard'
+import { AlbumCard, ArtistCard, CardGrid } from '@/components/music/MusicCards'
+import { TrackList } from '@/components/music/TrackList'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatTimecode } from '@/lib/format'
 import { episodeLabel } from '@/lib/media'
@@ -19,7 +22,7 @@ interface ModeInfo {
   icon: typeof SearchIcon
 }
 
-const TITLES: ModeInfo = { id: 'titles', label: 'Titel', placeholder: 'Filme, Serien, Folgen…', icon: SearchIcon }
+const TITLES: ModeInfo = { id: 'titles', label: 'Titel', placeholder: 'Filme, Serien, Folgen, Musik…', icon: SearchIcon }
 const MODES: ModeInfo[] = [
   TITLES,
   { id: 'scenes', label: 'Szenen', placeholder: 'z. B. die Szene, wo sie am Strand streiten', icon: MessageSquareQuote },
@@ -126,8 +129,13 @@ function TitleResults({ q }: { q: string }) {
   const movies = useItems({ ...base, kind: 'movie' })
   const series = useItems({ ...base, kind: 'series' })
   const episodes = useItems({ ...base, kind: 'episode', limit: 24 })
-  const loaded = movies.data && series.data && episodes.data
-  const nothing = loaded && movies.data.total + series.data.total + episodes.data.total === 0
+  const artists = useItems({ ...base, kind: 'artist', limit: 12 })
+  const albums = useItems({ ...base, kind: 'album', limit: 24 })
+  const tracks = useTracks({ search: q, limit: 20 }, true)
+  const loaded = movies.data && series.data && episodes.data && artists.data && albums.data && tracks.data
+  const nothing =
+    loaded &&
+    movies.data.total + series.data.total + episodes.data.total + artists.data.total + albums.data.total + tracks.data.total === 0
   if (nothing)
     return (
       <EmptyState icon={SearchIcon} title="Keine Treffer">
@@ -139,6 +147,32 @@ function TitleResults({ q }: { q: string }) {
       <ResultGroup title="Filme" items={movies.data?.items} />
       <ResultGroup title="Serien" items={series.data?.items} />
       <ResultGroup title="Folgen" items={episodes.data?.items} wide />
+      {!!artists.data?.items.length && (
+        <section className="mb-10" aria-label="Künstler">
+          <h2 className="mb-4 text-lg font-bold">Künstler</h2>
+          <CardGrid round>
+            {artists.data.items.map((a) => (
+              <ArtistCard key={a.id} artist={a} />
+            ))}
+          </CardGrid>
+        </section>
+      )}
+      {!!albums.data?.items.length && (
+        <section className="mb-10" aria-label="Alben">
+          <h2 className="mb-4 text-lg font-bold">Alben</h2>
+          <CardGrid>
+            {albums.data.items.map((a) => (
+              <AlbumCard key={a.id} album={a} />
+            ))}
+          </CardGrid>
+        </section>
+      )}
+      {!!tracks.data?.items.length && (
+        <section className="mb-10" aria-label="Titel">
+          <h2 className="mb-4 text-lg font-bold">Titel</h2>
+          <TrackList tracks={tracks.data.items} showAlbum />
+        </section>
+      )}
     </div>
   )
 }

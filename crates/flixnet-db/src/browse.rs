@@ -326,12 +326,16 @@ pub(crate) fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
     }
     if let Some(max_age) = f.max_age {
         // Episodes and seasons inherit the series rating. Unrated content counts as
-        // age 0 when allowed, otherwise as older than any limit.
+        // age 0 when allowed, otherwise as older than any limit. Music has no rating
+        // system, so unrated artists, albums and tracks always count as age 0 (tracks
+        // tagged explicit carry an age rating of their own): a limit must not hide
+        // all music. Library access still applies as for everything else.
         qb.push(
-            " AND COALESCE(i.age_rating, (SELECT s.age_rating FROM items s WHERE s.id = i.series_id), ",
+            " AND COALESCE(i.age_rating, (SELECT s.age_rating FROM items s WHERE s.id = i.series_id),
+                           CASE WHEN i.kind IN ('artist', 'album', 'track') THEN 0 ELSE ",
         )
         .push_bind(if f.allow_unrated { 0_i64 } else { 1000 })
-        .push(") <= ")
+        .push(" END) <= ")
         .push_bind(max_age);
     }
     if !f.blocked_genres.is_empty() {

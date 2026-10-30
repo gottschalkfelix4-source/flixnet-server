@@ -36,6 +36,16 @@ pub async fn update_identity(db: &Db, item_id: i64) -> Result<()> {
             .await?
             .unwrap_or(content_key),
         "series" => series_identity(db, item_id).await?.unwrap_or(content_key),
+        // Music: MusicBrainz ids once known (tags or lookups), else the tag-based key.
+        "artist" => provider_identity(db, item_id, &[("musicbrainz_artist", "mb:artist:")])
+            .await?
+            .unwrap_or(content_key),
+        "album" => provider_identity(db, item_id, &[("musicbrainz_album", "mb:release:")])
+            .await?
+            .unwrap_or(content_key),
+        "track" => provider_identity(db, item_id, &[("musicbrainz_track", "mb:track:")])
+            .await?
+            .unwrap_or(content_key),
         "season" => match (series_id, index) {
             (Some(series), Some(n)) => match series_identity(db, series).await? {
                 Some(base) => format!("{base}:s{n}"),

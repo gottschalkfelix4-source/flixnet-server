@@ -35,6 +35,7 @@ mod jobs;
 mod libraries;
 pub mod limiter;
 mod livetv;
+mod music;
 pub mod ops;
 pub mod playback;
 mod playlists;
@@ -161,6 +162,7 @@ impl AppState {
         (name = "import", description = "Watch history import from Plex and Jellyfin (administrators)"),
         (name = "dashboard", description = "Server overview and logs (administrators)"),
         (name = "assistant", description = "Scene search and the optional LLM assistant: natural-language search, explanations, chat, recaps"),
+        (name = "music", description = "Music: albums, artists, tracks, lyrics and audio playback"),
     )
 )]
 struct ApiDoc;
@@ -210,6 +212,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, trickplay::router())
         .nest(API_PREFIX, settings::router())
         .nest(API_PREFIX, livetv::router())
+        .nest(API_PREFIX, music::router())
         .nest(API_PREFIX, segments::router())
         .nest(API_PREFIX, subtitle_search::router())
         .nest(API_PREFIX, ops::router())

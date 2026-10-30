@@ -67,6 +67,13 @@ impl ImageCache {
     /// Original bytes (downloaded once for remote images).
     async fn original(&self, image: &Image, folder: &Path) -> anyhow::Result<Vec<u8>> {
         if let Some(path) = &image.path {
+            // Cover art embedded in an audio file's tags.
+            if crate::music::is_audio_file(Path::new(path)) {
+                let path = PathBuf::from(path);
+                return tokio::task::spawn_blocking(move || crate::music::embedded_picture(&path))
+                    .await?
+                    .context("the audio file has no embedded picture");
+            }
             return Ok(tokio::fs::read(path).await?);
         }
         let cached = folder.join("original");

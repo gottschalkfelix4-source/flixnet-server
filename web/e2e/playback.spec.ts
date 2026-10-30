@@ -106,7 +106,7 @@ test('HEVC 10-bit is transcoded to HLS, seeks fast and stops on close', async ({
   })
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 15_000 }).toBeGreaterThan(1)
   expect(await video.evaluate((v: HTMLVideoElement) => Math.round(v.duration))).toBe(60)
-  expect(await sessionsOf(page, itemId)).toHaveLength(1)
+  await expect.poll(async () => (await sessionsOf(page, itemId)).length).toBe(1)
 
   // Seek to 80 %: playing again at the new position within 3 seconds.
   const seekMs = await video.evaluate(async (v: HTMLVideoElement) => {

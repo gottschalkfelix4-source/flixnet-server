@@ -13,6 +13,7 @@ import { SkipButton } from '@/components/player/SkipButton'
 import { UpNextCard } from '@/components/player/UpNextCard'
 import { carryPreference, currentPreference, useCarriedPreference } from '@/lib/languagePreference'
 import { episodeLabel } from '@/lib/media'
+import { musicPlayer } from '@/lib/music/player'
 import { readStored, writeStored } from '@/lib/storage'
 import { subtitleAvailable } from '@/lib/tracks'
 import { useMediaState } from '@/lib/useMediaState'
@@ -34,6 +35,8 @@ interface StoredVolume {
 /** Every item gets a fresh player (state, sources, reporting), also on autoplay. */
 export function PlayerPage() {
   const { id } = useParams({ from: '/play/$id' })
+  // Music and a film do not play at the same time.
+  useEffect(() => musicPlayer.pause(), [])
   return <Player key={id} id={id} />
 }
 

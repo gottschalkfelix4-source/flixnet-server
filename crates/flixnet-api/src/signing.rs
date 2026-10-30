@@ -79,6 +79,17 @@ impl UrlSigner {
         self.verify(&format!("stream:{user_id}"), file_id, expires, signature)
     }
 
+    /// `/api/v1/music/stream/{file_id}?u=…&exp=…&sig=…` (AAC conversion of a track),
+    /// bound to the user like stream URLs.
+    pub fn audio_url(&self, file_id: i64, user_id: i64) -> String {
+        let (expires, sig) = self.sign(&format!("audio:{user_id}"), file_id);
+        format!("/api/v1/music/stream/{file_id}?u={user_id}&exp={expires}&sig={sig}")
+    }
+
+    pub fn verify_audio(&self, file_id: i64, user_id: i64, expires: i64, signature: &str) -> bool {
+        self.verify(&format!("audio:{user_id}"), file_id, expires, signature)
+    }
+
     /// `/api/v1/subtitles/{file_id}/{stream_index}.vtt?u=…&exp=…&sig=…`, bound to the
     /// user and the file like stream URLs (`<track>` elements cannot send headers).
     pub fn subtitle_url(&self, file_id: i64, stream_index: i64, user_id: i64) -> String {

@@ -1,4 +1,7 @@
 import { Outlet } from '@tanstack/react-router'
+import clsx from 'clsx'
+import { MiniPlayer } from '@/components/music/MiniPlayer'
+import { usePlayerSelect } from '@/lib/music/usePlayer'
 import { useEffect, useState } from 'react'
 import { readStored, writeStored } from '@/lib/storage'
 import { Sidebar } from './Sidebar'
@@ -16,12 +19,16 @@ export function AppShell() {
 
   useEffect(() => writeStored(COLLAPSED_KEY, collapsed), [collapsed])
 
+  // Room at the bottom so the music player bar never covers content.
+  const hasQueue = usePlayerSelect((s) => s.queue.length > 0)
+
   return (
     <div className="flex">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
-      <main className="min-w-0 flex-1">
+      <main className={clsx('min-w-0 flex-1', hasQueue && 'pb-20')}>
         <Outlet />
       </main>
+      <MiniPlayer />
     </div>
   )
 }

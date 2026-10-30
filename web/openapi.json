@@ -2241,7 +2241,7 @@
           {
             "name": "kind",
             "in": "query",
-            "description": "Comma-separated: `movie`, `series`, `season`, `episode`.",
+            "description": "Comma-separated: `movie`, `series`, `season`, `episode`, `artist`, `album`, `track`.",
             "required": false,
             "schema": {
               "type": "string"
@@ -2430,7 +2430,7 @@
           {
             "name": "kind",
             "in": "query",
-            "description": "Comma-separated: `movie`, `series`, `season`, `episode`.",
+            "description": "Comma-separated: `movie`, `series`, `season`, `episode`, `artist`, `album`, `track`.",
             "required": false,
             "schema": {
               "type": "string"
@@ -6049,6 +6049,513 @@
           },
           "403": {
             "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/music/albums/{id}": {
+      "get": {
+        "tags": [
+          "music"
+        ],
+        "summary": "An album with its tracks, grouped by disc.",
+        "operationId": "getMusicAlbum",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Album item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The album",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) album",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/music/artists/{id}": {
+      "get": {
+        "tags": [
+          "music"
+        ],
+        "summary": "An artist with albums, appearances and popular tracks.",
+        "operationId": "getMusicArtist",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Artist item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The artist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtistDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) artist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/music/playback": {
+      "post": {
+        "tags": [
+          "music"
+        ],
+        "summary": "How to play tracks on this client: Direct Play or AAC conversion, with ReplayGain.\nTracks that are not visible (or have no file) are left out.",
+        "operationId": "getMusicPlayback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MusicPlaybackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "One source per playable track, in request order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TrackSourceDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Too many tracks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/music/stream/{file_id}": {
+      "get": {
+        "tags": [
+          "music"
+        ],
+        "summary": "A track converted to AAC (`audio/mp4`), with HTTP range support. Converted once,\nthen served from the cache.",
+        "description": "Use the signed `url` from `POST /music/playback`; alternatively authenticate normally.",
+        "operationId": "streamMusicConverted",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "description": "Media file id of a track",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "u",
+            "in": "query",
+            "description": "User the URL was issued to, from URLs returned by the API.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "description": "Expiry of the signature (unix seconds).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "description": "URL signature.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The converted track",
+            "content": {
+              "audio/mp4": {}
+            }
+          },
+          "206": {
+            "description": "The requested byte range",
+            "content": {
+              "audio/mp4": {}
+            }
+          },
+          "401": {
+            "description": "Neither a valid signature nor a valid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such track file, or no access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/music/tracks": {
+      "get": {
+        "tags": [
+          "music"
+        ],
+        "summary": "Tracks: of an album or artist, favorites, a genre or a search.",
+        "operationId": "listMusicTracks",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "album_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "artist_id",
+            "in": "query",
+            "description": "Tracks on the albums of this album artist.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Free-text search over track titles.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "genre",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "favorite",
+            "in": "query",
+            "description": "Only favorites.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "index",
+                "title",
+                "date_added",
+                "year",
+                "relevance"
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–500, default 100.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of tracks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/music/tracks/{id}/lyrics": {
+      "get": {
+        "tags": [
+          "music"
+        ],
+        "summary": "Lyrics of a track: a sidecar `.lrc` file (synced) or lyrics embedded in the tags.",
+        "operationId": "getTrackLyrics",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Track item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The lyrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LyricsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) track, or no lyrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/music/tracks/{id}/scrobble": {
+      "post": {
+        "tags": [
+          "music"
+        ],
+        "summary": "Reports a finished (or skipped) listen. It counts as a play — play count, last\nplayed, listening history — once it covers half the track or four minutes.",
+        "operationId": "scrobbleTrack",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Track item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScrobbleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScrobbleDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) track",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Negative duration",
             "content": {
               "application/json": {
                 "schema": {
@@ -9933,6 +10440,76 @@
           }
         }
       },
+      "AlbumDetailDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ItemCardDto"
+          },
+          {
+            "type": "object",
+            "required": [
+              "genres",
+              "discs",
+              "track_count",
+              "duration_ms",
+              "provider_ids"
+            ],
+            "properties": {
+              "artist_id": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64",
+                "description": "Album artist (name in `series_title`)."
+              },
+              "cover_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Signed cover URL, 780 px wide."
+              },
+              "discs": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DiscDto"
+                }
+              },
+              "duration_ms": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "genres": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "provider_ids": {
+                "type": "object",
+                "description": "e.g. `{\"musicbrainz_album\": \"…\"}`.",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
+              },
+              "release_date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "track_count": {
+                "type": "integer",
+                "format": "int64"
+              }
+            }
+          }
+        ]
+      },
       "AnalysisQueued": {
         "type": "object",
         "required": [
@@ -9945,6 +10522,67 @@
             "minimum": 0
           }
         }
+      },
+      "ArtistDetailDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ItemCardDto"
+          },
+          {
+            "type": "object",
+            "required": [
+              "albums",
+              "appears_on",
+              "popular",
+              "provider_ids"
+            ],
+            "properties": {
+              "albums": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ItemCardDto"
+                },
+                "description": "The artist's own albums, newest first."
+              },
+              "appears_on": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ItemCardDto"
+                },
+                "description": "Other artists' albums (compilations) with tracks by this artist."
+              },
+              "backdrop_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Signed backdrop URL (fanart.tv or a local `fanart.jpg`), 1920 px wide."
+              },
+              "logo_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "popular": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TrackDto"
+                },
+                "description": "Most played tracks (all profiles of the household), then album order."
+              },
+              "provider_ids": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "propertyNames": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        ]
       },
       "ArtworkDto": {
         "type": "object",
@@ -10028,6 +10666,13 @@
             "description": "Most channels played without downmix (2 when omitted)."
           }
         }
+      },
+      "AudioMethod": {
+        "type": "string",
+        "enum": [
+          "direct_play",
+          "transcode"
+        ]
       },
       "AudioPlan": {
         "type": "object",
@@ -11165,6 +11810,26 @@
               "null"
             ],
             "description": "The listed folder (`null` for the roots)."
+          }
+        }
+      },
+      "DiscDto": {
+        "type": "object",
+        "required": [
+          "number",
+          "tracks"
+        ],
+        "properties": {
+          "number": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Disc number (1 for single-disc albums)."
+          },
+          "tracks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackDto"
+            }
           }
         }
       },
@@ -12327,10 +12992,22 @@
           "movies",
           "series",
           "episodes",
+          "artists",
+          "albums",
+          "tracks",
           "files",
           "unprobed"
         ],
         "properties": {
+          "albums": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "artists": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Music libraries: album artists, albums and tracks."
+          },
           "episodes": {
             "type": "integer",
             "format": "int64"
@@ -12344,6 +13021,10 @@
             "format": "int64"
           },
           "series": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tracks": {
             "type": "integer",
             "format": "int64"
           },
@@ -12404,7 +13085,8 @@
         "type": "string",
         "enum": [
           "movies",
-          "shows"
+          "shows",
+          "music"
         ]
       },
       "LiveSessionDto": {
@@ -12612,6 +13294,47 @@
             "items": {
               "$ref": "#/components/schemas/LogLine"
             }
+          }
+        }
+      },
+      "LyricLineDto": {
+        "type": "object",
+        "required": [
+          "time_ms",
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "time_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Start of the line in milliseconds (0 for plain lyrics)."
+          }
+        }
+      },
+      "LyricsDto": {
+        "type": "object",
+        "required": [
+          "synced",
+          "lines",
+          "source"
+        ],
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LyricLineDto"
+            }
+          },
+          "source": {
+            "type": "string",
+            "description": "`sidecar` (`.lrc` next to the file) or `embedded` (in the tags)."
+          },
+          "synced": {
+            "type": "boolean",
+            "description": "Lines carry timestamps (LRC) and can follow playback."
           }
         }
       },
@@ -12898,7 +13621,8 @@
           "has_tmdb_api_key",
           "has_fanart_api_key",
           "language",
-          "country"
+          "country",
+          "musicbrainz_enabled"
         ],
         "properties": {
           "country": {
@@ -12916,6 +13640,38 @@
           "language": {
             "type": "string",
             "description": "Metadata language, e.g. `de-DE`."
+          },
+          "musicbrainz_enabled": {
+            "type": "boolean",
+            "description": "Music metadata and covers from MusicBrainz and the Cover Art Archive."
+          }
+        }
+      },
+      "MusicPlaybackRequest": {
+        "type": "object",
+        "required": [
+          "track_ids"
+        ],
+        "properties": {
+          "max_bitrate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Bitrate limit (bits/s); larger files are converted."
+          },
+          "profile": {
+            "$ref": "#/components/schemas/DeviceProfile",
+            "description": "What the client plays (from `canPlayType`)."
+          },
+          "track_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Tracks to play (at most 1000), e.g. the current and the next queue entry."
           }
         }
       },
@@ -13958,6 +14714,39 @@
           }
         }
       },
+      "ReplayGainDto": {
+        "type": "object",
+        "properties": {
+          "album_gain_db": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "album_peak": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "track_gain_db": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "track_peak": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "ScanQueued": {
         "type": "object",
         "properties": {
@@ -14113,6 +14902,36 @@
               "null"
             ],
             "description": "Path of the whisper.cpp CLI (`whisper-cli`); `null` = Whisper off."
+          }
+        }
+      },
+      "ScrobbleDto": {
+        "type": "object",
+        "required": [
+          "counted",
+          "play_count"
+        ],
+        "properties": {
+          "counted": {
+            "type": "boolean",
+            "description": "The listen was long enough to count as a play."
+          },
+          "play_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ScrobbleRequest": {
+        "type": "object",
+        "required": [
+          "listened_ms"
+        ],
+        "properties": {
+          "listened_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How long the track was actually listened to (milliseconds, pauses excluded)."
           }
         }
       },
@@ -14919,6 +15738,220 @@
           "vaapi"
         ]
       },
+      "TrackDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "library_id",
+          "title",
+          "artist",
+          "has_lyrics",
+          "favorite",
+          "play_count"
+        ],
+        "properties": {
+          "album_artist": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "album_artist_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "album_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "album_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "artist": {
+            "type": "string",
+            "description": "Track artist(s) as tagged, else the album artist."
+          },
+          "cover_blurhash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cover_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed album cover URL, 342 px wide."
+          },
+          "disc_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "favorite": {
+            "type": "boolean"
+          },
+          "has_lyrics": {
+            "type": "boolean",
+            "description": "Lyrics are available (`GET /music/tracks/{id}/lyrics`)."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_played_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "library_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "play_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Times the signed-in user listened to it."
+          },
+          "title": {
+            "type": "string"
+          },
+          "track_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "TrackPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackDto"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "TrackSourceDto": {
+        "type": "object",
+        "required": [
+          "track_id",
+          "file_id",
+          "url",
+          "method",
+          "reasons",
+          "container",
+          "replaygain"
+        ],
+        "properties": {
+          "bitrate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "codec": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "container": {
+            "type": "string",
+            "description": "Container (file extension) and codec of the original."
+          },
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "file_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "method": {
+            "$ref": "#/components/schemas/AudioMethod"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reason"
+            },
+            "description": "Why the file is converted (empty for Direct Play)."
+          },
+          "replaygain": {
+            "$ref": "#/components/schemas/ReplayGainDto"
+          },
+          "sample_rate": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "track_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "url": {
+            "type": "string",
+            "description": "Signed URL to play (original file or AAC conversion)."
+          }
+        }
+      },
       "TraktSettingsDto": {
         "type": "object",
         "required": [
@@ -15450,6 +16483,13 @@
               "string",
               "null"
             ]
+          },
+          "musicbrainz_enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Switch MusicBrainz / Cover Art Archive lookups for music on or off."
           },
           "tmdb_api_key": {
             "type": [
@@ -16205,6 +17245,10 @@
     {
       "name": "assistant",
       "description": "Scene search and the optional LLM assistant: natural-language search, explanations, chat, recaps"
+    },
+    {
+      "name": "music",
+      "description": "Music: albums, artists, tracks, lyrics and audio playback"
     }
   ]
 }

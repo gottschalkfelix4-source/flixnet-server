@@ -50,9 +50,37 @@ struct Response {
     tvthumb: Vec<Art>,
     #[serde(default)]
     tvposter: Vec<Art>,
+    // Music artists (by MusicBrainz id).
+    #[serde(default)]
+    artistthumb: Vec<Art>,
+    #[serde(default)]
+    artistbackground: Vec<Art>,
+    #[serde(default)]
+    hdmusiclogo: Vec<Art>,
+    #[serde(default)]
+    musiclogo: Vec<Art>,
+    #[serde(default)]
+    musicbanner: Vec<Art>,
 }
 
 impl Fanart {
+    /// Images for a music artist by its MusicBrainz id.
+    pub async fn artist_images(&self, mbid: &str) -> anyhow::Result<Vec<NewImage>> {
+        let id: String = mbid
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+            .collect();
+        let Some(r) = self.fetch(&format!("/music/{id}")).await? else {
+            return Ok(Vec::new());
+        };
+        let mut out = Vec::new();
+        out.extend(self.rank("poster", &[&r.artistthumb], 2));
+        out.extend(self.rank("backdrop", &[&r.artistbackground], 3));
+        out.extend(self.rank("logo", &[&r.hdmusiclogo, &r.musiclogo], 2));
+        out.extend(self.rank("banner", &[&r.musicbanner], 1));
+        Ok(out)
+    }
+
     pub fn new(api_key: impl Into<String>, language: &str, db: Db) -> Self {
         Self {
             http: crate::http::client(),
