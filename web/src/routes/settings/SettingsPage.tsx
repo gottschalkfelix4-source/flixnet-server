@@ -1,6 +1,10 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
+import { ArrowLeft } from 'lucide-react'
 import { useSystemInfo } from '@/api/queries/system'
+import { Logo } from '@/components/layout/Logo'
+import { UserMenu } from '@/components/layout/UserMenu'
+import { lastMediaPath } from '@/lib/lastMediaPath'
 import { useSession } from '@/lib/session'
 import { AccountSettings } from './AccountSettings'
 import { AiSettings } from './AiSettings'
@@ -52,6 +56,9 @@ const WIDE: SettingsTab[] = ['dashboard', 'sessions', 'logs', 'jobs']
  * Settings in the Plex layout: a grouped list on the left, the page on the right
  * under "<Server> — <Page>". On small screens the list becomes a dropdown.
  */
+/** Keeps the active entry visible when the list scrolls (e.g. "Dashboard" at the bottom). */
+const revealActive = (element: HTMLAnchorElement | null) => element?.scrollIntoView({ block: 'nearest' })
+
 export function SettingsPage() {
   const { tab = 'account' } = useSearch({ from: '/app/settings' })
   const navigate = useNavigate()
@@ -69,9 +76,17 @@ export function SettingsPage() {
     <div className="flex min-h-full">
       <aside
         aria-label="Einstellungsbereiche"
-        className="sticky top-0 hidden h-dvh w-60 shrink-0 overflow-y-auto border-r border-line/50 bg-sidebar/60 py-6 md:block"
+        className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line/60 bg-sidebar md:flex"
       >
-        <nav className="flex flex-col gap-5">
+        <div className="flex h-16 items-center px-5">
+          <Link to="/" aria-label="Zur Startseite">
+            <Logo />
+          </Link>
+        </div>
+        <div className="px-2 pb-3">
+          <BackLink />
+        </div>
+        <nav className="flex flex-1 flex-col gap-5 overflow-y-auto border-t border-line/60 py-5 [scrollbar-color:var(--color-surface-3)_transparent] [scrollbar-width:thin]">
           {groups.map((group) => (
             <div key={group.title}>
               <h2 className="mb-1 px-6 text-[11px] font-bold tracking-[0.12em] text-subtle uppercase">{group.title}</h2>
@@ -82,6 +97,7 @@ export function SettingsPage() {
                       to="/settings"
                       search={{ tab: t.id }}
                       aria-current={t.id === active.id ? 'page' : undefined}
+                      ref={t.id === active.id ? revealActive : undefined}
                       className={clsx(
                         'relative flex items-center px-6 py-1.5 text-sm transition-colors',
                         t.id === active.id
@@ -97,10 +113,16 @@ export function SettingsPage() {
             </div>
           ))}
         </nav>
+        <div className="border-t border-line/60 px-2 py-3">
+          <UserMenu collapsed={false} />
+        </div>
       </aside>
 
       <div className="min-w-0 flex-1 pb-16">
         <header className="mx-6 mt-8 mb-6 border-b border-line/50 pb-4 md:mx-10">
+          <div className="-ml-3 mb-3 md:hidden">
+            <BackLink />
+          </div>
           <h1 className="text-2xl font-extrabold tracking-tight">
             <span className="text-muted">{server}</span>
             <span className="mx-2 text-subtle">—</span>
@@ -130,5 +152,23 @@ export function SettingsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+/** Leaves the settings view for the media page the user came from. */
+function BackLink() {
+  const navigate = useNavigate()
+  return (
+    <a
+      href={lastMediaPath()}
+      onClick={(e) => {
+        e.preventDefault()
+        void navigate({ href: lastMediaPath() })
+      }}
+      className="flex h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-fg"
+    >
+      <ArrowLeft className="size-5" aria-hidden="true" />
+      Zurück zur Mediathek
+    </a>
   )
 }

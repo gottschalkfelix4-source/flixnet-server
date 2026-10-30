@@ -36,7 +36,7 @@ export function HistoryChart({ buckets, bucketMs }: { buckets: Bucket[]; bucketM
   const present = KINDS.filter((k) => buckets.some((b) => b[k.key] > 0))
   const label = (b: Bucket) =>
     bucketMs > 24 * 3600_000 ? `${day.format(b.start)} – ${day.format(b.start + bucketMs - 1)}` : day.format(b.start)
-  const labelEvery = Math.max(1, Math.ceil(buckets.length / 8))
+  const labelEvery = Math.max(1, Math.ceil(buckets.length / Math.max(2, Math.floor(plotW / 64))))
   const hovered = hover != null ? buckets[hover] : undefined
 
   return (
@@ -75,7 +75,7 @@ export function HistoryChart({ buckets, bucketMs }: { buckets: Bucket[]; bucketM
                       />
                     )
                   })}
-                  {(i % labelEvery === 0 || i === buckets.length - 1) && (
+                  {((i % labelEvery === 0 && buckets.length - 1 - i >= labelEvery / 2) || i === buckets.length - 1) && (
                     <text x={cx} y={HEIGHT - 8} textAnchor="middle" className="fill-subtle text-[11px]">
                       {day.format(b.start)}
                     </text>

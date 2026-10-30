@@ -27,7 +27,8 @@ export function BandwidthChart({ points, slotSeconds }: { points: Point[]; slotS
   const line = (key: 'local_bytes_per_second' | 'remote_bytes_per_second') =>
     points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`).join(' ')
   const format = slotSeconds < 60 ? timeSeconds : time
-  const labelEvery = Math.max(1, Math.ceil(points.length / 6))
+  // About one label per 80px, so they never overlap on narrow screens.
+  const labelEvery = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(plotW / 80))))
   const hovered = hover != null ? points[hover] : undefined
 
   return (
@@ -61,7 +62,7 @@ export function BandwidthChart({ points, slotSeconds }: { points: Point[]; slotS
               </g>
             ))}
             {points.map((p, i) =>
-              i % labelEvery === 0 || i === points.length - 1 ? (
+              (i % labelEvery === 0 && points.length - 1 - i >= labelEvery / 2) || i === points.length - 1 ? (
                 <text key={p.at} x={x(i)} y={HEIGHT - 6} textAnchor="middle" className="fill-subtle text-[11px] tabular-nums">
                   {i === points.length - 1 ? 'jetzt' : format.format(p.at)}
                 </text>

@@ -35,10 +35,11 @@ export function useSeriesNextUp(seriesId: number, enabled = true) {
 }
 
 /** Active playback sessions (administrators), refreshed every few seconds. */
-export function useActiveSessions() {
+export function useActiveSessions({ enabled = true, interval = 3000 }: { enabled?: boolean; interval?: number } = {}) {
   return useQuery({
     queryKey: ['sessions', 'active'],
     queryFn: async () => unwrap(await api.GET('/api/v1/sessions/active')),
-    refetchInterval: 3000,
+    refetchInterval: interval,
+    enabled,
   })
 }
