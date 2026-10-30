@@ -28,6 +28,11 @@ pub struct TestApp {
 
 /// Router backed by a fresh, empty database.
 pub async fn app() -> TestApp {
+    app_with(|_| {}).await
+}
+
+/// Like [`app`], with configuration changes (e.g. URLs of mocked services).
+pub async fn app_with(configure: impl FnOnce(&mut Config)) -> TestApp {
     let dir = tempfile::tempdir().unwrap();
     let db = Db::open(&dir.path().join("flixnet.db")).await.unwrap();
     // Jobs are queued but no workers run in API tests.
@@ -63,6 +68,7 @@ pub async fn app() -> TestApp {
     // downloaded subtitles) stay in the temp dir.
     let mut config = Config::default();
     config.paths.config_dir = dir.path().to_path_buf();
+    configure(&mut config);
     let router = router(AppState::new(config, db.clone(), services));
     TestApp { dir, router, db }
 }

@@ -414,6 +414,12 @@ async fn create_user(
         user
     };
     tracing::info!(user = %user.name, admin = user.is_admin, "user created");
+    state
+        .events
+        .publish(flixnet_core::events::ServerEvent::UserCreated {
+            user_id: user.id,
+            name: user.name.clone(),
+        });
     Ok((StatusCode::CREATED, Json(user.into())))
 }
 

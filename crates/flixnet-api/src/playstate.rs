@@ -11,6 +11,7 @@ use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use flixnet_core::events::ServerEvent;
 use flixnet_db::playstate::{self, NewWatchEvent, Progress, Visibility};
 use flixnet_db::{browse, items, sessions, userdata};
 use flixnet_media::decision::PlayMethod;
@@ -175,6 +176,9 @@ async fn open_session(
     };
     state.playback.insert(session.clone());
     event(state, &session, "start", false).await;
+    state
+        .events
+        .publish(ServerEvent::PlaybackStarted(session.event(false)));
     Ok(session)
 }
 
@@ -311,21 +315,37 @@ pub async fn progress_session(
 ) -> ApiResult<()> {
     validate(report)?;
     let duration_ms = duration(state, report).await?;
-    let session = match owned_session(state, user, id, report).await? {
-        Some(_) => state.playback.update(id, |s| {
-            s.position_ms = report.position_ms;
-            s.duration_ms = duration_ms;
-            s.play_method = report.play_method;
-            s.transcode_session_id = report.transcode_session_id.clone();
-            s.is_paused = report.is_paused;
-            s.last_report_at = flixnet_db::now_ms();
-        }),
-        None => Some(open_session(state, user, id.to_owned(), report).await?),
+    let (session, was_paused) = match owned_session(state, user, id, report).await? {
+        Some(previous) => (
+            state.playback.update(id, |s| {
+                s.position_ms = report.position_ms;
+                s.duration_ms = duration_ms;
+                s.play_method = report.play_method;
+                s.transcode_session_id = report.transcode_session_id.clone();
+                s.is_paused = report.is_paused;
+                s.last_report_at = flixnet_db::now_ms();
+            }),
+            Some(previous.is_paused),
+        ),
+        None => (
+            Some(open_session(state, user, id.to_owned(), report).await?),
+            None,
+        ),
     };
     let Some(session) = session else {
         // Stopped concurrently; nothing left to update.
         return Ok(());
     };
+    if let Some(was_paused) = was_paused
+        && was_paused != report.is_paused
+    {
+        let playback = session.event(false);
+        state.events.publish(if report.is_paused {
+            ServerEvent::PlaybackPaused(playback)
+        } else {
+            ServerEvent::PlaybackResumed(playback)
+        });
+    }
     playstate::save_progress(
         &state.db,
         user.user_id,
@@ -403,6 +423,9 @@ pub async fn stop_session(
     session.duration_ms = duration_ms;
     session.play_method = report.play_method;
     let progress = finish(&state.db, &session).await?;
+    state.events.publish(ServerEvent::PlaybackStopped(
+        session.event(progress == Progress::Played),
+    ));
     let resume_position_ms = userdata::get(&state.db, user.user_id, report.item_id)
         .await?
         .position_ms;

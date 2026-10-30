@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 
+use flixnet_core::events::{EventBus, PlaybackEvent, ServerEvent};
 use flixnet_db::Db;
 use flixnet_media::decision::PlayMethod;
 
@@ -99,14 +100,37 @@ impl ActiveSessions {
 
     /// Finishes expired sessions in the background (needs a Tokio runtime; without
     /// one, e.g. when only the OpenAPI document is generated, nothing is started).
-    pub fn spawn_reaper(&self, db: Db) {
+    pub fn spawn_reaper(&self, db: Db, events: EventBus) {
         if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            runtime.spawn(reaper(Arc::downgrade(&self.inner), db));
+            runtime.spawn(reaper(Arc::downgrade(&self.inner), db, events));
         }
     }
 }
 
-async fn reaper(inner: Weak<Mutex<HashMap<String, ActiveSession>>>, db: Db) {
+impl ActiveSession {
+    /// What playback events carry about this session.
+    pub fn event(&self, completed: bool) -> PlaybackEvent {
+        PlaybackEvent {
+            session_id: self.id.clone(),
+            user_id: self.user_id,
+            user_name: self.user_name.clone(),
+            item_id: self.item_id,
+            device_name: self.device_name.clone(),
+            client: self.client.clone(),
+            play_method: match self.play_method {
+                PlayMethod::DirectPlay => "direct_play",
+                PlayMethod::Remux => "remux",
+                PlayMethod::Transcode => "transcode",
+            }
+            .to_owned(),
+            position_ms: self.position_ms,
+            duration_ms: self.duration_ms,
+            completed,
+        }
+    }
+}
+
+async fn reaper(inner: Weak<Mutex<HashMap<String, ActiveSession>>>, db: Db, events: EventBus) {
     let mut tick = tokio::time::interval(Duration::from_secs(10));
     loop {
         tick.tick().await;
@@ -116,8 +140,13 @@ async fn reaper(inner: Weak<Mutex<HashMap<String, ActiveSession>>>, db: Db) {
         let expired = ActiveSessions { inner }.take_expired(flixnet_db::now_ms());
         for session in expired {
             tracing::info!(session = %session.id, user = session.user_id, "playback session expired");
-            if let Err(err) = crate::playstate::finish(&db, &session).await {
-                tracing::warn!(session = %session.id, %err, "finishing an expired playback session failed");
+            match crate::playstate::finish(&db, &session).await {
+                Ok(progress) => events.publish(ServerEvent::PlaybackStopped(
+                    session.event(progress == flixnet_db::playstate::Progress::Played),
+                )),
+                Err(err) => {
+                    tracing::warn!(session = %session.id, %err, "finishing an expired playback session failed");
+                }
             }
         }
     }

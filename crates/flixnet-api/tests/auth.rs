@@ -204,6 +204,9 @@ async fn every_protected_operation_requires_a_token() {
     assert_eq!(
         public,
         [
+            // Single sign-on: whether the login button shows, and the sign-in itself
+            // (state + PKCE verifier stay on the server; oidc_api.rs).
+            "GET /api/v1/auth/oidc/config",
             // Signed URL, or a token of a user who may see the collection (collections_api.rs).
             "GET /api/v1/collections/{id}/images/{kind}",
             // Signed URLs bound to user + file for seek-bar previews and chapter
@@ -227,6 +230,8 @@ async fn every_protected_operation_requires_a_token() {
             "GET /api/v1/transcode/{session}/main.m3u8",
             "GET /api/v1/transcode/{session}/{segment}",
             "POST /api/v1/auth/login",
+            "POST /api/v1/auth/oidc/complete",
+            "POST /api/v1/auth/oidc/start",
             "POST /api/v1/invitations/redeem/{code}",
             "POST /api/v1/setup",
         ],

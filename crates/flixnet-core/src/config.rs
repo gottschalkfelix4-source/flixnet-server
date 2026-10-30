@@ -24,6 +24,27 @@ pub struct Config {
     pub media: MediaConfig,
     pub log: LogConfig,
     pub jellyfin: JellyfinConfig,
+    pub integrations: IntegrationsConfig,
+    /// The TOML file this configuration was loaded from (set by the binary; copied
+    /// into backups).
+    #[serde(skip)]
+    pub source_file: Option<PathBuf>,
+}
+
+/// Endpoints of external services. Only changed for tests and self-hosted stand-ins.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct IntegrationsConfig {
+    /// Trakt.tv API base URL.
+    pub trakt_api_url: String,
+}
+
+impl Default for IntegrationsConfig {
+    fn default() -> Self {
+        Self {
+            trakt_api_url: "https://api.trakt.tv".to_owned(),
+        }
+    }
 }
 
 /// The Jellyfin-compatible API for existing Jellyfin clients (Infuse, Swiftfin, …),

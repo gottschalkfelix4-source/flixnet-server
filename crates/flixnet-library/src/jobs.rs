@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use flixnet_core::events::ServerEvent;
+use flixnet_core::events::{AddedItem, ServerEvent};
 use flixnet_core::jobs::{JobContext, JobHandler, JobOptions, JobQueue, Pool, priority};
 use flixnet_core::scheduler::TaskDef;
 use flixnet_db::{Db, DbError, libraries, media};
@@ -29,18 +29,52 @@ impl JobHandler for ScanLibrary {
 
     async fn run(&self, ctx: JobContext, payload: ScanPayload) -> anyhow::Result<()> {
         // The library may have been deleted after the job was queued.
-        if libraries::get(ctx.db(), payload.library_id)
-            .await?
-            .is_none()
-        {
+        let Some(library) = libraries::get(ctx.db(), payload.library_id).await? else {
             return Ok(());
-        }
-        let report = scan_library(ctx.db(), ctx.queue(), payload.library_id).await?;
+        };
+        let started = flixnet_db::now_ms();
+        let report = match scan_library(ctx.db(), ctx.queue(), payload.library_id).await {
+            Ok(report) => report,
+            Err(err) => {
+                ctx.events().publish(ServerEvent::ScanFailed {
+                    library_id: library.id,
+                    library_name: library.name.clone(),
+                    error: format!("{err:#}"),
+                });
+                return Err(err);
+            }
+        };
         if report.added + report.changed + report.missing + report.restored > 0 {
             ctx.events().publish(ServerEvent::LibraryChanged {
                 library_id: payload.library_id,
             });
         }
+        if report.added > 0 {
+            let (count, added) =
+                flixnet_db::history::items_added_since(ctx.db(), library.id, started, 20).await?;
+            if count > 0 {
+                ctx.events().publish(ServerEvent::ItemsAdded {
+                    library_id: library.id,
+                    library_name: library.name.clone(),
+                    count: count as usize,
+                    items: added
+                        .into_iter()
+                        .map(|a| AddedItem {
+                            item_id: a.item_id,
+                            kind: a.kind,
+                            title: a.title,
+                        })
+                        .collect(),
+                });
+            }
+        }
+        ctx.events().publish(ServerEvent::ScanFinished {
+            library_id: library.id,
+            library_name: library.name,
+            added: report.added,
+            changed: report.changed,
+            missing: report.missing,
+        });
         Ok(())
     }
 }

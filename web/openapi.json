@@ -100,6 +100,158 @@
         }
       }
     },
+    "/api/v1/auth/oidc/complete": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Finish a single sign-on: exchanges the code and signs in like a password login.",
+        "operationId": "completeOidcLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unknown or expired sign-in, or an invalid ID token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "No Flixnet account for this login",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Provider unreachable or failing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/config": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Whether single sign-on is offered on the login page (public).",
+        "operationId": "getOidcLoginConfig",
+        "responses": {
+          "200": {
+            "description": "Login button configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcLoginConfigDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/auth/oidc/start": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Start a single sign-on: returns the provider URL to send the browser to.",
+        "operationId": "startOidcLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OidcStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Provider URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcStartDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Single sign-on is not enabled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid redirect URI or device",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Provider unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
     "/api/v1/auth/profiles": {
       "get": {
         "tags": [
@@ -195,6 +347,86 @@
           },
           "429": {
             "description": "Too many failed attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/backups": {
+      "get": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Backup folder, retention and existing backups (administrators).",
+        "operationId": "listBackups",
+        "responses": {
+          "200": {
+            "description": "Backup overview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupOverviewDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Back up now (\"Jetzt sichern\").",
+        "operationId": "createBackup",
+        "responses": {
+          "200": {
+            "description": "The new backup",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupFileDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
             "content": {
               "application/json": {
                 "schema": {
@@ -758,6 +990,47 @@
         }
       }
     },
+    "/api/v1/dashboard": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Server overview (administrators).",
+        "operationId": "getDashboard",
+        "responses": {
+          "200": {
+            "description": "Current server state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/files/{file_id}/chapters": {
       "get": {
         "tags": [
@@ -1257,6 +1530,148 @@
         "security": [
           {}
         ]
+      }
+    },
+    "/api/v1/import/apply": {
+      "post": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Import watch history from Plex or Jellyfin (administrators). Repeating an import\nadds nothing twice.",
+        "operationId": "importApply",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "What was written per user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing or rejected credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The other server failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/import/preview": {
+      "post": {
+        "tags": [
+          "import"
+        ],
+        "summary": "Preview an import: what would be matched, without writing (administrators).",
+        "operationId": "importPreview",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Match statistics per user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResultDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Missing or rejected credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The other server failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/invitations": {
@@ -5292,6 +5707,426 @@
         }
       }
     },
+    "/api/v1/logs": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Recent server log lines (administrators).",
+        "operationId": "listLogs",
+        "parameters": [
+          {
+            "name": "level",
+            "in": "query",
+            "description": "Least severe level to include (default `info`).",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LogLevel"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "description": "Only lines with a higher sequence number (for tailing).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–2000, default 500 (the most recent ones).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Log lines, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/events": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Event kinds notification targets can subscribe to.",
+        "operationId": "listNotificationEvents",
+        "responses": {
+          "200": {
+            "description": "Event kinds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationEventDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/targets": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Notification targets (administrators).",
+        "operationId": "listNotificationTargets",
+        "responses": {
+          "200": {
+            "description": "All targets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationTargetDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Add a notification target.",
+        "operationId": "createNotificationTarget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationTargetInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationTargetDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/targets/{id}": {
+      "put": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Change a notification target.",
+        "operationId": "updateNotificationTarget",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Target id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationTargetInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationTargetDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Remove a notification target.",
+        "operationId": "deleteNotificationTarget",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Target id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/targets/{id}/test": {
+      "post": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Send a test message to a target right away (no retries).",
+        "operationId": "testNotificationTarget",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Target id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Whether the test message was accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResultDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such target",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/people/{id}": {
       "get": {
         "tags": [
@@ -6093,6 +6928,67 @@
         }
       }
     },
+    "/api/v1/settings/backup": {
+      "put": {
+        "tags": [
+          "backups"
+        ],
+        "summary": "Change the backup folder and how many backups are kept.",
+        "operationId": "updateBackupSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBackupSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Backup overview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupOverviewDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid folder or number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/metadata": {
       "get": {
         "tags": [
@@ -6193,6 +7089,206 @@
         }
       }
     },
+    "/api/v1/settings/oidc": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Single sign-on provider settings (administrators).",
+        "operationId": "getOidcSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Change the single sign-on provider. Enabling checks the provider's discovery.",
+        "operationId": "updateOidcSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOidcSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OidcSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid settings or provider not reachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/smtp": {
+      "get": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "SMTP server for e-mail notifications.",
+        "operationId": "getSmtpSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmtpSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "notifications"
+        ],
+        "summary": "Change the SMTP server.",
+        "operationId": "updateSmtpSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSmtpSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmtpSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/subtitles": {
       "get": {
         "tags": [
@@ -6282,6 +7378,96 @@
           },
           "422": {
             "description": "Invalid key, login or languages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/trakt": {
+      "get": {
+        "tags": [
+          "trakt"
+        ],
+        "summary": "The Trakt API app of this server (administrators).",
+        "operationId": "getTraktSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraktSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "trakt"
+        ],
+        "summary": "Register the Trakt API app (client id and secret from trakt.tv/oauth/applications).",
+        "operationId": "updateTraktSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTraktSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraktSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
             "content": {
               "application/json": {
                 "schema": {
@@ -6804,6 +7990,271 @@
           },
           "404": {
             "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trakt": {
+      "get": {
+        "tags": [
+          "trakt"
+        ],
+        "summary": "The signed-in user's Trakt connection.",
+        "operationId": "getTraktStatus",
+        "responses": {
+          "200": {
+            "description": "Connection state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraktStatusDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "trakt"
+        ],
+        "summary": "Change scrobbling and rating sync.",
+        "operationId": "updateTraktOptions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTraktOptions"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Connection state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraktStatusDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No Trakt account connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "trakt"
+        ],
+        "summary": "Disconnect Trakt (the token is revoked at Trakt as well, if possible).",
+        "operationId": "disconnectTrakt",
+        "responses": {
+          "204": {
+            "description": "Disconnected"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trakt/connect": {
+      "post": {
+        "tags": [
+          "trakt"
+        ],
+        "summary": "Start connecting: returns a code to enter on trakt.tv.",
+        "operationId": "startTraktConnect",
+        "responses": {
+          "200": {
+            "description": "Code to confirm on trakt.tv",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCodeDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No Trakt app configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Trakt unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trakt/connect/poll": {
+      "post": {
+        "tags": [
+          "trakt"
+        ],
+        "summary": "Check whether the code was confirmed; stores the account once it is.",
+        "operationId": "pollTraktConnect",
+        "responses": {
+          "200": {
+            "description": "Current state of the connection attempt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectPollDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No connection attempt running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Trakt unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trakt/sync": {
+      "post": {
+        "tags": [
+          "trakt"
+        ],
+        "summary": "Sync watched history (and ratings) with Trakt now, in both directions.",
+        "operationId": "syncTrakt",
+        "responses": {
+          "200": {
+            "description": "What was synced",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraktSyncReportDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No Trakt account connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No Trakt app, or the connection expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Trakt unreachable",
             "content": {
               "application/json": {
                 "schema": {
@@ -8074,6 +9525,72 @@
           }
         }
       },
+      "BackupFileDto": {
+        "type": "object",
+        "required": [
+          "name",
+          "size_bytes",
+          "created_at",
+          "has_config"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix milliseconds."
+          },
+          "has_config": {
+            "type": "boolean",
+            "description": "A copy of the configuration file was saved next to it."
+          },
+          "name": {
+            "type": "string",
+            "description": "File name of the database snapshot."
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "BackupOverviewDto": {
+        "type": "object",
+        "required": [
+          "directory",
+          "is_default_directory",
+          "keep",
+          "files",
+          "restore_command"
+        ],
+        "properties": {
+          "directory": {
+            "type": "string",
+            "description": "Folder backups are written to."
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackupFileDto"
+            },
+            "description": "Newest first."
+          },
+          "is_default_directory": {
+            "type": "boolean",
+            "description": "Whether `directory` is the default (`<config>/backups`)."
+          },
+          "keep": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many backups are kept.",
+            "minimum": 0
+          },
+          "restore_command": {
+            "type": "string",
+            "description": "The command that restores a backup (with the server stopped)."
+          }
+        }
+      },
       "CandidateDto": {
         "type": "object",
         "required": [
@@ -8391,6 +9908,30 @@
           }
         }
       },
+      "ConnectPollDto": {
+        "type": "object",
+        "required": [
+          "state",
+          "status"
+        ],
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/ConnectState"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TraktStatusDto"
+          }
+        }
+      },
+      "ConnectState": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "connected",
+          "expired",
+          "denied"
+        ]
+      },
       "CreateCollectionRequest": {
         "type": "object",
         "required": [
@@ -8636,6 +10177,118 @@
             "example": "Felix"
           },
           "password": {
+            "type": "string"
+          }
+        }
+      },
+      "DashboardDto": {
+        "type": "object",
+        "required": [
+          "version",
+          "started_at",
+          "cpu_percent",
+          "memory_total_bytes",
+          "memory_used_bytes",
+          "process_memory_bytes",
+          "process_cpu_percent",
+          "storage",
+          "bandwidth_total_bytes",
+          "bandwidth_bytes_per_second",
+          "sessions",
+          "transcodes",
+          "jobs"
+        ],
+        "properties": {
+          "bandwidth_bytes_per_second": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "bandwidth_total_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "All media traffic since the start.",
+            "minimum": 0
+          },
+          "cpu_percent": {
+            "type": "number",
+            "format": "float",
+            "description": "Whole machine (or container), percent of all cores."
+          },
+          "jobs": {
+            "$ref": "#/components/schemas/JobCountsDto"
+          },
+          "memory_total_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "memory_used_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "process_cpu_percent": {
+            "type": "number",
+            "format": "float"
+          },
+          "process_memory_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Flixnet itself.",
+            "minimum": 0
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionBandwidthDto"
+            }
+          },
+          "started_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix milliseconds."
+          },
+          "storage": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageDto"
+            }
+          },
+          "transcodes": {
+            "type": "integer",
+            "description": "Running ffmpeg transcodes.",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "DeviceCodeDto": {
+        "type": "object",
+        "required": [
+          "user_code",
+          "verification_url",
+          "expires_at",
+          "interval"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix milliseconds."
+          },
+          "interval": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Seconds to wait between polls."
+          },
+          "user_code": {
+            "type": "string",
+            "description": "Code the user enters at `verification_url`."
+          },
+          "verification_url": {
             "type": "string"
           }
         }
@@ -9194,6 +10847,144 @@
           }
         }
       },
+      "ImportRequest": {
+        "type": "object",
+        "required": [
+          "source",
+          "server_url"
+        ],
+        "properties": {
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "server_url": {
+            "type": "string",
+            "description": "Base URL of the other server, e.g. `http://192.168.1.10:32400`."
+          },
+          "source": {
+            "$ref": "#/components/schemas/ImportSource"
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Plex: `X-Plex-Token`. Jellyfin: an API key (Dashboard → API-Schlüssel)."
+          },
+          "user_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Plex (one account per token) and Jellyfin sign-in: the Flixnet user to import\ninto."
+          },
+          "user_map": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserMapping"
+            },
+            "description": "Jellyfin with API key: which Jellyfin user goes to which Flixnet user. Users\nleft out are mapped by equal name, if there is one."
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Jellyfin without API key: sign in as this user (imports only that user)."
+          }
+        }
+      },
+      "ImportResultDto": {
+        "type": "object",
+        "required": [
+          "source",
+          "applied",
+          "users"
+        ],
+        "properties": {
+          "applied": {
+            "type": "boolean",
+            "description": "Whether anything was written (`false` for a preview)."
+          },
+          "source": {
+            "$ref": "#/components/schemas/ImportSource"
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportUserDto"
+            }
+          }
+        }
+      },
+      "ImportSource": {
+        "type": "string",
+        "enum": [
+          "plex",
+          "jellyfin"
+        ]
+      },
+      "ImportUserDto": {
+        "type": "object",
+        "required": [
+          "source_user_id",
+          "source_user_name",
+          "stats",
+          "unmatched_samples"
+        ],
+        "properties": {
+          "source_user_id": {
+            "type": "string"
+          },
+          "source_user_name": {
+            "type": "string"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/MatchStats"
+          },
+          "unmatched_samples": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Some titles that were not found in the library."
+          },
+          "user_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Flixnet user the history goes to (`None`: skipped, no mapping)."
+          },
+          "user_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "written_history": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "After applying: history entries added.",
+            "minimum": 0
+          },
+          "written_items": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "After applying: items written.",
+            "minimum": 0
+          }
+        }
+      },
       "InvitationDto": {
         "type": "object",
         "required": [
@@ -9528,6 +11319,28 @@
           }
         }
       },
+      "JobCountsDto": {
+        "type": "object",
+        "required": [
+          "queued",
+          "running",
+          "failed"
+        ],
+        "properties": {
+          "failed": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "queued": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "running": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "JobDto": {
         "type": "object",
         "required": [
@@ -9824,6 +11637,130 @@
           }
         }
       },
+      "LogLevel": {
+        "type": "string",
+        "description": "Severity, most severe first (so `level <= filter` keeps what a filter asks for).",
+        "enum": [
+          "error",
+          "warn",
+          "info",
+          "debug",
+          "trace"
+        ]
+      },
+      "LogLine": {
+        "type": "object",
+        "required": [
+          "seq",
+          "timestamp",
+          "level",
+          "target",
+          "message"
+        ],
+        "properties": {
+          "level": {
+            "$ref": "#/components/schemas/LogLevel"
+          },
+          "message": {
+            "type": "string",
+            "description": "Message plus structured fields (`key=value`)."
+          },
+          "seq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Increasing sequence number; pass the last one as `after` to tail the log.",
+            "minimum": 0
+          },
+          "target": {
+            "type": "string",
+            "description": "Module that logged (e.g. `flixnet_library::scan`)."
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unix milliseconds."
+          }
+        }
+      },
+      "LogsDto": {
+        "type": "object",
+        "required": [
+          "lines",
+          "last_seq"
+        ],
+        "properties": {
+          "last_seq": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Newest sequence number; pass as `after` on the next poll.",
+            "minimum": 0
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogLine"
+            }
+          }
+        }
+      },
+      "MatchStats": {
+        "type": "object",
+        "required": [
+          "entries",
+          "matched",
+          "unmatched",
+          "by_provider_id",
+          "by_title_year",
+          "by_episode",
+          "played",
+          "in_progress",
+          "favorites",
+          "rated"
+        ],
+        "properties": {
+          "by_episode": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "by_provider_id": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "by_title_year": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "entries": {
+            "type": "integer",
+            "description": "Entries with any state (watched, in progress, favorite, rated).",
+            "minimum": 0
+          },
+          "favorites": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "in_progress": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "matched": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "played": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "rated": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unmatched": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
       "MediaFileDto": {
         "type": "object",
         "required": [
@@ -10067,6 +12004,321 @@
           "language": {
             "type": "string",
             "description": "Metadata language, e.g. `de-DE`."
+          }
+        }
+      },
+      "NotificationEventDto": {
+        "type": "object",
+        "required": [
+          "kind",
+          "label"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Stable name, e.g. `playback.started`."
+          },
+          "label": {
+            "type": "string",
+            "description": "German label for the UI."
+          }
+        }
+      },
+      "NotificationTargetDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "enabled",
+          "events",
+          "has_secret",
+          "has_token",
+          "recipients",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "created_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Event kinds this target receives (see `listNotificationEvents`)."
+          },
+          "has_secret": {
+            "type": "boolean",
+            "description": "Webhook: requests are signed (the secret itself is never returned)."
+          },
+          "has_token": {
+            "type": "boolean",
+            "description": "ntfy: an access token is stored."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TargetKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "ntfy: priority 1–5.",
+            "minimum": 0
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "E-mail: recipient addresses."
+          },
+          "server_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ntfy: server, e.g. `https://ntfy.sh`."
+          },
+          "topic": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ntfy: topic."
+          },
+          "updated_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Webhook: the URL requests go to."
+          },
+          "webhook_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Discord: the webhook URL with its secret part masked."
+          }
+        }
+      },
+      "NotificationTargetInput": {
+        "type": "object",
+        "description": "A notification target to create or replace. Secrets (`secret`, `token`,\n`webhook_url`) that are omitted or `null` keep their stored value; an empty\nstring removes them.",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Default `true`."
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kind": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TargetKind",
+                "description": "Required when creating; ignored on updates."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "secret": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "server_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "token": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "topic": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "webhook_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "OidcCompleteRequest": {
+        "type": "object",
+        "required": [
+          "code",
+          "state"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "OidcLoginConfigDto": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "provider_name"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Show the \"Mit … anmelden\" button."
+          },
+          "provider_name": {
+            "type": "string",
+            "description": "Name on the button, e.g. \"Authentik\"."
+          }
+        }
+      },
+      "OidcSettingsDto": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "provider_name",
+          "issuer_url",
+          "client_id",
+          "has_client_secret",
+          "scopes",
+          "auto_create_users",
+          "link_by_name",
+          "groups_claim"
+        ],
+        "properties": {
+          "admin_group": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Members of this group become administrators."
+          },
+          "auto_create_users": {
+            "type": "boolean",
+            "description": "Unknown accounts get a new Flixnet user."
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "groups_claim": {
+            "type": "string",
+            "description": "Claim holding the groups (default `groups`)."
+          },
+          "has_client_secret": {
+            "type": "boolean",
+            "description": "Whether a client secret is stored (it is never returned)."
+          },
+          "issuer_url": {
+            "type": "string",
+            "description": "Issuer URL, e.g. `https://auth.example.com/application/o/flixnet/`."
+          },
+          "link_by_name": {
+            "type": "boolean",
+            "description": "Unknown accounts are linked to the Flixnet user whose name equals their\n`preferred_username` (only enable if the provider controls these names)."
+          },
+          "provider_name": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "string"
+          }
+        }
+      },
+      "OidcStartDto": {
+        "type": "object",
+        "required": [
+          "authorization_url"
+        ],
+        "properties": {
+          "authorization_url": {
+            "type": "string",
+            "description": "Send the browser here."
+          }
+        }
+      },
+      "OidcStartRequest": {
+        "type": "object",
+        "required": [
+          "redirect_uri",
+          "device"
+        ],
+        "properties": {
+          "device": {
+            "$ref": "#/components/schemas/DeviceInfo"
+          },
+          "redirect_uri": {
+            "type": "string",
+            "description": "Where the provider sends the browser back: the web UI's `/login/oidc` route\n(must be registered at the provider)."
           }
         }
       },
@@ -10749,6 +13001,48 @@
           "manual"
         ]
       },
+      "SessionBandwidthDto": {
+        "type": "object",
+        "required": [
+          "session_id",
+          "user_name",
+          "title",
+          "play_method",
+          "is_paused",
+          "bytes",
+          "bytes_per_second"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes served for this session's stream so far.",
+            "minimum": 0
+          },
+          "bytes_per_second": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Current rate (average over the last seconds).",
+            "minimum": 0
+          },
+          "is_paused": {
+            "type": "boolean"
+          },
+          "play_method": {
+            "$ref": "#/components/schemas/PlayMethod"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "What plays (display title)."
+          },
+          "user_name": {
+            "type": "string"
+          }
+        }
+      },
       "SessionDto": {
         "type": "object",
         "description": "A newly issued device token plus the signed-in user.",
@@ -10946,6 +13240,102 @@
           "rating",
           "premiere_date"
         ]
+      },
+      "SmtpSecurity": {
+        "type": "string",
+        "enum": [
+          "starttls",
+          "tls",
+          "none"
+        ]
+      },
+      "SmtpSettingsDto": {
+        "type": "object",
+        "required": [
+          "security",
+          "has_password"
+        ],
+        "properties": {
+          "from_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "has_password": {
+            "type": "boolean",
+            "description": "Whether a password is stored (it is never returned)."
+          },
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "security": {
+            "$ref": "#/components/schemas/SmtpSecurity"
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "StorageDto": {
+        "type": "object",
+        "required": [
+          "label",
+          "path",
+          "used_bytes"
+        ],
+        "properties": {
+          "disk_available_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "disk_total_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The disk the folder is on (`None` if unknown).",
+            "minimum": 0
+          },
+          "label": {
+            "type": "string",
+            "description": "\"Konfiguration\" or \"Transcoding\"."
+          },
+          "path": {
+            "type": "string"
+          },
+          "used_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes used by the folder itself.",
+            "minimum": 0
+          }
+        }
       },
       "StreamAction": {
         "type": "string",
@@ -11323,6 +13713,15 @@
           }
         }
       },
+      "TargetKind": {
+        "type": "string",
+        "enum": [
+          "webhook",
+          "ntfy",
+          "discord",
+          "email"
+        ]
+      },
       "TaskDto": {
         "type": "object",
         "required": [
@@ -11361,6 +13760,24 @@
           }
         }
       },
+      "TestResultDto": {
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "properties": {
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why it failed (German or the remote server's answer)."
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
       "Tonemap": {
         "type": "string",
         "description": "How HDR is tone-mapped to SDR.",
@@ -11370,6 +13787,126 @@
           "vpp_qsv",
           "vaapi"
         ]
+      },
+      "TraktSettingsDto": {
+        "type": "object",
+        "required": [
+          "has_client_secret",
+          "redirect_uri"
+        ],
+        "properties": {
+          "client_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "has_client_secret": {
+            "type": "boolean",
+            "description": "Whether the client secret is stored (it is never returned)."
+          },
+          "redirect_uri": {
+            "type": "string",
+            "description": "Redirect URI to enter when creating the Trakt app."
+          }
+        }
+      },
+      "TraktStatusDto": {
+        "type": "object",
+        "required": [
+          "configured",
+          "connected",
+          "scrobble",
+          "sync_ratings"
+        ],
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "description": "The administrator registered a Trakt app."
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "last_sync": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TraktSyncReportDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_sync_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "pending": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DeviceCodeDto",
+                "description": "A started connection that still waits for confirmation."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scrobble": {
+            "type": "boolean",
+            "description": "Report playback to Trakt while watching."
+          },
+          "sync_ratings": {
+            "type": "boolean",
+            "description": "Ratings are synced as well."
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "TraktSyncReportDto": {
+        "type": "object",
+        "required": [
+          "pulled_watched",
+          "pulled_ratings",
+          "pushed_watched",
+          "pushed_ratings",
+          "unmatched"
+        ],
+        "properties": {
+          "pulled_ratings": {
+            "type": "integer",
+            "description": "Ratings taken over from Trakt.",
+            "minimum": 0
+          },
+          "pulled_watched": {
+            "type": "integer",
+            "description": "Watched items taken over from Trakt.",
+            "minimum": 0
+          },
+          "pushed_ratings": {
+            "type": "integer",
+            "description": "Ratings sent to Trakt.",
+            "minimum": 0
+          },
+          "pushed_watched": {
+            "type": "integer",
+            "description": "Watched items sent to Trakt.",
+            "minimum": 0
+          },
+          "unmatched": {
+            "type": "integer",
+            "description": "Trakt entries without a match in the library.",
+            "minimum": 0
+          }
+        }
       },
       "TranscodeSessionDto": {
         "type": "object",
@@ -11620,6 +14157,27 @@
           "locked"
         ]
       },
+      "UpdateBackupSettings": {
+        "type": "object",
+        "properties": {
+          "directory": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absolute folder; empty resets to the default."
+          },
+          "keep": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "1–365.",
+            "minimum": 0
+          }
+        }
+      },
       "UpdateChannelRequest": {
         "type": "object",
         "properties": {
@@ -11731,6 +14289,73 @@
           }
         }
       },
+      "UpdateOidcSettings": {
+        "type": "object",
+        "description": "Provider settings. `client_secret` omitted or `null` keeps the stored one; `\"\"`\nremoves it.",
+        "properties": {
+          "admin_group": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Empty removes it."
+          },
+          "auto_create_users": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "client_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_secret": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "groups_claim": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "issuer_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "link_by_name": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "provider_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scopes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "UpdatePlaylistRequest": {
         "type": "object",
         "properties": {
@@ -11765,6 +14390,60 @@
           "skip_intro_automatically": {
             "type": [
               "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "UpdateSmtpSettings": {
+        "type": "object",
+        "description": "SMTP settings. `password` omitted or `null` keeps the stored one; `\"\"` removes it.",
+        "properties": {
+          "from_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "security": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SmtpSecurity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "username": {
+            "type": [
+              "string",
               "null"
             ]
           }
@@ -11828,6 +14507,41 @@
             ],
             "format": "int64",
             "description": "New interval (1 minute to 30 days)."
+          }
+        }
+      },
+      "UpdateTraktOptions": {
+        "type": "object",
+        "properties": {
+          "scrobble": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "sync_ratings": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      },
+      "UpdateTraktSettings": {
+        "type": "object",
+        "description": "The Trakt API app. `client_secret` omitted or `null` keeps the stored one; `\"\"`\nremoves it.",
+        "properties": {
+          "client_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_secret": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -11995,6 +14709,24 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "UserMapping": {
+        "type": "object",
+        "required": [
+          "source_user_id",
+          "user_id"
+        ],
+        "properties": {
+          "source_user_id": {
+            "type": "string",
+            "description": "User id on the other server."
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Flixnet user that receives this history; `0` skips this user."
           }
         }
       },
@@ -12217,6 +14949,26 @@
     {
       "name": "livetv",
       "description": "Live TV: tuners, channels, guide and live playback"
+    },
+    {
+      "name": "notifications",
+      "description": "Webhooks, ntfy, Discord and e-mail notifications (administrators)"
+    },
+    {
+      "name": "trakt",
+      "description": "Trakt.tv connection, scrobbling and history sync"
+    },
+    {
+      "name": "backups",
+      "description": "Database backups (administrators)"
+    },
+    {
+      "name": "import",
+      "description": "Watch history import from Plex and Jellyfin (administrators)"
+    },
+    {
+      "name": "dashboard",
+      "description": "Server overview and logs (administrators)"
     }
   ]
 }

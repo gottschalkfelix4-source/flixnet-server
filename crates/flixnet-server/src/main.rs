@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use flixnet_api::{AppState, Services};
+use flixnet_api::{AppState, Services, ops};
 use flixnet_core::Config;
 use flixnet_core::events::EventBus;
 use flixnet_core::jobs::JobRuntime;
@@ -43,13 +43,22 @@ enum Command {
         #[arg(long, short)]
         output: Option<PathBuf>,
     },
+    /// Restore a backup (`flixnet-backup-*.db`). Stop the server first.
+    Restore {
+        /// The backup file.
+        file: PathBuf,
+        /// Also restore the configuration file saved next to the backup.
+        #[arg(long)]
+        with_config: bool,
+    },
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let config = Config::load(&cli.config)
+    let mut config = Config::load(&cli.config)
         .with_context(|| format!("invalid configuration ({})", cli.config.display()))?;
+    config.source_file = Some(cli.config.clone());
     init_tracing(&config.log.level);
 
     match cli.command.unwrap_or(Command::Serve) {
@@ -60,7 +69,54 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Command::Openapi { output } => write_openapi(output.as_deref()),
+        Command::Restore { file, with_config } => restore(&config, &file, with_config).await,
     }
+}
+
+/// Replaces the database (and optionally the config file) with a backup.
+async fn restore(config: &Config, file: &std::path::Path, with_config: bool) -> anyhow::Result<()> {
+    // A running server keeps its port; refuse to swap the database under it.
+    if let Err(err) = std::net::TcpListener::bind(config.server.bind)
+        && err.kind() == std::io::ErrorKind::AddrInUse
+    {
+        anyhow::bail!(
+            "{} is in use – stop the Flixnet server before restoring a backup",
+            config.server.bind
+        );
+    }
+    let db_path = config.paths.config_dir.join("flixnet.db");
+    let kept = flixnet_db::backup::restore(file, &db_path)
+        .await
+        .with_context(|| format!("cannot restore {}", file.display()))?;
+    if let Some(kept) = &kept {
+        tracing::info!(previous = %kept.display(), "previous database kept");
+    }
+    if with_config {
+        let saved = file.with_extension("toml");
+        let target = config
+            .source_file
+            .clone()
+            .unwrap_or_else(|| PathBuf::from("flixnet.toml"));
+        if saved.is_file() {
+            if target.is_file() {
+                let aside = PathBuf::from(format!(
+                    "{}.before-restore-{}",
+                    target.display(),
+                    flixnet_db::now_ms()
+                ));
+                std::fs::rename(&target, &aside)?;
+            }
+            std::fs::copy(&saved, &target)
+                .with_context(|| format!("cannot write {}", target.display()))?;
+            tracing::info!(path = %target.display(), "configuration restored");
+        } else {
+            tracing::warn!(path = %saved.display(), "the backup has no configuration file");
+        }
+    }
+    // Opening applies migrations the backup may be missing.
+    open_db(config).await?.close().await;
+    tracing::info!(backup = %file.display(), "backup restored; start the server again");
+    Ok(())
 }
 
 fn write_openapi(output: Option<&std::path::Path>) -> anyhow::Result<()> {
@@ -98,10 +154,17 @@ fn init_tracing(default_level: &str) {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_level));
     // Logs go to stderr so stdout stays clean for command output (e.g. `openapi`).
     // Colors only on a real terminal, so `docker logs` / Unraid show plain text.
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .with_writer(std::io::stderr)
-        .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr()))
+    // The same lines are kept in memory for the dashboard's log view.
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_writer(std::io::stderr)
+                .with_ansi(std::io::IsTerminal::is_terminal(&std::io::stderr())),
+        )
+        .with(flixnet_api::ops::logs::layer())
         .init();
 }
 
@@ -140,6 +203,16 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .register(trickplay_jobs::BackfillThumbnails)
         .register(flixnet_library::subtitles::AutoDownloadSubtitles {
             store_dir: config.paths.config_dir.join("subtitles"),
+        })
+        .register(ops::notify::DeliverNotification {
+            http: flixnet_library::http::client(),
+        })
+        .register(ops::backup::BackupDatabase {
+            config: config.clone(),
+        })
+        .register(ops::trakt::SyncAllTrakt {
+            http: flixnet_library::http::client(),
+            base_url: config.integrations.trakt_api_url.clone(),
         });
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
@@ -151,6 +224,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             .chain(segment_jobs::tasks())
             .chain(trickplay_jobs::tasks())
             .chain(flixnet_library::subtitles::tasks())
+            .chain(ops::tasks())
             .collect(),
     );
     let stop_scheduler = CancellationToken::new();
@@ -321,4 +395,79 @@ async fn shutdown_signal() {
         () = terminate => {},
     }
     tracing::info!("shutdown signal received");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config(dir: &std::path::Path) -> Config {
+        let mut config = Config::default();
+        config.paths.config_dir = dir.join("config");
+        config.server.bind = "127.0.0.1:0".parse().unwrap();
+        config.source_file = Some(dir.join("flixnet.toml"));
+        config
+    }
+
+    #[tokio::test]
+    async fn restore_brings_back_database_and_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let config = config(dir.path());
+        std::fs::write(config.source_file.as_ref().unwrap(), "# vorher\n").unwrap();
+
+        // A backup with one user, taken with the server's own backup code.
+        let db = open_db(&config).await.unwrap();
+        flixnet_db::users::create_first_admin(&db, "Felix", "x")
+            .await
+            .unwrap();
+        let backup = ops::backup::run_backup(&db, &config).await.unwrap();
+        db.close().await;
+        let file = ops::backup::default_directory(&config).join(&backup.name);
+        assert!(backup.has_config);
+
+        // Meanwhile: everything changed.
+        let db = open_db(&config).await.unwrap();
+        flixnet_db::users::create(
+            &db,
+            &flixnet_db::users::NewUser {
+                name: "Später",
+                password_hash: None,
+                pin_hash: None,
+                is_admin: false,
+                is_hidden: false,
+                max_age_rating: None,
+            },
+        )
+        .await
+        .unwrap();
+        db.close().await;
+        std::fs::write(config.source_file.as_ref().unwrap(), "# nachher\n").unwrap();
+
+        restore(&config, &file, true).await.unwrap();
+        let db = open_db(&config).await.unwrap();
+        let names: Vec<String> = flixnet_db::users::list(&db)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|u| u.name)
+            .collect();
+        db.close().await;
+        assert_eq!(names, ["Felix"]);
+        assert_eq!(
+            std::fs::read_to_string(config.source_file.as_ref().unwrap()).unwrap(),
+            "# vorher\n"
+        );
+    }
+
+    #[tokio::test]
+    async fn restore_refuses_while_the_server_runs() {
+        let dir = tempfile::tempdir().unwrap();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let mut config = config(dir.path());
+        config.server.bind = listener.local_addr().unwrap();
+        let err = restore(&config, &dir.path().join("x.db"), false)
+            .await
+            .unwrap_err();
+        assert!(err.to_string().contains("stop the Flixnet server"), "{err}");
+    }
 }

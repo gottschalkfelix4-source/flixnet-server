@@ -128,11 +128,11 @@ async fn get_init(
     State(state): State<AppState>,
     Path(session): Path<String>,
 ) -> ApiResult<Response> {
-    let path = state
-        .transcoder
-        .init(session_id(&session)?)
-        .await
-        .map_err(map_error)?;
+    let id = session_id(&session)?;
+    let path = state.transcoder.init(id).await.map_err(|err| {
+        crate::ops::report_transcode_failure(&state, id, &err);
+        map_error(err)
+    })?;
     file_response(path, "video/mp4").await
 }
 
@@ -161,11 +161,11 @@ async fn get_segment(
         .strip_suffix(".m4s")
         .and_then(|n| n.parse().ok())
         .ok_or_else(|| ApiError::not_found("Segment nicht vorhanden."))?;
-    let path = state
-        .transcoder
-        .segment(session_id(&session)?, index)
-        .await
-        .map_err(map_error)?;
+    let id = session_id(&session)?;
+    let path = state.transcoder.segment(id, index).await.map_err(|err| {
+        crate::ops::report_transcode_failure(&state, id, &err);
+        map_error(err)
+    })?;
     file_response(path, "video/iso.segment").await
 }
 

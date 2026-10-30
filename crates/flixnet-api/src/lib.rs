@@ -33,6 +33,7 @@ mod jobs;
 mod libraries;
 pub mod limiter;
 mod livetv;
+pub mod ops;
 pub mod playback;
 mod playlists;
 pub mod playstate;
@@ -70,6 +71,8 @@ pub struct AppState {
     pub playback: active_sessions::ActiveSessions,
     /// Live TV streams (shared per channel).
     pub livetv: flixnet_livetv::LiveTvManager,
+    /// Notifications, Trakt, backups, import, dashboard, single sign-on.
+    pub ops: ops::Ops,
 }
 
 /// Long-lived services the API talks to.
@@ -93,8 +96,8 @@ pub struct Services {
 impl AppState {
     pub fn new(config: Config, db: Db, services: Services) -> Self {
         let playback = active_sessions::ActiveSessions::default();
-        playback.spawn_reaper(db.clone());
-        Self {
+        playback.spawn_reaper(db.clone(), services.events.clone());
+        let state = Self {
             config: Arc::new(config),
             db,
             limits: Arc::default(),
@@ -109,7 +112,10 @@ impl AppState {
             subtitles: services.subtitles,
             livetv: services.livetv,
             playback,
-        }
+            ops: ops::Ops::default(),
+        };
+        ops::spawn_listeners(&state);
+        state
     }
 }
 
@@ -136,6 +142,11 @@ impl AppState {
         (name = "playlists", description = "Personal and smart playlists"),
         (name = "settings", description = "Server settings (administrators)"),
         (name = "livetv", description = "Live TV: tuners, channels, guide and live playback"),
+        (name = "notifications", description = "Webhooks, ntfy, Discord and e-mail notifications (administrators)"),
+        (name = "trakt", description = "Trakt.tv connection, scrobbling and history sync"),
+        (name = "backups", description = "Database backups (administrators)"),
+        (name = "import", description = "Watch history import from Plex and Jellyfin (administrators)"),
+        (name = "dashboard", description = "Server overview and logs (administrators)"),
     )
 )]
 struct ApiDoc;
@@ -187,6 +198,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, livetv::router())
         .nest(API_PREFIX, segments::router())
         .nest(API_PREFIX, subtitle_search::router())
+        .nest(API_PREFIX, ops::router())
         .split_for_parts()
 }
 
@@ -205,6 +217,10 @@ pub fn router(state: AppState) -> Router {
         get(move || async move { Json(spec_json.as_ref().clone()) }),
     )
     .merge(Scalar::with_url(format!("{API_PREFIX}/docs"), spec))
+    .layer(axum::middleware::from_fn_with_state(
+        state.clone(),
+        ops::bandwidth::track,
+    ))
     .layer(TraceLayer::new_for_http())
     .with_state(state)
 }

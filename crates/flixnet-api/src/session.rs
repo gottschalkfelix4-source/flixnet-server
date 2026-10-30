@@ -210,7 +210,20 @@ pub async fn login_with_password(
     match user {
         Some(user) if valid => {
             state.limits.login.reset(&limit_key);
-            issue_session(state, user, device).await
+            let known = flixnet_db::ops::device_known(&state.db, user.id, device.id.trim()).await?;
+            let (user_id, user_name) = (user.id, user.name.clone());
+            let session = issue_session(state, user, device).await?;
+            if !known {
+                state
+                    .events
+                    .publish(flixnet_core::events::ServerEvent::NewDeviceLogin {
+                        user_id,
+                        user_name,
+                        device_name: device.name.trim().to_owned(),
+                        client: device.client.trim().to_owned(),
+                    });
+            }
+            Ok(session)
         }
         _ => {
             state.limits.login.record_failure(&limit_key);

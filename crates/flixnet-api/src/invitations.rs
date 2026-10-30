@@ -220,6 +220,12 @@ async fn redeem_invitation(
             AcceptError::Db(err) => err.into(),
         })?;
     tracing::info!(user = %user.name, "invitation redeemed");
+    state
+        .events
+        .publish(flixnet_core::events::ServerEvent::UserCreated {
+            user_id: user.id,
+            name: user.name.clone(),
+        });
     issue_session(&state, user, &body.device).await.map(Json)
 }
 

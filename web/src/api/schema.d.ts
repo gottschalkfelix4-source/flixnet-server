@@ -38,6 +38,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/oidc/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finish a single sign-on: exchanges the code and signs in like a password login. */
+        post: operations["completeOidcLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oidc/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Whether single sign-on is offered on the login page (public). */
+        get: operations["getOidcLoginConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/oidc/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a single sign-on: returns the provider URL to send the browser to. */
+        post: operations["startOidcLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/profiles": {
         parameters: {
             query?: never;
@@ -70,6 +121,24 @@ export interface paths {
          *     Profiles with a PIN need the PIN; administrators without a PIN need their password.
          */
         post: operations["switchProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Backup folder, retention and existing backups (administrators). */
+        get: operations["listBackups"];
+        put?: never;
+        /** Back up now ("Jetzt sichern"). */
+        post: operations["createBackup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -163,6 +232,23 @@ export interface paths {
         post?: never;
         /** Remove a movie or series from a manual collection (administrators). */
         delete: operations["removeCollectionItem"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Server overview (administrators). */
+        get: operations["getDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -290,6 +376,43 @@ export interface paths {
         get: operations["getImage"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/import/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import watch history from Plex or Jellyfin (administrators). Repeating an import
+         *     adds nothing twice.
+         */
+        post: operations["importApply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview an import: what would be matched, without writing (administrators). */
+        post: operations["importPreview"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1162,6 +1285,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent server log lines (administrators). */
+        get: operations["listLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Event kinds notification targets can subscribe to. */
+        get: operations["listNotificationEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Notification targets (administrators). */
+        get: operations["listNotificationTargets"];
+        put?: never;
+        /** Add a notification target. */
+        post: operations["createNotificationTarget"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/targets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a notification target. */
+        put: operations["updateNotificationTarget"];
+        post?: never;
+        /** Remove a notification target. */
+        delete: operations["deleteNotificationTarget"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/targets/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test message to a target right away (no retries). */
+        post: operations["testNotificationTarget"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/people/{id}": {
         parameters: {
             query?: never;
@@ -1338,6 +1548,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change the backup folder and how many backups are kept. */
+        put: operations["updateBackupSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/metadata": {
         parameters: {
             query?: never;
@@ -1356,6 +1583,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/oidc": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Single sign-on provider settings (administrators). */
+        get: operations["getOidcSettings"];
+        /** Change the single sign-on provider. Enabling checks the provider's discovery. */
+        put: operations["updateOidcSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/smtp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** SMTP server for e-mail notifications. */
+        get: operations["getSmtpSettings"];
+        /** Change the SMTP server. */
+        put: operations["updateSmtpSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/subtitles": {
         parameters: {
             query?: never;
@@ -1367,6 +1630,24 @@ export interface paths {
         get: operations["getSubtitleSettings"];
         /** Change OpenSubtitles settings. A new key or login is checked against OpenSubtitles. */
         put: operations["updateSubtitleSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/trakt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Trakt API app of this server (administrators). */
+        get: operations["getTraktSettings"];
+        /** Register the Trakt API app (client id and secret from trakt.tv/oauth/applications). */
+        put: operations["updateTraktSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1533,6 +1814,76 @@ export interface paths {
         put?: never;
         /** Run a task now. */
         post: operations["runTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trakt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in user's Trakt connection. */
+        get: operations["getTraktStatus"];
+        /** Change scrobbling and rating sync. */
+        put: operations["updateTraktOptions"];
+        post?: never;
+        /** Disconnect Trakt (the token is revoked at Trakt as well, if possible). */
+        delete: operations["disconnectTrakt"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trakt/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start connecting: returns a code to enter on trakt.tv. */
+        post: operations["startTraktConnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trakt/connect/poll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check whether the code was confirmed; stores the account once it is. */
+        post: operations["pollTraktConnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trakt/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sync watched history (and ratings) with Trakt now, in both directions. */
+        post: operations["syncTrakt"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1877,6 +2228,34 @@ export interface components {
             language?: string | null;
             title?: string | null;
         };
+        BackupFileDto: {
+            /**
+             * Format: int64
+             * @description Unix milliseconds.
+             */
+            created_at: number;
+            /** @description A copy of the configuration file was saved next to it. */
+            has_config: boolean;
+            /** @description File name of the database snapshot. */
+            name: string;
+            /** Format: int64 */
+            size_bytes: number;
+        };
+        BackupOverviewDto: {
+            /** @description Folder backups are written to. */
+            directory: string;
+            /** @description Newest first. */
+            files: components["schemas"]["BackupFileDto"][];
+            /** @description Whether `directory` is the default (`<config>/backups`). */
+            is_default_directory: boolean;
+            /**
+             * Format: int32
+             * @description How many backups are kept.
+             */
+            keep: number;
+            /** @description The command that restores a backup (with the server stopped). */
+            restore_command: string;
+        };
         CandidateDto: {
             /** Format: int64 */
             id: number;
@@ -1971,6 +2350,12 @@ export interface components {
             /** @description Movies or series to add. */
             item_ids: number[];
         };
+        ConnectPollDto: {
+            state: components["schemas"]["ConnectState"];
+            status: components["schemas"]["TraktStatusDto"];
+        };
+        /** @enum {string} */
+        ConnectState: "pending" | "connected" | "expired" | "denied";
         CreateCollectionRequest: {
             name: string;
             overview?: string | null;
@@ -2051,6 +2436,57 @@ export interface components {
             /** @example Felix */
             name: string;
             password: string;
+        };
+        DashboardDto: {
+            /** Format: int64 */
+            bandwidth_bytes_per_second: number;
+            /**
+             * Format: int64
+             * @description All media traffic since the start.
+             */
+            bandwidth_total_bytes: number;
+            /**
+             * Format: float
+             * @description Whole machine (or container), percent of all cores.
+             */
+            cpu_percent: number;
+            jobs: components["schemas"]["JobCountsDto"];
+            /** Format: int64 */
+            memory_total_bytes: number;
+            /** Format: int64 */
+            memory_used_bytes: number;
+            /** Format: float */
+            process_cpu_percent: number;
+            /**
+             * Format: int64
+             * @description Flixnet itself.
+             */
+            process_memory_bytes: number;
+            sessions: components["schemas"]["SessionBandwidthDto"][];
+            /**
+             * Format: int64
+             * @description Unix milliseconds.
+             */
+            started_at: number;
+            storage: components["schemas"]["StorageDto"][];
+            /** @description Running ffmpeg transcodes. */
+            transcodes: number;
+            version: string;
+        };
+        DeviceCodeDto: {
+            /**
+             * Format: int64
+             * @description Unix milliseconds.
+             */
+            expires_at: number;
+            /**
+             * Format: int64
+             * @description Seconds to wait between polls.
+             */
+            interval: number;
+            /** @description Code the user enters at `verification_url`. */
+            user_code: string;
+            verification_url: string;
         };
         DeviceDto: {
             client: string;
@@ -2271,6 +2707,52 @@ export interface components {
             /** Format: int64 */
             tmdb_id: number;
         };
+        ImportRequest: {
+            password?: string | null;
+            /** @description Base URL of the other server, e.g. `http://192.168.1.10:32400`. */
+            server_url: string;
+            source: components["schemas"]["ImportSource"];
+            /** @description Plex: `X-Plex-Token`. Jellyfin: an API key (Dashboard → API-Schlüssel). */
+            token?: string | null;
+            /**
+             * Format: int64
+             * @description Plex (one account per token) and Jellyfin sign-in: the Flixnet user to import
+             *     into.
+             */
+            user_id?: number | null;
+            /**
+             * @description Jellyfin with API key: which Jellyfin user goes to which Flixnet user. Users
+             *     left out are mapped by equal name, if there is one.
+             */
+            user_map?: components["schemas"]["UserMapping"][];
+            /** @description Jellyfin without API key: sign in as this user (imports only that user). */
+            username?: string | null;
+        };
+        ImportResultDto: {
+            /** @description Whether anything was written (`false` for a preview). */
+            applied: boolean;
+            source: components["schemas"]["ImportSource"];
+            users: components["schemas"]["ImportUserDto"][];
+        };
+        /** @enum {string} */
+        ImportSource: "plex" | "jellyfin";
+        ImportUserDto: {
+            source_user_id: string;
+            source_user_name: string;
+            stats: components["schemas"]["MatchStats"];
+            /** @description Some titles that were not found in the library. */
+            unmatched_samples: string[];
+            /**
+             * Format: int64
+             * @description Flixnet user the history goes to (`None`: skipped, no mapping).
+             */
+            user_id?: number | null;
+            user_name?: string | null;
+            /** @description After applying: history entries added. */
+            written_history?: number | null;
+            /** @description After applying: items written. */
+            written_items?: number | null;
+        };
         InvitationDto: {
             /** Format: int64 */
             created_at: number;
@@ -2370,6 +2852,14 @@ export interface components {
             offset: number;
             /** Format: int64 */
             total: number;
+        };
+        JobCountsDto: {
+            /** Format: int64 */
+            failed: number;
+            /** Format: int64 */
+            queued: number;
+            /** Format: int64 */
+            running: number;
         };
         JobDto: {
             /** Format: int64 */
@@ -2474,6 +2964,49 @@ export interface components {
             /** @description User ids of the viewers (one entry per player). */
             viewers: number[];
         };
+        /**
+         * @description Severity, most severe first (so `level <= filter` keeps what a filter asks for).
+         * @enum {string}
+         */
+        LogLevel: "error" | "warn" | "info" | "debug" | "trace";
+        LogLine: {
+            level: components["schemas"]["LogLevel"];
+            /** @description Message plus structured fields (`key=value`). */
+            message: string;
+            /**
+             * Format: int64
+             * @description Increasing sequence number; pass the last one as `after` to tail the log.
+             */
+            seq: number;
+            /** @description Module that logged (e.g. `flixnet_library::scan`). */
+            target: string;
+            /**
+             * Format: int64
+             * @description Unix milliseconds.
+             */
+            timestamp: number;
+        };
+        LogsDto: {
+            /**
+             * Format: int64
+             * @description Newest sequence number; pass as `after` on the next poll.
+             */
+            last_seq: number;
+            lines: components["schemas"]["LogLine"][];
+        };
+        MatchStats: {
+            by_episode: number;
+            by_provider_id: number;
+            by_title_year: number;
+            /** @description Entries with any state (watched, in progress, favorite, rated). */
+            entries: number;
+            favorites: number;
+            in_progress: number;
+            matched: number;
+            played: number;
+            rated: number;
+            unmatched: number;
+        };
         MediaFileDto: {
             audio: components["schemas"]["AudioStreamDto"][];
             /** Format: int64 */
@@ -2556,6 +3089,108 @@ export interface components {
             has_tmdb_api_key: boolean;
             /** @description Metadata language, e.g. `de-DE`. */
             language: string;
+        };
+        NotificationEventDto: {
+            /** @description Stable name, e.g. `playback.started`. */
+            kind: string;
+            /** @description German label for the UI. */
+            label: string;
+        };
+        NotificationTargetDto: {
+            /** Format: int64 */
+            created_at: number;
+            enabled: boolean;
+            /** @description Event kinds this target receives (see `listNotificationEvents`). */
+            events: string[];
+            /** @description Webhook: requests are signed (the secret itself is never returned). */
+            has_secret: boolean;
+            /** @description ntfy: an access token is stored. */
+            has_token: boolean;
+            /** Format: int64 */
+            id: number;
+            kind: components["schemas"]["TargetKind"];
+            name: string;
+            /**
+             * Format: int32
+             * @description ntfy: priority 1–5.
+             */
+            priority?: number | null;
+            /** @description E-mail: recipient addresses. */
+            recipients: string[];
+            /** @description ntfy: server, e.g. `https://ntfy.sh`. */
+            server_url?: string | null;
+            /** @description ntfy: topic. */
+            topic?: string | null;
+            /** Format: int64 */
+            updated_at: number;
+            /** @description Webhook: the URL requests go to. */
+            url?: string | null;
+            /** @description Discord: the webhook URL with its secret part masked. */
+            webhook_url?: string | null;
+        };
+        /**
+         * @description A notification target to create or replace. Secrets (`secret`, `token`,
+         *     `webhook_url`) that are omitted or `null` keep their stored value; an empty
+         *     string removes them.
+         */
+        NotificationTargetInput: {
+            /** @description Default `true`. */
+            enabled?: boolean | null;
+            events?: string[];
+            kind?: components["schemas"]["TargetKind"] | null;
+            name: string;
+            /** Format: int32 */
+            priority?: number | null;
+            recipients?: string[];
+            secret?: string | null;
+            server_url?: string | null;
+            token?: string | null;
+            topic?: string | null;
+            url?: string | null;
+            webhook_url?: string | null;
+        };
+        OidcCompleteRequest: {
+            code: string;
+            state: string;
+        };
+        OidcLoginConfigDto: {
+            /** @description Show the "Mit … anmelden" button. */
+            enabled: boolean;
+            /** @description Name on the button, e.g. "Authentik". */
+            provider_name: string;
+        };
+        OidcSettingsDto: {
+            /** @description Members of this group become administrators. */
+            admin_group?: string | null;
+            /** @description Unknown accounts get a new Flixnet user. */
+            auto_create_users: boolean;
+            client_id: string;
+            enabled: boolean;
+            /** @description Claim holding the groups (default `groups`). */
+            groups_claim: string;
+            /** @description Whether a client secret is stored (it is never returned). */
+            has_client_secret: boolean;
+            /** @description Issuer URL, e.g. `https://auth.example.com/application/o/flixnet/`. */
+            issuer_url: string;
+            /**
+             * @description Unknown accounts are linked to the Flixnet user whose name equals their
+             *     `preferred_username` (only enable if the provider controls these names).
+             */
+            link_by_name: boolean;
+            provider_name: string;
+            scopes: string;
+        };
+        OidcStartDto: {
+            /** @description Send the browser here. */
+            authorization_url: string;
+        };
+        OidcStartRequest: {
+            device: components["schemas"]["DeviceInfo"];
+            /**
+             * @description Where the provider sends the browser back: the web UI's `/login/oidc` route
+             *     (must be registered at the provider).
+             */
+            redirect_uri: string;
         };
         PersonCreditDto: {
             character?: string | null;
@@ -2782,6 +3417,24 @@ export interface components {
         SegmentKind: "intro" | "credits" | "recap";
         /** @enum {string} */
         SegmentSource: "fingerprint" | "blackdetect" | "manual";
+        SessionBandwidthDto: {
+            /**
+             * Format: int64
+             * @description Bytes served for this session's stream so far.
+             */
+            bytes: number;
+            /**
+             * Format: int64
+             * @description Current rate (average over the last seconds).
+             */
+            bytes_per_second: number;
+            is_paused: boolean;
+            play_method: components["schemas"]["PlayMethod"];
+            session_id: string;
+            /** @description What plays (display title). */
+            title: string;
+            user_name: string;
+        };
         /** @description A newly issued device token plus the signed-in user. */
         SessionDto: {
             /** @description Send as `Authorization: Bearer <token>`. Valid until logout or re-login on this device. */
@@ -2878,6 +3531,36 @@ export interface components {
         SmartOrder: "asc" | "desc";
         /** @enum {string} */
         SmartSort: "title" | "date_added" | "year" | "rating" | "premiere_date";
+        /** @enum {string} */
+        SmtpSecurity: "starttls" | "tls" | "none";
+        SmtpSettingsDto: {
+            from_address?: string | null;
+            from_name?: string | null;
+            /** @description Whether a password is stored (it is never returned). */
+            has_password: boolean;
+            host?: string | null;
+            /** Format: int32 */
+            port?: number | null;
+            security: components["schemas"]["SmtpSecurity"];
+            username?: string | null;
+        };
+        StorageDto: {
+            /** Format: int64 */
+            disk_available_bytes?: number | null;
+            /**
+             * Format: int64
+             * @description The disk the folder is on (`None` if unknown).
+             */
+            disk_total_bytes?: number | null;
+            /** @description "Konfiguration" or "Transcoding". */
+            label: string;
+            path: string;
+            /**
+             * Format: int64
+             * @description Bytes used by the folder itself.
+             */
+            used_bytes: number;
+        };
         /** @enum {string} */
         StreamAction: "copy" | "transcode";
         SubtitleCandidateDto: {
@@ -3020,6 +3703,8 @@ export interface components {
              */
             version: string;
         };
+        /** @enum {string} */
+        TargetKind: "webhook" | "ntfy" | "discord" | "email";
         TaskDto: {
             description: string;
             enabled: boolean;
@@ -3031,11 +3716,49 @@ export interface components {
             /** Format: int64 */
             next_run?: number | null;
         };
+        TestResultDto: {
+            /** @description Why it failed (German or the remote server's answer). */
+            error?: string | null;
+            ok: boolean;
+        };
         /**
          * @description How HDR is tone-mapped to SDR.
          * @enum {string}
          */
         Tonemap: "software" | "cuda" | "vpp_qsv" | "vaapi";
+        TraktSettingsDto: {
+            client_id?: string | null;
+            /** @description Whether the client secret is stored (it is never returned). */
+            has_client_secret: boolean;
+            /** @description Redirect URI to enter when creating the Trakt app. */
+            redirect_uri: string;
+        };
+        TraktStatusDto: {
+            /** @description The administrator registered a Trakt app. */
+            configured: boolean;
+            connected: boolean;
+            last_sync?: components["schemas"]["TraktSyncReportDto"] | null;
+            /** Format: int64 */
+            last_sync_at?: number | null;
+            pending?: components["schemas"]["DeviceCodeDto"] | null;
+            /** @description Report playback to Trakt while watching. */
+            scrobble: boolean;
+            /** @description Ratings are synced as well. */
+            sync_ratings: boolean;
+            username?: string | null;
+        };
+        TraktSyncReportDto: {
+            /** @description Ratings taken over from Trakt. */
+            pulled_ratings: number;
+            /** @description Watched items taken over from Trakt. */
+            pulled_watched: number;
+            /** @description Ratings sent to Trakt. */
+            pushed_ratings: number;
+            /** @description Watched items sent to Trakt. */
+            pushed_watched: number;
+            /** @description Trakt entries without a match in the library. */
+            unmatched: number;
+        };
         TranscodeSessionDto: {
             /** Format: int64 */
             file_id: number;
@@ -3142,6 +3865,15 @@ export interface components {
          * @enum {string}
          */
         Unlock: "none" | "pin" | "password" | "locked";
+        UpdateBackupSettings: {
+            /** @description Absolute folder; empty resets to the default. */
+            directory?: string | null;
+            /**
+             * Format: int32
+             * @description 1–365.
+             */
+            keep?: number | null;
+        };
         UpdateChannelRequest: {
             /** @description Hidden channels appear neither in the channel list nor in the guide. */
             enabled?: boolean | null;
@@ -3170,6 +3902,23 @@ export interface components {
             /** @description TMDB v3 API key or v4 read access token; `null` removes it. */
             tmdb_api_key?: string | null;
         };
+        /**
+         * @description Provider settings. `client_secret` omitted or `null` keeps the stored one; `""`
+         *     removes it.
+         */
+        UpdateOidcSettings: {
+            /** @description Empty removes it. */
+            admin_group?: string | null;
+            auto_create_users?: boolean | null;
+            client_id?: string | null;
+            client_secret?: string | null;
+            enabled?: boolean | null;
+            groups_claim?: string | null;
+            issuer_url?: string | null;
+            link_by_name?: boolean | null;
+            provider_name?: string | null;
+            scopes?: string | null;
+        };
         UpdatePlaylistRequest: {
             name?: string | null;
             shared?: boolean | null;
@@ -3177,6 +3926,17 @@ export interface components {
         };
         UpdatePreferencesRequest: {
             skip_intro_automatically?: boolean | null;
+        };
+        /** @description SMTP settings. `password` omitted or `null` keeps the stored one; `""` removes it. */
+        UpdateSmtpSettings: {
+            from_address?: string | null;
+            from_name?: string | null;
+            host?: string | null;
+            password?: string | null;
+            /** Format: int32 */
+            port?: number | null;
+            security?: components["schemas"]["SmtpSecurity"] | null;
+            username?: string | null;
         };
         UpdateSubtitleSettings: {
             /** @description OpenSubtitles.com API key (consumer key); `null` removes it. */
@@ -3196,6 +3956,18 @@ export interface components {
              * @description New interval (1 minute to 30 days).
              */
             interval_ms?: number | null;
+        };
+        UpdateTraktOptions: {
+            scrobble?: boolean | null;
+            sync_ratings?: boolean | null;
+        };
+        /**
+         * @description The Trakt API app. `client_secret` omitted or `null` keeps the stored one; `""`
+         *     removes it.
+         */
+        UpdateTraktSettings: {
+            client_id?: string | null;
+            client_secret?: string | null;
         };
         UpdateTunerRequest: {
             enabled?: boolean | null;
@@ -3246,6 +4018,15 @@ export interface components {
              */
             max_age_rating?: number | null;
             name: string;
+        };
+        UserMapping: {
+            /** @description User id on the other server. */
+            source_user_id: string;
+            /**
+             * Format: int64
+             * @description Flixnet user that receives this history; `0` skips this user.
+             */
+            user_id: number;
         };
         VideoCodecSupport: {
             /** @description ffprobe codec name: `h264`, `hevc`, `av1`, `vp9`, … */
@@ -3385,6 +4166,128 @@ export interface operations {
             };
         };
     };
+    completeOidcLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OidcCompleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed in */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionDto"];
+                };
+            };
+            /** @description Unknown or expired sign-in, or an invalid ID token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No Flixnet account for this login */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Provider unreachable or failing */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getOidcLoginConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Login button configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OidcLoginConfigDto"];
+                };
+            };
+        };
+    };
+    startOidcLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OidcStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Provider URL */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OidcStartDto"];
+                };
+            };
+            /** @description Single sign-on is not enabled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid redirect URI or device */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Provider unreachable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     listProfiles: {
         parameters: {
             query?: never;
@@ -3465,6 +4368,82 @@ export interface operations {
             };
             /** @description Too many failed attempts */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listBackups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Backup overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupOverviewDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createBackup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new backup */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupFileDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3896,6 +4875,44 @@ export interface operations {
             };
         };
     };
+    getDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current server state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     listChapters: {
         parameters: {
             query?: never;
@@ -4202,6 +5219,126 @@ export interface operations {
             };
             /** @description No such image */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    importApply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description What was written per user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResultDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Missing or rejected credentials */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The other server failed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    importPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Match statistics per user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResultDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Missing or rejected credentials */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The other server failed */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7197,6 +8334,339 @@ export interface operations {
             };
         };
     };
+    listLogs: {
+        parameters: {
+            query?: {
+                /** @description Least severe level to include (default `info`). */
+                level?: components["schemas"]["LogLevel"];
+                /** @description Only lines with a higher sequence number (for tailing). */
+                after?: number;
+                /** @description 1–2000, default 500 (the most recent ones). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Log lines, oldest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listNotificationEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event kinds */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationEventDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listNotificationTargets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All targets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTargetDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createNotificationTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationTargetInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTargetDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid target */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateNotificationTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Target id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationTargetInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationTargetDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such target */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid target */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deleteNotificationTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Target id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such target */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    testNotificationTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Target id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Whether the test message was accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestResultDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such target */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     getPerson: {
         parameters: {
             query?: never;
@@ -7839,6 +9309,57 @@ export interface operations {
             };
         };
     };
+    updateBackupSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBackupSettings"];
+            };
+        };
+        responses: {
+            /** @description Backup overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupOverviewDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid folder or number */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     getMetadataSettings: {
         parameters: {
             query?: never;
@@ -7918,6 +9439,184 @@ export interface operations {
                 };
             };
             /** @description Invalid key, language or country */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getOidcSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OidcSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateOidcSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateOidcSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OidcSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid settings or provider not reachable */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getSmtpSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SmtpSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateSmtpSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSmtpSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SmtpSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid settings */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -8008,6 +9707,86 @@ export interface operations {
             };
             /** @description Invalid key, login or languages */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getTraktSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraktSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateTraktSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTraktSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraktSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8400,6 +10179,254 @@ export interface operations {
             };
             /** @description No such task */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getTraktStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraktStatusDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateTraktOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTraktOptions"];
+            };
+        };
+        responses: {
+            /** @description Connection state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraktStatusDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No Trakt account connected */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    disconnectTrakt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    startTraktConnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Code to confirm on trakt.tv */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviceCodeDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No Trakt app configured */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Trakt unreachable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    pollTraktConnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current state of the connection attempt */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectPollDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No connection attempt running */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Trakt unreachable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    syncTrakt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What was synced */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraktSyncReportDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No Trakt account connected */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No Trakt app, or the connection expired */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Trakt unreachable */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
