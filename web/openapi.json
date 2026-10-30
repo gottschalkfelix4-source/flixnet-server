@@ -4771,7 +4771,7 @@
         "tags": [
           "livetv"
         ],
-        "summary": "The live HLS playlist of a viewer session (rolling window).",
+        "summary": "The live HLS playlist of a viewer session: the whole timeshift buffer as a live\n(DVR window) playlist with `EXT-X-PROGRAM-DATE-TIME`.",
         "operationId": "getLivePlaylist",
         "parameters": [
           {
@@ -4879,6 +4879,106 @@
         "security": [
           {}
         ]
+      }
+    },
+    "/api/v1/livetv/settings": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Live TV settings (administrators).",
+        "operationId": "getLiveTvSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveTvSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Changes Live TV settings; a new timeshift buffer applies to running streams at once.",
+        "operationId": "updateLiveTvSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLiveTvSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveTvSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/livetv/streams": {
@@ -9750,9 +9850,15 @@
           "playlist_url",
           "channel_id",
           "plan",
-          "shared"
+          "shared",
+          "buffer_secs"
         ],
         "properties": {
+          "buffer_secs": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Timeshift: seconds the server keeps for pausing and rewinding (the playlist\nlists all of them; the player starts at the live edge)."
+          },
           "channel_id": {
             "type": "integer",
             "format": "int64"
@@ -9784,11 +9890,20 @@
           "started_at",
           "video_copied",
           "audio_copied",
-          "viewers"
+          "viewers",
+          "recordings",
+          "buffered_secs",
+          "restarts",
+          "encoder"
         ],
         "properties": {
           "audio_copied": {
             "type": "boolean"
+          },
+          "buffered_secs": {
+            "type": "number",
+            "format": "double",
+            "description": "Seconds of timeshift buffer on disk."
           },
           "channel_id": {
             "type": "integer",
@@ -9800,8 +9915,22 @@
               "null"
             ]
           },
+          "encoder": {
+            "$ref": "#/components/schemas/EncoderKind",
+            "description": "Video encoder of the current run (`software` also for copied video)."
+          },
           "id": {
             "type": "string"
+          },
+          "recordings": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Recordings fed by this stream."
+          },
+          "restarts": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Times the upstream was restarted after a failure."
           },
           "started_at": {
             "type": "integer",
@@ -9821,6 +9950,19 @@
               "format": "int64"
             },
             "description": "User ids of the viewers (one entry per player)."
+          }
+        }
+      },
+      "LiveTvSettingsDto": {
+        "type": "object",
+        "required": [
+          "timeshift_minutes"
+        ],
+        "properties": {
+          "timeshift_minutes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Timeshift buffer per running channel in minutes (0 = live window only)."
           }
         }
       },
@@ -11697,6 +11839,19 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "UpdateLiveTvSettings": {
+        "type": "object",
+        "properties": {
+          "timeshift_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "0–360 minutes."
           }
         }
       },

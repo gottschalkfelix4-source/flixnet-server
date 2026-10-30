@@ -209,6 +209,12 @@ impl TranscodeManager {
         hardware.encoder = encoder;
     }
 
+    /// The encoder new sessions get (software until detection finished). Live TV
+    /// uses the same choice for its transcodes.
+    pub fn encoder(&self) -> VideoEncoder {
+        self.inner.hardware.lock().unwrap().encoder.clone()
+    }
+
     /// Uses this encoder for new sessions (tests, or a known setup).
     pub fn set_encoder(&self, encoder: VideoEncoder) {
         self.inner.hardware.lock().unwrap().encoder = encoder;

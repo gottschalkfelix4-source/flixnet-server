@@ -136,15 +136,16 @@ async fn idle_sessions_are_reaped() {
     assert_eq!(manager.sessions().await.len(), 1);
 
     let manager2 = manager.clone();
+    // The reaper forgets the session first and removes its files right after.
+    let session_dir = segment.parent().unwrap().to_owned();
     assert!(
         wait_until(
-            async || manager2.sessions().await.is_empty(),
-            Duration::from_secs(5)
+            async || manager2.sessions().await.is_empty() && !session_dir.exists(),
+            Duration::from_secs(15)
         )
         .await,
         "idle session reaped"
     );
-    assert!(!segment.parent().unwrap().exists());
 }
 
 #[tokio::test]

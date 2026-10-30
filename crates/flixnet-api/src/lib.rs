@@ -159,6 +159,12 @@ impl Modify for SecuritySchemes {
     }
 }
 
+/// Starts what runs next to the routes once the server is up: applies the stored Live
+/// TV settings (timeshift buffer).
+pub async fn start_services(state: &AppState) -> Result<(), flixnet_db::DbError> {
+    livetv::start(state).await
+}
+
 /// Documented API routes plus the spec generated from them.
 fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
     let mut doc = ApiDoc::openapi();

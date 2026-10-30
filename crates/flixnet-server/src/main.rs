@@ -196,6 +196,8 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         config.paths.transcode_dir().join("live"),
         flixnet_livetv::LiveSettings::default(),
     );
+    // Live transcodes use the encoder hardware detection picks.
+    livetv.use_encoders_of(transcoder.clone());
 
     let services = Services {
         events,
@@ -219,6 +221,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     };
     let jellyfin = config.jellyfin.clone();
     let state = AppState::new(config, db.clone(), services);
+    flixnet_api::start_services(&state).await?;
     let app = flixnet_api::router(state.clone()).fallback_service(web::router());
 
     let listener = tokio::net::TcpListener::bind(bind)

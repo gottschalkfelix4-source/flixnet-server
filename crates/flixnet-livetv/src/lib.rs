@@ -6,6 +6,7 @@
 //! Imports and guide refreshes run as jobs ([`jobs`]); the API crate drives
 //! [`stream::LiveTvManager`] for playback.
 
+pub mod config;
 pub mod ffmpeg;
 pub mod guide;
 pub mod hdhomerun;

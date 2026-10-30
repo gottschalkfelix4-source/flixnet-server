@@ -13,6 +13,7 @@ use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use flixnet_core::jobs::priority;
 use flixnet_db::livetv::{self, Channel, EpgMatch, HostUpdate, NewTunerHost, Program};
+use flixnet_livetv::config::{self, LiveTvConfig};
 use flixnet_livetv::stream::{WatchRequest, is_session_id};
 use flixnet_livetv::tuner::{is_stream_url, stream_source};
 use flixnet_livetv::{LiveError, TunerKind, hdhomerun, http, jobs, matching};
@@ -52,6 +53,7 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(get_live_playlist))
         .routes(routes!(get_live_segment))
         .routes(routes!(list_live_streams))
+        .routes(routes!(get_livetv_settings, update_livetv_settings))
 }
 
 // ---- Tuners ------------------------------------------------------------------------
@@ -1250,6 +1252,9 @@ pub struct LiveSessionDto {
     pub plan: PlaybackPlan,
     /// Joined a stream someone else started (no extra tuner used).
     pub shared: bool,
+    /// Timeshift: seconds the server keeps for pausing and rewinding (the playlist
+    /// lists all of them; the player starts at the live edge).
+    pub buffer_secs: i64,
 }
 
 /// Codecs the live HLS output (MPEG-TS segments) can carry to a browser.
@@ -1440,6 +1445,7 @@ async fn watch_channel(
         channel_id: id,
         plan,
         shared: ticket.shared,
+        buffer_secs: state.livetv.buffer().as_secs() as i64,
     }))
 }
 
@@ -1478,7 +1484,8 @@ async fn stop_live_session(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// The live HLS playlist of a viewer session (rolling window).
+/// The live HLS playlist of a viewer session: the whole timeshift buffer as a live
+/// (DVR window) playlist with `EXT-X-PROGRAM-DATE-TIME`.
 #[utoipa::path(
     get,
     path = "/livetv/sessions/{session}/live.m3u8",
@@ -1565,6 +1572,14 @@ pub struct LiveStreamDto {
     pub audio_copied: bool,
     /// User ids of the viewers (one entry per player).
     pub viewers: Vec<i64>,
+    /// Recordings fed by this stream.
+    pub recordings: i64,
+    /// Seconds of timeshift buffer on disk.
+    pub buffered_secs: f64,
+    /// Times the upstream was restarted after a failure.
+    pub restarts: i64,
+    /// Video encoder of the current run (`software` also for copied video).
+    pub encoder: flixnet_media::hardware::EncoderKind,
 }
 
 /// Running live streams with their viewers (administrators).
@@ -1595,7 +1610,90 @@ async fn list_live_streams(
             video_copied: stream.video_copied,
             audio_copied: stream.audio_copied,
             viewers: stream.viewers,
+            recordings: stream.recordings as i64,
+            buffered_secs: stream.buffered_secs,
+            restarts: i64::from(stream.restarts),
+            encoder: stream.encoder,
         });
     }
     Ok(Json(out))
+}
+
+// ---- Settings ----------------------------------------------------------------------
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct LiveTvSettingsDto {
+    /// Timeshift buffer per running channel in minutes (0 = live window only).
+    pub timeshift_minutes: i64,
+}
+
+#[derive(Debug, Default, Deserialize, ToSchema)]
+pub struct UpdateLiveTvSettings {
+    /// 0–360 minutes.
+    pub timeshift_minutes: Option<i64>,
+}
+
+fn settings_dto(config: &LiveTvConfig) -> LiveTvSettingsDto {
+    LiveTvSettingsDto {
+        timeshift_minutes: config.timeshift_minutes,
+    }
+}
+
+/// Live TV settings (administrators).
+#[utoipa::path(
+    get,
+    path = "/livetv/settings",
+    operation_id = "getLiveTvSettings",
+    tag = "livetv",
+    responses(
+        (status = OK, description = "Current settings", body = LiveTvSettingsDto),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Not an administrator", body = ErrorBody),
+    )
+)]
+async fn get_livetv_settings(
+    _: AdminUser,
+    State(state): State<AppState>,
+) -> ApiResult<Json<LiveTvSettingsDto>> {
+    Ok(Json(settings_dto(&config::load(&state.db).await?)))
+}
+
+/// Changes Live TV settings; a new timeshift buffer applies to running streams at once.
+#[utoipa::path(
+    put,
+    path = "/livetv/settings",
+    operation_id = "updateLiveTvSettings",
+    tag = "livetv",
+    request_body = UpdateLiveTvSettings,
+    responses(
+        (status = OK, description = "Updated settings", body = LiveTvSettingsDto),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Not an administrator", body = ErrorBody),
+        (status = UNPROCESSABLE_ENTITY, description = "Invalid value", body = ErrorBody),
+    )
+)]
+async fn update_livetv_settings(
+    _: AdminUser,
+    State(state): State<AppState>,
+    Json(body): Json<UpdateLiveTvSettings>,
+) -> ApiResult<Json<LiveTvSettingsDto>> {
+    let mut current = config::load(&state.db).await?;
+    if let Some(minutes) = body.timeshift_minutes {
+        if !(0..=config::MAX_TIMESHIFT_MINUTES).contains(&minutes) {
+            return Err(ApiError::validation(
+                "Der Zeitversatz-Puffer muss zwischen 0 und 360 Minuten liegen.",
+            ));
+        }
+        current.timeshift_minutes = minutes;
+    }
+    config::save(&state.db, &current).await?;
+    state.livetv.set_buffer(current.timeshift());
+    Ok(Json(settings_dto(&current)))
+}
+
+/// Applies the stored Live TV settings to the running services (server start).
+pub(crate) async fn start(state: &AppState) -> Result<(), flixnet_db::DbError> {
+    let current = config::load(&state.db).await?;
+    state.livetv.set_buffer(current.timeshift());
+    Ok(())
 }

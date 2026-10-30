@@ -1048,7 +1048,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The live HLS playlist of a viewer session (rolling window). */
+        /**
+         * The live HLS playlist of a viewer session: the whole timeshift buffer as a live
+         *     (DVR window) playlist with `EXT-X-PROGRAM-DATE-TIME`.
+         */
         get: operations["getLivePlaylist"];
         put?: never;
         post?: never;
@@ -1068,6 +1071,24 @@ export interface paths {
         /** One MPEG-TS segment (`seg{n}.ts`) of a viewer session. */
         get: operations["getLiveSegment"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live TV settings (administrators). */
+        get: operations["getLiveTvSettings"];
+        /** Changes Live TV settings; a new timeshift buffer applies to running streams at once. */
+        put: operations["updateLiveTvSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2449,6 +2470,12 @@ export interface components {
         /** @enum {string} */
         LibraryKind: "movies" | "shows";
         LiveSessionDto: {
+            /**
+             * Format: int64
+             * @description Timeshift: seconds the server keeps for pausing and rewinding (the playlist
+             *     lists all of them; the player starts at the live edge).
+             */
+            buffer_secs: number;
             /** Format: int64 */
             channel_id: number;
             /** @description Copy or transcode, with the reasons. */
@@ -2462,10 +2489,27 @@ export interface components {
         };
         LiveStreamDto: {
             audio_copied: boolean;
+            /**
+             * Format: double
+             * @description Seconds of timeshift buffer on disk.
+             */
+            buffered_secs: number;
             /** Format: int64 */
             channel_id: number;
             channel_name?: string | null;
+            /** @description Video encoder of the current run (`software` also for copied video). */
+            encoder: components["schemas"]["EncoderKind"];
             id: string;
+            /**
+             * Format: int64
+             * @description Recordings fed by this stream.
+             */
+            recordings: number;
+            /**
+             * Format: int64
+             * @description Times the upstream was restarted after a failure.
+             */
+            restarts: number;
             /** Format: int64 */
             started_at: number;
             /** Format: int64 */
@@ -2473,6 +2517,13 @@ export interface components {
             video_copied: boolean;
             /** @description User ids of the viewers (one entry per player). */
             viewers: number[];
+        };
+        LiveTvSettingsDto: {
+            /**
+             * Format: int64
+             * @description Timeshift buffer per running channel in minutes (0 = live window only).
+             */
+            timeshift_minutes: number;
         };
         MediaFileDto: {
             audio: components["schemas"]["AudioStreamDto"][];
@@ -3161,6 +3212,13 @@ export interface components {
             intro_detection?: boolean | null;
             name?: string | null;
             paths?: string[] | null;
+        };
+        UpdateLiveTvSettings: {
+            /**
+             * Format: int64
+             * @description 0–360 minutes.
+             */
+            timeshift_minutes?: number | null;
         };
         UpdateMetadataSettings: {
             country?: string | null;
@@ -6849,6 +6907,95 @@ export interface operations {
             };
             /** @description Segment no longer available */
             410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getLiveTvSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveTvSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateLiveTvSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLiveTvSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveTvSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid value */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -212,3 +212,42 @@ test('watching a channel plays the live stream and stops it on close', async ({ 
   await expect(page.getByTestId('guide-grid')).toBeVisible()
   await expect.poll(() => api(page, '/api/v1/livetv/streams'), { timeout: 10_000 }).toEqual([])
 })
+
+test('timeshift: the live player pauses, rewinds within the buffer and jumps back to live', async ({ page }) => {
+  await page.goto('/live')
+  await page.getByTestId('guide-grid').getByTestId('guide-program').filter({ hasText: 'Die Testschau' }).click()
+  await page.getByRole('dialog').getByRole('link', { name: 'Jetzt ansehen' }).click()
+  const video = page.getByTestId('live-video')
+  const time = () => video.evaluate((v: HTMLVideoElement) => v.currentTime)
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.muted = true
+    return v.play().catch(() => {})
+  })
+  // Let the buffer grow a little beyond the live distance.
+  await expect.poll(time, { timeout: 40_000 }).toBeGreaterThan(10)
+  const offset = page.getByTestId('timeshift-offset')
+  await expect(offset).toHaveText('Live')
+
+  // Pause: the picture stands still while the live edge moves on.
+  await page.getByRole('button', { name: 'Pause' }).click()
+  const paused = await time()
+  await page.waitForTimeout(6000)
+  expect(Math.abs((await time()) - paused)).toBeLessThan(0.5)
+  await expect(offset).toHaveText(/^−\d+:\d\d$/)
+
+  // Rewind to the start of the buffer and play from there.
+  await page.getByRole('button', { name: '30 Sekunden zurück' }).click()
+  await expect.poll(time, { timeout: 10_000 }).toBeLessThan(paused - 2)
+  await page.getByRole('button', { name: 'Abspielen' }).click()
+  const rewound = await time()
+  await expect.poll(time, { timeout: 15_000 }).toBeGreaterThan(rewound + 1)
+  await expect(offset).toHaveText(/^−/)
+
+  // "Live" returns to the edge.
+  await page.getByTestId('live-edge').click()
+  await expect(offset).toHaveText('Live', { timeout: 15_000 })
+  expect(await time()).toBeGreaterThan(rewound + 4)
+
+  await page.getByRole('button', { name: 'Zurück' }).first().click()
+  await expect.poll(() => api(page, '/api/v1/livetv/streams'), { timeout: 10_000 }).toEqual([])
+})
