@@ -159,6 +159,9 @@ impl JobHandler for ProbeFile {
         probe_file(ctx.db(), &self.ffprobe, payload.file_id).await?;
         // Episodes: find the season's intro and credits once its files are probed.
         crate::segments::queue_after_probe(ctx.db(), ctx.queue(), payload.file_id).await?;
+        // Heavier analysis follows in the background (trickplay, chapter images).
+        crate::trickplay::queue_thumbnails(ctx.queue(), payload.file_id, priority::BACKFILL)
+            .await?;
         Ok(())
     }
 }

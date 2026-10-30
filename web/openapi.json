@@ -758,6 +758,317 @@
         }
       }
     },
+    "/api/v1/files/{file_id}/chapters": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Chapters of a media file, with signed URLs of their images.",
+        "operationId": "listChapters",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "description": "Media file id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The chapters in order (empty without chapters)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlaybackChapterDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such file, or no access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{file_id}/chapters/{chapter}": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "The image of one chapter (`{index}.jpg`).",
+        "description": "Use the signed URLs from the chapter list; alternatively authenticate normally.",
+        "operationId": "getChapterImage",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "description": "Media file id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "chapter",
+            "in": "path",
+            "description": "Chapter number plus `.jpg`, e.g. `2.jpg`",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "u",
+            "in": "query",
+            "description": "User the URL was issued to, from URLs returned by the API.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "description": "Expiry of the signature (unix seconds).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "description": "URL signature.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "description": "Version of the image (ignored; new images get new URLs).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The image",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "401": {
+            "description": "Neither a valid signature nor a valid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such file or chapter image, or no access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
+    "/api/v1/files/{file_id}/trickplay": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Trickplay manifest of a media file: tile layout and signed sheet URLs.",
+        "operationId": "getTrickplay",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "description": "Media file id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Layout and sheets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrickplayDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such file, no access, or no thumbnails yet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{file_id}/trickplay/{sheet}": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "One trickplay sheet (`{n}.jpg`).",
+        "description": "Use the signed URLs from the trickplay manifest; alternatively authenticate normally.",
+        "operationId": "getTrickplaySheet",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "description": "Media file id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sheet",
+            "in": "path",
+            "description": "Sheet number plus `.jpg`, e.g. `0.jpg`",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "u",
+            "in": "query",
+            "description": "User the URL was issued to, from URLs returned by the API.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "description": "Expiry of the signature (unix seconds).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "description": "URL signature.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "description": "Version of the image (ignored; new images get new URLs).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The sheet",
+            "content": {
+              "image/jpeg": {}
+            }
+          },
+          "401": {
+            "description": "Neither a valid signature nor a valid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such file or sheet, or no access",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
     "/api/v1/fs/directories": {
       "get": {
         "tags": [
@@ -9434,6 +9745,42 @@
           "transcode"
         ]
       },
+      "PlaybackChapterDto": {
+        "type": "object",
+        "required": [
+          "index",
+          "start_ms",
+          "end_ms"
+        ],
+        "properties": {
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed URL of the chapter's image (JPEG), once made."
+          },
+          "index": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Chapter number within the file, from 0."
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "PlaybackInfoDto": {
         "type": "object",
         "required": [
@@ -10521,6 +10868,56 @@
           "tonemap": {
             "$ref": "#/components/schemas/Tonemap",
             "description": "How HDR is tone-mapped to SDR."
+          }
+        }
+      },
+      "TrickplayDto": {
+        "type": "object",
+        "description": "How the sheets are laid out: thumbnail `n = floor(position_ms / interval_ms)` is on\nsheet `n / (columns × rows)`, row-major within it.",
+        "required": [
+          "interval_ms",
+          "tile_width",
+          "tile_height",
+          "columns",
+          "rows",
+          "thumbnails",
+          "sheets"
+        ],
+        "properties": {
+          "columns": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Thumbnails per sheet row."
+          },
+          "interval_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rows": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Rows per sheet."
+          },
+          "sheets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Signed URLs of the sheets (JPEG), in order."
+          },
+          "thumbnails": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Thumbnails in total (the last sheet may be partly filled)."
+          },
+          "tile_height": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tile_width": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Size of one thumbnail in pixels."
           }
         }
       },

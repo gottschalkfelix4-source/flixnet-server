@@ -43,6 +43,7 @@ pub mod signing;
 mod system;
 pub mod tracks;
 mod transcode;
+mod trickplay;
 mod users;
 mod validate;
 
@@ -180,6 +181,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, playstate::router())
         .nest(API_PREFIX, transcode::router())
         .nest(API_PREFIX, tracks::router())
+        .nest(API_PREFIX, trickplay::router())
         .nest(API_PREFIX, settings::router())
         .nest(API_PREFIX, livetv::router())
         .nest(API_PREFIX, segments::router())

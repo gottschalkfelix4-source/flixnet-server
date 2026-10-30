@@ -15,6 +15,8 @@ export interface TrackSelection {
   subtitle: number | null | undefined
   selectAudio: (track: AudioTrack) => void
   selectSubtitle: (track: SubtitleTrack | null) => void
+  /** Quality limit (bits/s, `undefined` = original): a new source from playback info. */
+  selectQuality: (maxBitrate: number | undefined) => void
   resume: RefObject<ResumePoint | null>
 }
 
@@ -52,7 +54,17 @@ export function useTrackSelection(video: RefObject<HTMLVideoElement | null>): Tr
     [choice, reload],
   )
 
-  return { choice, subtitle, selectAudio, selectSubtitle, resume }
+  const selectQuality = useCallback(
+    (maxBitrate: number | undefined) => {
+      const next = { ...choice }
+      delete next.max_bitrate
+      if (maxBitrate !== undefined) next.max_bitrate = maxBitrate
+      reload(next)
+    },
+    [choice, reload],
+  )
+
+  return { choice, subtitle, selectAudio, selectSubtitle, selectQuality, resume }
 }
 
 /**

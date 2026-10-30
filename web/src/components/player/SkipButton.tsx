@@ -18,7 +18,7 @@ const key = (s: MediaSegment) => `${s.file_id}:${s.kind}:${s.start_ms}`
  * segment of the playing file, jumps to its end. With the profile preference
  * "Intro automatisch überspringen", intros and recaps are skipped without a click,
  * once each (seeking back into one shows the button instead). Self-contained: pass the
- * video element and the source's segments; it positions itself bottom-right.
+ * video element and the source's segments; the player's overlay slot positions it.
  */
 export function SkipButton({
   videoRef,
@@ -67,7 +67,7 @@ export function SkipButton({
         element.currentTime = Number.isFinite(element.duration) ? Math.min(end, element.duration) : end
         setActive(null)
       }}
-      className="absolute right-6 bottom-24 z-20 flex items-center gap-2 rounded-full border border-white/30 bg-black/70 px-5 py-2.5 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white hover:text-black focus-visible:outline-2 focus-visible:outline-accent"
+      className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/30 bg-black/70 px-5 py-2.5 text-sm font-semibold text-white shadow-lg backdrop-blur transition hover:bg-white hover:text-black focus-visible:outline-2 focus-visible:outline-accent"
     >
       {LABELS[active.kind]}
       <ChevronsRight className="size-4" aria-hidden="true" />

@@ -59,7 +59,10 @@ pub async fn app() -> TestApp {
             flixnet_livetv::LiveSettings::default(),
         ),
     };
-    let router = router(AppState::new(Config::default(), db.clone(), services));
+    // Caches the API reads directly (trickplay, chapter images) live in the temp dir.
+    let mut config = Config::default();
+    config.paths.config_dir = dir.path().to_owned();
+    let router = router(AppState::new(config, db.clone(), services));
     TestApp { dir, router, db }
 }
 
