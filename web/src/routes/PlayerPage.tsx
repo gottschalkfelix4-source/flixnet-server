@@ -6,18 +6,22 @@ import { useItem } from '@/api/queries/items'
 import { REASON_LABELS, type SubtitleTrack, usePlaybackInfo } from '@/api/queries/playback'
 import { useChapters, useNextEpisode, useTrickplay } from '@/api/queries/player'
 import { ResumeToast } from '@/components/media/ResumeToast'
+import { CastButton, CastOverlay } from '@/components/player/CastOverlay'
 import { PlayerControls } from '@/components/player/PlayerControls'
 import { PlayerOverlaySlot } from '@/components/player/PlayerOverlaySlot'
 import { SettingsSheet } from '@/components/player/SettingsSheet'
 import { SkipButton } from '@/components/player/SkipButton'
+import { SyncPlayPanel } from '@/components/player/SyncPlayPanel'
 import { UpNextCard } from '@/components/player/UpNextCard'
 import { carryPreference, currentPreference, useCarriedPreference } from '@/lib/languagePreference'
 import { episodeLabel } from '@/lib/media'
 import { readStored, writeStored } from '@/lib/storage'
 import { subtitleAvailable } from '@/lib/tracks'
+import { useCast } from '@/lib/useCast'
 import { useMediaState } from '@/lib/useMediaState'
 import { usePlaybackReporting } from '@/lib/usePlaybackReporting'
 import { locate, partTimeline, useStartPosition } from '@/lib/useResumePosition'
+import { useSyncPlay } from '@/lib/useSyncPlay'
 import { useSourceTracks, useTrackSelection } from '@/lib/useTracks'
 import { useUpNext } from '@/lib/useUpNext'
 import { useVideoSource } from '@/lib/useVideoSource'
@@ -44,7 +48,7 @@ export function PlayerPage() {
  * of the next episode.
  */
 function Player({ id }: { id: string }) {
-  const { start: explicitStart } = useSearch({ from: '/play/$id' })
+  const { start: explicitStart, group } = useSearch({ from: '/play/$id' })
   const itemId = Number(id)
   const item = useItem(itemId)
   const router = useRouter()
@@ -63,9 +67,10 @@ function Player({ id }: { id: string }) {
   const startAt = startMs !== null && sources.length > 0 ? locate(timeline, startMs) : null
   const part = chosenPart ?? startAt?.part ?? 0
   const source = startMs === null ? undefined : sources[part]
-  const streamError = useVideoSource(video, source, chosenPart === null && startAt ? startAt.withinMs / 1000 : 0)
+  // In a SyncPlay group the group decides the position.
+  const streamError = useVideoSource(video, source, chosenPart === null && startAt && !group ? startAt.withinMs / 1000 : 0)
   usePlaybackReporting(video, { itemId, source, offsetMs: timeline.offsets[part] ?? 0, totalMs: timeline.totalMs })
-  const resumedAt = explicitStart === undefined && startMs ? startMs : 0
+  const resumedAt = explicitStart === undefined && startMs && !group ? startMs : 0
   const restart = () => {
     if (part === 0 && video.current) video.current.currentTime = 0
     else setPart(0)
@@ -87,19 +92,56 @@ function Player({ id }: { id: string }) {
     : ''
   const back = () => (router.history.length > 1 ? router.history.back() : void router.navigate({ to: '/item/$id', params: { id } }))
 
+  // ---- Watch together and casting --------------------------------------------------
+  const joinGroup = useCallback(
+    (groupId: string | undefined, target = itemId) =>
+      void router.navigate({ to: '/play/$id', params: { id: String(target) }, search: groupId ? { group: groupId } : {}, replace: true }),
+    [router, itemId],
+  )
+  const sync = useSyncPlay(video, group ?? null, itemId, (next) => joinGroup(group, next))
+  const cast = useCast()
+
   // ---- Playback actions ---------------------------------------------------------
   const togglePlay = useCallback(() => {
     const element = video.current
     if (!element) return
+    if (sync) {
+      if (sync.state?.playing) sync.pause()
+      else sync.play()
+      return
+    }
     if (element.paused || element.ended) void element.play().catch(() => {})
     else element.pause()
-  }, [])
-  const seekTo = useCallback((seconds: number) => {
-    const element = video.current
-    if (!element) return
-    const end = Number.isFinite(element.duration) ? element.duration : seconds
-    element.currentTime = Math.min(Math.max(0, seconds), Math.max(0, end - 0.1))
-  }, [])
+  }, [sync])
+  const seekTo = useCallback(
+    (seconds: number) => {
+      const element = video.current
+      if (!element) return
+      const end = Number.isFinite(element.duration) ? element.duration : seconds
+      const target = Math.min(Math.max(0, seconds), Math.max(0, end - 0.1))
+      if (sync) sync.seek(target)
+      else element.currentTime = target
+    },
+    [sync],
+  )
+  const startCast = () => {
+    const offset = timeline.offsets[part] ?? 0
+    void cast
+      .castItem({
+        itemId,
+        title,
+        posterUrl: item.data?.artwork.poster_url,
+        positionMs: offset + (video.current?.currentTime ?? 0) * 1000,
+        audioStreamIndex: tracks.choice.audio_stream_index,
+        subtitleStreamIndex: tracks.choice.subtitle_stream_index,
+      })
+      .then(() => video.current?.pause())
+  }
+  const stopCast = () => {
+    const position = cast.stop()
+    const offset = timeline.offsets[part] ?? 0
+    if (video.current && position > 0) video.current.currentTime = Math.max(0, (position - offset) / 1000)
+  }
   const skip = useCallback((delta: number) => seekTo((video.current?.currentTime ?? 0) + delta), [seekTo])
   const setVolume = useCallback((volume: number) => {
     const element = video.current
@@ -161,8 +203,10 @@ function Player({ id }: { id: string }) {
   const playNext = useCallback(() => {
     if (!next) return
     carryPreference(next.id, currentPreference(source, tracks))
-    void router.navigate({ to: '/play/$id', params: { id: String(next.id) }, replace: true })
-  }, [next, source, tracks, router])
+    // The whole group moves on together.
+    if (sync) sync.setItem(next.id)
+    else void router.navigate({ to: '/play/$id', params: { id: String(next.id) }, replace: true })
+  }, [next, source, tracks, router, sync])
   // The detected credits start, else "30 s before the end".
   const creditsStart = source?.segments.find((s) => s.kind === 'credits')?.start_ms
   const upNext = useUpNext(
@@ -382,6 +426,27 @@ function Player({ id }: { id: string }) {
 
       {resumedAt > 0 && !error && <ResumeToast positionMs={resumedAt} onRestart={restart} />}
 
+      {sync && sync.reactions.length > 0 && (
+        <div className="pointer-events-none absolute bottom-28 left-6 z-30 flex flex-col gap-1" aria-live="polite">
+          {sync.reactions.map((r) => (
+            <span key={r.key} className="rounded-full bg-black/60 px-3 py-1 text-sm">
+              <span className="text-xl">{r.emoji}</span> {r.name}
+            </span>
+          ))}
+        </div>
+      )}
+      {cast.error && (
+        <div className="absolute top-20 left-1/2 z-40 flex max-w-md -translate-x-1/2 items-start gap-3 rounded-xl bg-black/85 p-4 text-sm" role="alert">
+          <p>{cast.error}</p>
+          <button type="button" onClick={cast.clearError} className="font-semibold text-white/70 hover:text-white">
+            OK
+          </button>
+        </div>
+      )}
+      {cast.remote && (
+        <CastOverlay remote={cast.remote} title={title} onPlayPause={cast.playOrPause} onSeek={cast.seek} onStop={stopCast} />
+      )}
+
       {!error && (
         <PlayerOverlaySlot controlsVisible={controlsVisible}>
           {source && <SkipButton videoRef={video} segments={source.segments} />}
@@ -413,6 +478,19 @@ function Player({ id }: { id: string }) {
             onToggleFullscreen={toggleFullscreen}
             onTogglePip={togglePip}
             onNext={playNext}
+            extra={
+              <>
+                <SyncPlayPanel
+                  itemId={itemId}
+                  groupId={group ?? null}
+                  sync={sync}
+                  positionMs={((timeline.offsets[part] ?? 0) + media.currentTime * 1000)}
+                  onJoin={(id) => joinGroup(id)}
+                  onLeave={() => joinGroup(undefined)}
+                />
+                {cast.available && <CastButton active={!!cast.remote} onClick={startCast} />}
+              </>
+            }
             settings={
               <SettingsSheet
                 open={settingsOpen}
