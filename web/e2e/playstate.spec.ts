@@ -73,7 +73,7 @@ async function api(page: Page, method: string, path: string, body?: unknown): Pr
 
 async function openItem(page: Page, title: string, region: 'Filme' | 'Serien') {
   await page.goto(`/search?q=${title}`)
-  await page.getByRole('region', { name: region }).getByTestId('poster-card').click()
+  await page.getByRole('region', { name: region }).getByTestId('poster-card').click({ position: { x: 8, y: 8 } })
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
 }
 
@@ -150,7 +150,7 @@ test('progress is saved, shows in "Weiterschauen" and playback resumes there', a
   await expect(card.locator('.bg-accent')).toBeVisible()
 
   // The detail page offers to continue; the player starts at the saved position.
-  await card.click()
+  await card.click({ position: { x: 8, y: 8 } })
   await expect(page.getByRole('link', { name: 'Fortsetzen' })).toBeVisible()
   await expect(page.getByTestId('remaining-time')).toContainText('Noch 5 Min.')
   await page.getByRole('link', { name: 'Fortsetzen' }).click()

@@ -69,7 +69,7 @@ test('search and download a subtitle from the movie page', async ({ page }) => {
   await expect(entry.getByTestId('library-counts')).toContainText('1 Film', { timeout: 30_000 })
 
   await page.goto(`/search?q=${TITLE}`)
-  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click()
+  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click({ position: { x: 8, y: 8 } })
   await page.getByRole('button', { name: 'Untertitel suchen' }).click()
   const search = page.getByRole('dialog', { name: 'Untertitel suchen' })
   const results = search.getByTestId('subtitle-result')

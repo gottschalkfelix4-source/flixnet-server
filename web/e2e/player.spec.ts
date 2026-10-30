@@ -86,7 +86,7 @@ let episodeOne = 0
 /** Opens episode 1 from the series page; returns its item id. */
 async function openEpisodeOne(page: Page): Promise<number> {
   await page.goto(`/search?q=${SERIES}`)
-  await page.getByRole('region', { name: 'Serien' }).getByTestId('poster-card').click()
+  await page.getByRole('region', { name: 'Serien' }).getByTestId('poster-card').click({ position: { x: 8, y: 8 } })
   await expect(page.getByRole('heading', { name: SERIES })).toBeVisible()
   await expect(page.getByTestId('play-button')).toContainText('S1 · F1')
   await page.getByTestId('play-button').click()
@@ -125,6 +125,16 @@ test('libraries for the player get scanned', async ({ page }) => {
   test.setTimeout(180_000)
   await addLibrary(page, 'Spieler Serien', 'shows', seriesRoot(), '2 Folgen')
   await addLibrary(page, 'Spieler Filme', 'movies', mp3Root(), '1 Film')
+})
+
+test('playback starts by itself; the logo shows until the picture moves', async ({ page }) => {
+  await openEpisodeOne(page)
+  const video = page.getByTestId('player-video')
+  // No click on play: the player starts it (muted only if the browser insists).
+  await expect.poll(() => paused(video), { timeout: 20_000 }).toBe(false)
+  const from = await currentTime(video)
+  await expect.poll(() => currentTime(video), { timeout: 10_000 }).toBeGreaterThan(from + 0.3)
+  await expect(page.getByTestId('player-loading')).toBeHidden()
 })
 
 test('own controls: play/pause, seek bar and keyboard shortcuts', async ({ page }) => {
@@ -299,7 +309,7 @@ test('"N" jumps to the next episode right away', async ({ page }) => {
 
 test('MP3 audio is converted to AAC for HLS and plays in Chromium', async ({ page }) => {
   await page.goto(`/search?q=${MP3}`)
-  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click()
+  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click({ position: { x: 8, y: 8 } })
   const info = page.waitForResponse((r) => r.url().includes('/playback-info') && r.status() === 200)
   await page.getByRole('link', { name: 'Abspielen' }).click()
   const plan = ((await (await info).json()) as { sources: { plan: { audio: { action: string; codec: string } } }[] })

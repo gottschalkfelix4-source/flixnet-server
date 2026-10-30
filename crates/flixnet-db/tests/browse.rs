@@ -28,8 +28,8 @@ struct Seed<'a> {
 async fn insert(db: &Db, library: i64, s: Seed<'_>) -> i64 {
     let (id,): (i64,) = sqlx::query_as(
         "INSERT INTO items (library_id, kind, parent_id, series_id, title, sort_title, year, age_rating,
-                            index_number, overview, content_key, date_added, date_modified)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                            index_number, overview, content_key, identity_key, date_added, date_modified)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(library)
     .bind(s.kind)
@@ -41,6 +41,7 @@ async fn insert(db: &Db, library: i64, s: Seed<'_>) -> i64 {
     .bind(s.age)
     .bind(s.index)
     .bind(s.overview)
+    .bind(format!("test:{}:{}", s.kind, s.title))
     .bind(format!("test:{}:{}", s.kind, s.title))
     .bind(now_ms())
     .bind(now_ms())
@@ -224,8 +225,9 @@ async fn episodes_inherit_the_series_rating() {
         },
     )
     .await;
+    let mut episode_ids = Vec::new();
     for n in [2, 1] {
-        insert(
+        let id = insert(
             &db,
             lib,
             Seed {
@@ -241,6 +243,7 @@ async fn episodes_inherit_the_series_rating() {
             },
         )
         .await;
+        episode_ids.push(id);
     }
     let episodes = ItemFilter {
         library_ids: vec![lib],
@@ -287,6 +290,33 @@ async fn episodes_inherit_the_series_rating() {
     .unwrap()
     .0;
     assert_eq!(series_row[0].child_count, 1);
+    assert_eq!(series_row[0].unplayed_count, 2, "nobody watched anything");
+
+    // A viewer who watched one episode has one left, in the series and in the season.
+    let viewer = flixnet_db::users::create(
+        &db,
+        &flixnet_db::users::NewUser {
+            name: "Anna",
+            password_hash: None,
+            pin_hash: None,
+            is_admin: false,
+            is_hidden: false,
+            max_age_rating: None,
+        },
+    )
+    .await
+    .unwrap()
+    .id;
+    flixnet_db::userdata::set_played(&db, viewer, episode_ids[0], true)
+        .await
+        .unwrap();
+    let rows = browse::summaries(&db, &[series, season, episode_ids[1]], Some(viewer))
+        .await
+        .unwrap();
+    let unplayed = |id: i64| rows.iter().find(|r| r.id == id).unwrap().unplayed_count;
+    assert_eq!(unplayed(series), 1);
+    assert_eq!(unplayed(season), 1);
+    assert_eq!(unplayed(episode_ids[1]), 0, "only series and seasons count");
 }
 
 /// Inserts `n` movies with genres and posters in one transaction.

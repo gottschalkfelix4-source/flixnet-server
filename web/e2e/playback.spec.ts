@@ -48,7 +48,7 @@ async function api(page: Page, path: string): Promise<unknown> {
 /** Opens the player for a movie and returns its item id. */
 async function openPlayer(page: Page, title: string): Promise<number> {
   await page.goto(`/search?q=${title}`)
-  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click()
+  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click({ position: { x: 8, y: 8 } })
   await page.getByRole('link', { name: 'Abspielen' }).click()
   await expect(page).toHaveURL(/\/play\/\d+$/)
   await expect(page.getByTestId('player-title')).toHaveText(title)

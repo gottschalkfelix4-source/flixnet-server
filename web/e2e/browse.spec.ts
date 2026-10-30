@@ -89,7 +89,7 @@ test('search finds the movie and opens its detail page', async ({ page }) => {
   await expect(results.getByRole('region', { name: 'Filme' }).getByTestId('poster-card')).toHaveCount(1)
   await expect(results.getByRole('region', { name: 'Serien' })).toHaveCount(0)
 
-  await results.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click()
+  await results.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click({ position: { x: 8, y: 8 } })
   await expect(page.getByRole('heading', { name: MOVIE })).toBeVisible()
   await expect(page.getByTestId('item-overview')).toHaveText('Ein Kino im Wind erzählt von Pixeln.')
   await expect(page.getByTestId('item-header')).toContainText('FSK 12')
@@ -99,7 +99,7 @@ test('search finds the movie and opens its detail page', async ({ page }) => {
 
 test('watched and favorite toggles persist', async ({ page }) => {
   await page.goto(`/search?q=${MOVIE}`)
-  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click()
+  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click({ position: { x: 8, y: 8 } })
   await page.getByRole('button', { name: 'Als gesehen markieren' }).click()
   await expect(page.getByRole('button', { name: 'Als ungesehen markieren' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Zu Favoriten' }).click()
@@ -113,7 +113,7 @@ test('watched and favorite toggles persist', async ({ page }) => {
 
 test('person page lists their work', async ({ page }) => {
   await page.goto(`/search?q=${MOVIE}`)
-  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click()
+  await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click({ position: { x: 8, y: 8 } })
   await page.getByTestId('cast-row').getByRole('link', { name: /Bruno Bildpunkt/ }).click()
   await expect(page.getByRole('heading', { name: 'Bruno Bildpunkt' })).toBeVisible()
   await expect(page.getByTestId('person-credits')).toContainText('Filmvorführer')
@@ -122,7 +122,7 @@ test('person page lists their work', async ({ page }) => {
 
 test('series page shows seasons and episodes', async ({ page }) => {
   await page.goto(`/search?q=${SERIES}`)
-  await page.getByRole('region', { name: 'Serien' }).getByTestId('poster-card').click()
+  await page.getByRole('region', { name: 'Serien' }).getByTestId('poster-card').click({ position: { x: 8, y: 8 } })
   await expect(page.getByRole('heading', { name: SERIES })).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Staffel 1' })).toHaveAttribute('aria-selected', 'true')
   const episodes = page.getByTestId('episode-list').getByRole('link')
@@ -139,9 +139,11 @@ test('series page shows seasons and episodes', async ({ page }) => {
 test('movie grid filters by genre', async ({ page }) => {
   await page.goto('/movies')
   await expect(page.getByTestId('virtual-grid')).toBeVisible()
-  await page.getByLabel('Genre').selectOption(GENRE)
+  await page.getByRole('button', { name: /^Genre:/ }).click()
+  await page.getByRole('menu', { name: 'Genre' }).getByRole('menuitemradio', { name: GENRE }).click()
   await expect(page).toHaveURL(new RegExp(`genre=${GENRE}`))
-  await expect(page.getByTestId('browse-total')).toHaveText('1 Film')
+  await expect(page.getByRole('button', { name: /^Genre:/ })).toHaveText(GENRE)
+  await expect(page.getByTestId('browse-total')).toHaveText('1')
   await expect(page.getByTestId('virtual-grid').getByTestId('poster-card')).toHaveCount(1)
   await expect(page.getByTestId('virtual-grid')).toContainText(MOVIE)
 })

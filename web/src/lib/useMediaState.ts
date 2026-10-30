@@ -77,6 +77,9 @@ export function useMediaState(video: RefObject<HTMLVideoElement | null>): MediaS
       if (event?.type === 'waiting' || event?.type === 'seeking') waiting = true
       else if (event?.type === 'playing' || event?.type === 'canplay' || event?.type === 'seeked' || event?.type === 'pause')
         waiting = element.seeking
+      // A 'waiting' is not always followed by 'playing' (e.g. with Media Source
+      // streams): as soon as there is data for the next frames, it is over.
+      if (waiting && !element.seeking && element.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) waiting = false
       setState(read(element, waiting))
     }
     for (const name of EVENTS) element.addEventListener(name, update)

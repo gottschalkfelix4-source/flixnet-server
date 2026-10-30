@@ -75,7 +75,7 @@ async function addLibrary(page: Page, name: string, kind: 'movies' | 'shows', ro
 
 async function openItem(page: Page, title: string, region: 'Filme' | 'Serien' = 'Filme') {
   await page.goto(`/search?q=${encodeURIComponent(title)}`)
-  await page.getByRole('region', { name: region }).getByTestId('poster-card').filter({ hasText: title }).click()
+  await page.getByRole('region', { name: region }).getByTestId('poster-card').filter({ hasText: title }).click({ position: { x: 8, y: 8 } })
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
 }
 

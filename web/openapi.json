@@ -16226,6 +16226,7 @@
           "title",
           "date_added",
           "child_count",
+          "unplayed_count",
           "played",
           "favorite",
           "position_ms"
@@ -16362,6 +16363,11 @@
           },
           "title": {
             "type": "string"
+          },
+          "unplayed_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Series and seasons: episodes the viewer has not watched yet."
           },
           "year": {
             "type": [

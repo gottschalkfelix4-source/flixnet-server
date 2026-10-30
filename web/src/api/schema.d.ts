@@ -4271,6 +4271,11 @@ export interface components {
             /** @description Title of the series (seasons and episodes). */
             series_title?: string | null;
             title: string;
+            /**
+             * Format: int64
+             * @description Series and seasons: episodes the viewer has not watched yet.
+             */
+            unplayed_count: number;
             /** Format: int64 */
             year?: number | null;
         };

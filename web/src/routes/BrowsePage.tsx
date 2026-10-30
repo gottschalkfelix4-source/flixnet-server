@@ -1,9 +1,10 @@
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { ArrowDownAZ, ArrowUpZA, Clapperboard, Film } from 'lucide-react'
+import { ArrowDown, ArrowUp, Clapperboard, Film } from 'lucide-react'
 import { useRef } from 'react'
 import { type ItemsParams, useGenres, useItems, useLetters } from '@/api/queries/items'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FilterMenu } from '@/components/ui/FilterMenu'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { VirtualGrid, type VirtualGridHandle } from '@/components/media/VirtualGrid'
 
@@ -21,8 +22,11 @@ const SORTS: { value: NonNullable<BrowseSearch['sort']>; label: string }[] = [
   { value: 'rating', label: 'Bewertung' },
 ]
 
-const selectClass =
-  'h-9 rounded-full border border-line bg-surface-2 px-3 text-sm text-fg focus:border-accent focus:outline-none'
+const PLAYED: { value: 'all' | 'no' | 'yes'; label: string }[] = [
+  { value: 'all', label: 'Alle' },
+  { value: 'no', label: 'Ungesehen' },
+  { value: 'yes', label: 'Gesehen' },
+]
 
 /** Grid of all movies (or all series) the user may see, with sort, filters and A–Z. */
 export function BrowsePage({ kind, from }: { kind: 'movie' | 'series'; from: '/movies' | '/shows' }) {
@@ -50,42 +54,47 @@ export function BrowsePage({ kind, from }: { kind: 'movie' | 'series'; from: '/m
 
   return (
     <div className="pb-16">
-      <PageHeader title={title}>
-        <span className="text-sm text-muted" data-testid="browse-total">
-          {first.data ? `${total} ${kind === 'movie' ? (total === 1 ? 'Film' : 'Filme') : total === 1 ? 'Serie' : 'Serien'}` : ''}
-        </span>
-      </PageHeader>
+      <PageHeader title={title} />
 
-      <div className="mb-6 flex flex-wrap items-center gap-2 px-6 md:px-10">
-        <select aria-label="Sortierung" className={selectClass} value={sort} onChange={(e) => set({ sort: e.target.value as BrowseSearch['sort'], order: undefined })}>
-          {SORTS.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          aria-label={order === 'asc' ? 'Aufsteigend' : 'Absteigend'}
-          title={order === 'asc' ? 'Aufsteigend' : 'Absteigend'}
-          onClick={() => set({ order: order === 'asc' ? 'desc' : 'asc' })}
-          className="flex size-9 items-center justify-center rounded-full border border-line bg-surface-2 text-muted hover:text-fg"
-        >
-          {order === 'asc' ? <ArrowDownAZ className="size-4" /> : <ArrowUpZA className="size-4" />}
-        </button>
-        <select aria-label="Genre" className={selectClass} value={search.genre ?? ''} onChange={(e) => set({ genre: e.target.value || undefined })}>
-          <option value="">Alle Genres</option>
-          {genres.data?.map((g) => (
-            <option key={g.name} value={g.name}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-        <select aria-label="Gesehen" className={selectClass} value={search.played ?? ''} onChange={(e) => set({ played: (e.target.value || undefined) as BrowseSearch['played'] })}>
-          <option value="">Alle</option>
-          <option value="no">Ungesehen</option>
-          <option value="yes">Gesehen</option>
-        </select>
+      {/* Filter bar like a Plex library: "Alle ▾  Alle Genres ▾  Nach Titel ▾  [123]". */}
+      <div className="mb-5 flex flex-wrap items-center gap-1 px-4 md:px-8">
+        <FilterMenu
+          name="Gesehen"
+          label={PLAYED.find((p) => p.value === (search.played ?? 'all'))!.label}
+          value={search.played ?? 'all'}
+          options={PLAYED}
+          onSelect={(v) => set({ played: v === 'all' ? undefined : v })}
+        />
+        <FilterMenu
+          name="Genre"
+          label={search.genre ?? 'Alle Genres'}
+          value={search.genre ?? ''}
+          options={[{ value: '', label: 'Alle Genres' }, ...(genres.data?.map((g) => ({ value: g.name, label: g.name })) ?? [])]}
+          onSelect={(v) => set({ genre: v || undefined })}
+        />
+        <FilterMenu
+          name="Sortierung"
+          label={`Nach ${SORTS.find((s) => s.value === sort)!.label}`}
+          value={sort}
+          options={SORTS.map((s) => ({
+            ...s,
+            hint:
+              s.value === sort ? (
+                order === 'asc' ? (
+                  <ArrowUp className="size-4" aria-label="aufsteigend" />
+                ) : (
+                  <ArrowDown className="size-4" aria-label="absteigend" />
+                )
+              ) : undefined,
+          }))}
+          // Choosing the current sort again flips its direction (as in Plex).
+          onSelect={(v) => set(v === sort ? { order: order === 'asc' ? 'desc' : 'asc' } : { sort: v, order: undefined })}
+        />
+        {first.data && (
+          <span className="ml-1 rounded-md bg-surface-2 px-2 py-0.5 text-sm font-semibold text-muted tabular-nums" data-testid="browse-total" title={`${total} ${kind === 'movie' ? (total === 1 ? 'Film' : 'Filme') : total === 1 ? 'Serie' : 'Serien'}`}>
+            {total}
+          </span>
+        )}
       </div>
 
       {first.data && total === 0 ? (
@@ -98,7 +107,7 @@ export function BrowsePage({ kind, from }: { kind: 'movie' | 'series'; from: '/m
             {first.data && <VirtualGrid ref={grid} params={params} total={total} />}
           </div>
           {sort === 'title' && order === 'asc' && (letters.data?.length ?? 0) > 1 && (
-            <nav aria-label="Springe zu Buchstabe" className="sticky top-4 flex h-fit w-8 shrink-0 flex-col items-center pr-1 md:mr-4">
+            <nav aria-label="Springe zu Buchstabe" className="sticky top-18 flex h-fit w-8 shrink-0 flex-col items-center pr-1 md:mr-4">
               {letters.data!.map((l) => (
                 <button
                   key={l.letter}

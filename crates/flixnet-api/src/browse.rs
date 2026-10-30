@@ -282,6 +282,8 @@ pub struct ItemCardDto {
     pub backdrop_url: Option<String>,
     /// Seasons of a series / episodes of a season.
     pub child_count: i64,
+    /// Series and seasons: episodes the viewer has not watched yet.
+    pub unplayed_count: i64,
     /// Watched by the signed-in user.
     pub played: bool,
     pub favorite: bool,
@@ -594,6 +596,7 @@ pub(crate) fn card(state: &AppState, s: ItemSummary) -> ItemCardDto {
         overview: s.overview,
         date_added: s.date_added,
         child_count: s.child_count,
+        unplayed_count: s.unplayed_count,
         played: s.played,
         favorite: s.favorite,
         position_ms: s.position_ms,

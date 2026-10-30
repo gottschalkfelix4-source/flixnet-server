@@ -164,6 +164,8 @@ pub struct ItemSummary {
     pub backdrop_id: Option<i64>,
     /// Seasons of a series / episodes of a season.
     pub child_count: i64,
+    /// Series and seasons: episodes the viewer has not watched (0 for other kinds).
+    pub unplayed_count: i64,
     /// The viewer's state (false/0 without a user).
     pub played: bool,
     pub favorite: bool,
@@ -516,6 +518,18 @@ pub async fn summaries(db: &Db, ids: &[i64], user_id: Option<i64>) -> Result<Vec
                    ORDER BY CASE im.source WHEN 'local' THEN 0 WHEN 'nfo' THEN 1 ELSE 2 END, im.score DESC, im.id
                    LIMIT 1) AS backdrop_id,
                 (SELECT COUNT(*) FROM items c WHERE c.parent_id = i.id) AS child_count,
+                -- Series and seasons: episodes the viewer has not watched yet.
+                CASE WHEN i.kind IN ('series', 'season') THEN
+                  (SELECT COUNT(*) FROM items e
+                     LEFT JOIN user_item_data eu ON eu.identity_key = e.identity_key AND eu.user_id = ",
+    );
+    qb.push_bind(user_id.unwrap_or(-1));
+    qb.push(
+        "
+                    WHERE e.kind = 'episode'
+                      AND (CASE i.kind WHEN 'series' THEN e.series_id ELSE e.parent_id END) = i.id
+                      AND COALESCE(eu.played, 0) = 0)
+                ELSE 0 END AS unplayed_count,
                 COALESCE(ud.played, 0) AS played,
                 COALESCE(ud.favorite, 0) AS favorite,
                 COALESCE(ud.position_ms, 0) AS position_ms

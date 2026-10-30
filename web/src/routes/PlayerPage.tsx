@@ -1,11 +1,12 @@
 import { Link, useParams, useRouter, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { ArrowLeft, LoaderCircle, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, Play, TriangleAlert, VolumeX } from 'lucide-react'
 import { type MouseEvent, type PointerEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useItem } from '@/api/queries/items'
 import { REASON_LABELS, type SubtitleTrack, usePlaybackInfo } from '@/api/queries/playback'
 import { useChapters, useNextEpisode, useTrickplay } from '@/api/queries/player'
 import { ResumeToast } from '@/components/media/ResumeToast'
+import { LogoLoader } from '@/components/layout/LogoLoader'
 import { CastButton, CastOverlay } from '@/components/player/CastOverlay'
 import { PlayerControls } from '@/components/player/PlayerControls'
 import { PlayerOverlaySlot } from '@/components/player/PlayerOverlaySlot'
@@ -18,6 +19,7 @@ import { episodeLabel } from '@/lib/media'
 import { musicPlayer } from '@/lib/music/player'
 import { readStored, writeStored } from '@/lib/storage'
 import { subtitleAvailable } from '@/lib/tracks'
+import { POLICY_MUTED, useAutoplay } from '@/lib/useAutoplay'
 import { useCast } from '@/lib/useCast'
 import { useMediaState } from '@/lib/useMediaState'
 import { usePlaybackReporting } from '@/lib/usePlaybackReporting'
@@ -73,6 +75,8 @@ function Player({ id }: { id: string }) {
   // In a SyncPlay group the group decides the position.
   const streamError = useVideoSource(video, source, chosenPart === null && startAt && !group ? startAt.withinMs / 1000 : 0)
   usePlaybackReporting(video, { itemId, source, offsetMs: timeline.offsets[part] ?? 0, totalMs: timeline.totalMs })
+  // In a SyncPlay group the group starts playback.
+  const autoplay = useAutoplay(video, !group)
   const resumedAt = explicitStart === undefined && startMs && !group ? startMs : 0
   const restart = () => {
     if (part === 0 && video.current) video.current.currentTime = 0
@@ -166,7 +170,8 @@ function Player({ id }: { id: string }) {
     const stored = readStored<StoredVolume>(VOLUME_KEY, { volume: 1, muted: false })
     element.volume = Math.min(1, Math.max(0, stored.volume))
     element.muted = stored.muted
-    const save = () => writeStored(VOLUME_KEY, { volume: element.volume, muted: element.muted })
+    // A mute the browser forced (autoplay policy) is not the user's choice.
+    const save = () => !element.hasAttribute(POLICY_MUTED) && writeStored(VOLUME_KEY, { volume: element.volume, muted: element.muted })
     element.addEventListener('volumechange', save)
     return () => element.removeEventListener('volumechange', save)
   }, [])
@@ -392,10 +397,36 @@ function Player({ id }: { id: string }) {
           onDoubleClick={toggleFullscreen}
         />
       )}
-      {!error && source && media.waiting && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center" role="status" aria-label="Lädt …">
-          <LoaderCircle className="size-14 animate-spin text-white/80" aria-hidden="true" />
+      {/* The animated logo until the film runs, and again while it buffers. */}
+      {!error && !autoplay.blocked && (!autoplay.started || media.waiting) && (
+        <div
+          className={clsx('pointer-events-none absolute inset-0 flex items-center justify-center', !autoplay.started && 'bg-black')}
+          role="status"
+          aria-label="Lädt …"
+          data-testid="player-loading"
+        >
+          <LogoLoader className={autoplay.started ? 'size-14' : 'size-20'} />
         </div>
+      )}
+      {!error && autoplay.blocked && (
+        <button
+          type="button"
+          onClick={autoplay.play}
+          className="absolute top-1/2 left-1/2 z-20 flex size-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-accent text-accent-fg shadow-2xl transition-transform hover:scale-105"
+          aria-label="Wiedergabe starten"
+        >
+          <Play className="ml-1 size-9 fill-current" aria-hidden="true" />
+        </button>
+      )}
+      {!error && autoplay.mutedByPolicy && !autoplay.blocked && (
+        <button
+          type="button"
+          onClick={autoplay.unmute}
+          className="absolute top-20 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/70 px-4 py-2 text-sm font-semibold backdrop-blur hover:bg-black/90"
+        >
+          <VolumeX className="size-4" aria-hidden="true" />
+          Ton einschalten
+        </button>
       )}
 
       <header
