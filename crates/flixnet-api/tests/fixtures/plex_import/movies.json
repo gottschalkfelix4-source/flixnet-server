@@ -1,0 +1,111 @@
+{
+ "MediaContainer": {
+  "size": 4,
+  "totalSize": 4,
+  "offset": 0,
+  "allowSync": true,
+  "identifier": "com.plexapp.plugins.library",
+  "librarySectionID": 1,
+  "librarySectionTitle": "Filme",
+  "librarySectionUUID": "dab8c057-c9a4-483c-9823-2056e565a204",
+  "title1": "Filme",
+  "title2": "All Filme",
+  "viewGroup": "movie",
+  "Metadata": [
+   {
+    "ratingKey": "1",
+    "key": "/library/metadata/1",
+    "guid": "plex://movie/5d7768254de0ee001fcc83a5",
+    "type": "movie",
+    "title": "Alien",
+    "userRating": 10.0,
+    "lastRatedAt": 1793344068,
+    "year": 1979,
+    "duration": 300023,
+    "originallyAvailableAt": "1979-05-25",
+    "addedAt": 1793343961,
+    "updatedAt": 1793344026,
+    "Guid": [
+     {
+      "id": "imdb://tt0078748"
+     },
+     {
+      "id": "tmdb://348"
+     },
+     {
+      "id": "tvdb://264"
+     }
+    ]
+   },
+   {
+    "ratingKey": "2",
+    "key": "/library/metadata/2",
+    "guid": "local://2",
+    "type": "movie",
+    "title": "Ein Film Ohne IDs",
+    "userRating": 6.0,
+    "viewCount": 1,
+    "lastViewedAt": 1793344068,
+    "lastRatedAt": 1793344068,
+    "year": 2015,
+    "duration": 300023,
+    "addedAt": 1793343958,
+    "updatedAt": 1793344025
+   },
+   {
+    "ratingKey": "3",
+    "key": "/library/metadata/3",
+    "guid": "plex://movie/5d77685333f255001e852e11",
+    "type": "movie",
+    "title": "Inception",
+    "viewOffset": 120000,
+    "lastViewedAt": 1793344068,
+    "year": 2010,
+    "duration": 300023,
+    "originallyAvailableAt": "2010-07-14",
+    "addedAt": 1793343955,
+    "updatedAt": 1793344026,
+    "Guid": [
+     {
+      "id": "imdb://tt1375666"
+     },
+     {
+      "id": "tmdb://27205"
+     },
+     {
+      "id": "tvdb://113"
+     }
+    ]
+   },
+   {
+    "ratingKey": "4",
+    "key": "/library/metadata/4",
+    "guid": "plex://movie/5d776827880197001ec90904",
+    "type": "movie",
+    "title": "The Matrix",
+    "titleSort": "Matrix",
+    "userRating": 8.0,
+    "viewOffset": 150000,
+    "viewCount": 2,
+    "lastViewedAt": 1793344188,
+    "lastRatedAt": 1793344068,
+    "year": 1999,
+    "duration": 300023,
+    "originallyAvailableAt": "1999-03-31",
+    "addedAt": 1793343953,
+    "updatedAt": 1793344026,
+    "Guid": [
+     {
+      "id": "imdb://tt0133093"
+     },
+     {
+      "id": "tmdb://603"
+     },
+     {
+      "id": "tvdb://169"
+     }
+    ]
+   }
+  ]
+ }
+}

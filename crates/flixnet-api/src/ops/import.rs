@@ -57,7 +57,8 @@ pub struct ImportRequest {
     pub source: ImportSource,
     /// Base URL of the other server, e.g. `http://192.168.1.10:32400`.
     pub server_url: String,
-    /// Plex: `X-Plex-Token`. Jellyfin: an API key (Dashboard → API-Schlüssel).
+    /// Plex: `X-Plex-Token` (not needed when Plex lets this network in without
+    /// sign-in). Jellyfin: an API key (Dashboard → API-Schlüssel).
     pub token: Option<String>,
     /// Jellyfin without API key: sign in as this user (imports only that user).
     pub username: Option<String>,
@@ -209,12 +210,32 @@ fn int_of(v: &Value, key: &str) -> Option<i64> {
 
 // ---- Plex ---------------------------------------------------------------------------
 
-fn plex(http: &reqwest::Client, base: &str, path: &str, token: &str) -> reqwest::RequestBuilder {
-    http.get(format!("{base}{path}"))
+/// A Plex request. Without a token Plex answers only addresses listed under
+/// "Netzwerke ohne Authentifizierung" (`allowedNetworks`); any other request gets 401.
+fn plex(
+    http: &reqwest::Client,
+    base: &str,
+    path: &str,
+    token: Option<&str>,
+) -> reqwest::RequestBuilder {
+    let request = http
+        .get(format!("{base}{path}"))
         .header("Accept", "application/json")
-        .header("X-Plex-Token", token)
         .header("X-Plex-Product", "Flixnet")
-        .header("X-Plex-Client-Identifier", "flixnet-history-import")
+        .header("X-Plex-Client-Identifier", "flixnet-history-import");
+    match token {
+        Some(token) => request.header("X-Plex-Token", token),
+        None => request,
+    }
+}
+
+fn float_of(v: &Value, key: &str) -> Option<f64> {
+    match v.get(key)? {
+        Value::Number(n) => n.as_f64(),
+        Value::String(s) => s.parse().ok(),
+        _ => None,
+    }
+    .filter(|f: &f64| f.is_finite())
 }
 
 /// Provider ids from Plex `Guid` entries (`imdb://tt…`, `tmdb://…`, `tvdb://…`) and
@@ -250,7 +271,7 @@ fn plex_ids(v: &Value) -> ExternalIds {
 async fn plex_all(
     http: &reqwest::Client,
     base: &str,
-    token: &str,
+    token: Option<&str>,
     section: &str,
     kind: u8,
 ) -> ApiResult<Vec<Value>> {
@@ -268,8 +289,12 @@ async fn plex_all(
             .unwrap_or_default();
         let got = entries.len();
         out.extend(entries);
-        let total = int_of(container, "totalSize").map_or(usize::MAX, |t| t as usize);
-        if got < PAGE || out.len() >= total {
+        // Paged answers carry `totalSize`; a page may hold fewer entries than asked for.
+        let done = match int_of(container, "totalSize") {
+            Some(total) => out.len() >= usize::try_from(total).unwrap_or(0),
+            None => got < PAGE,
+        };
+        if done || got == 0 {
             return Ok(out);
         }
     }
@@ -278,12 +303,17 @@ async fn plex_all(
 fn plex_state(v: &Value, item: &mut SourceItem) {
     item.play_count = int_of(v, "viewCount").unwrap_or(0);
     item.played = item.play_count > 0;
+    // Watched and started again: Plex keeps the new resume point next to the count.
     item.position_ms = int_of(v, "viewOffset").unwrap_or(0);
     item.last_played_at = int_of(v, "lastViewedAt").map(|s| s * 1000);
-    item.rating = v.get("userRating").and_then(Value::as_f64);
+    item.rating = float_of(v, "userRating");
 }
 
-async fn fetch_plex(http: &reqwest::Client, base: &str, token: &str) -> ApiResult<Vec<SourceItem>> {
+async fn fetch_plex(
+    http: &reqwest::Client,
+    base: &str,
+    token: Option<&str>,
+) -> ApiResult<Vec<SourceItem>> {
     let sections = get_json(plex(http, base, "/library/sections", token), "Plex").await?;
     let mut items = Vec::new();
     for section in sections["MediaContainer"]["Directory"]
@@ -308,8 +338,17 @@ async fn fetch_plex(http: &reqwest::Client, base: &str, token: &str) -> ApiResul
                 }
             }
             Some("show") => {
-                let shows: HashMap<String, Value> = plex_all(http, base, token, &key, 2)
-                    .await?
+                let shows = plex_all(http, base, token, &key, 2).await?;
+                // Shows carry ratings only; their `viewCount` counts watched episodes.
+                items.extend(shows.iter().map(|s| SourceItem {
+                    series: true,
+                    title: str_of(s, "title").unwrap_or_default(),
+                    year: int_of(s, "year"),
+                    ids: plex_ids(s),
+                    rating: float_of(s, "userRating"),
+                    ..Default::default()
+                }));
+                let shows: HashMap<String, Value> = shows
                     .into_iter()
                     .filter_map(|s| Some((str_of(&s, "ratingKey")?, s)))
                     .collect();
@@ -597,12 +636,12 @@ async fn run(state: &AppState, req: ImportRequest, apply: bool) -> ApiResult<Imp
     // 1. Read the other server (no database transaction open meanwhile).
     let sources: Vec<SourceUser> = match req.source {
         ImportSource::Plex => {
+            // Optional: a Plex server that allows this network without sign-in needs none.
             let token = req
                 .token
                 .as_deref()
                 .map(str::trim)
-                .filter(|t| !t.is_empty())
-                .ok_or_else(|| ApiError::validation("Bitte den Plex-Token angeben."))?;
+                .filter(|t| !t.is_empty());
             if req.user_id.is_none() {
                 return Err(ApiError::validation(
                     "Bitte den Flixnet-Nutzer wählen, der den Verlauf bekommt.",
@@ -749,5 +788,27 @@ mod tests {
         assert_eq!(plex_ids(&legacy).tvdb.as_deref(), Some("121361"));
         let legacy = serde_json::json!({ "guid": "com.plexapp.agents.imdb://tt0816692?lang=en" });
         assert_eq!(plex_ids(&legacy).imdb.as_deref(), Some("tt0816692"));
+
+        // Unmatched items (PMS 1.43): no provider ids at all.
+        for guid in [
+            "local://2",
+            "tv.plex.agents.none://35",
+            "com.plexapp.agents.none://a1b2c3?lang=xn",
+        ] {
+            assert!(
+                plex_ids(&serde_json::json!({ "guid": guid })).is_empty(),
+                "{guid}"
+            );
+        }
+    }
+
+    #[test]
+    fn plex_numbers_as_numbers_or_strings() {
+        let v = serde_json::json!({ "a": 8.0, "b": "6", "c": "x", "d": null });
+        assert_eq!(float_of(&v, "a"), Some(8.0));
+        assert_eq!(float_of(&v, "b"), Some(6.0));
+        assert_eq!(float_of(&v, "c"), None);
+        assert_eq!(float_of(&v, "d"), None);
+        assert_eq!(float_of(&v, "e"), None);
     }
 }

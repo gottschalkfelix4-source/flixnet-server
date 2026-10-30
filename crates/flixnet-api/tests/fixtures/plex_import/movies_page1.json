@@ -1,0 +1,57 @@
+{
+ "MediaContainer": {
+  "size": 2,
+  "totalSize": 4,
+  "offset": 0,
+  "allowSync": true,
+  "identifier": "com.plexapp.plugins.library",
+  "librarySectionID": 1,
+  "librarySectionTitle": "Filme",
+  "librarySectionUUID": "dab8c057-c9a4-483c-9823-2056e565a204",
+  "title1": "Filme",
+  "title2": "All Filme",
+  "viewGroup": "movie",
+  "Metadata": [
+   {
+    "ratingKey": "1",
+    "key": "/library/metadata/1",
+    "guid": "plex://movie/5d7768254de0ee001fcc83a5",
+    "type": "movie",
+    "title": "Alien",
+    "userRating": 10.0,
+    "lastRatedAt": 1793344068,
+    "year": 1979,
+    "duration": 300023,
+    "originallyAvailableAt": "1979-05-25",
+    "addedAt": 1793343961,
+    "updatedAt": 1793344026,
+    "Guid": [
+     {
+      "id": "imdb://tt0078748"
+     },
+     {
+      "id": "tmdb://348"
+     },
+     {
+      "id": "tvdb://264"
+     }
+    ]
+   },
+   {
+    "ratingKey": "2",
+    "key": "/library/metadata/2",
+    "guid": "local://2",
+    "type": "movie",
+    "title": "Ein Film Ohne IDs",
+    "userRating": 6.0,
+    "viewCount": 1,
+    "lastViewedAt": 1793344068,
+    "lastRatedAt": 1793344068,
+    "year": 2015,
+    "duration": 300023,
+    "addedAt": 1793343958,
+    "updatedAt": 1793344025
+   }
+  ]
+ }
+}

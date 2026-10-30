@@ -293,9 +293,23 @@ async fn plex_errors_and_validation() {
             .unwrap()
             .contains("abgelehnt")
     );
+    // Without a token Plex decides: this one wants a token.
+    let no_token = app
+        .post(
+            "/api/v1/import/preview",
+            json!({ "source": "plex", "server_url": server.uri(), "user_id": me }),
+            Some(&admin),
+        )
+        .await;
+    assert_eq!(no_token.status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert!(
+        no_token.json["message"]
+            .as_str()
+            .unwrap()
+            .contains("abgelehnt")
+    );
     for body in [
         json!({ "source": "plex", "server_url": "plex.local", "token": "t", "user_id": me }),
-        json!({ "source": "plex", "server_url": server.uri(), "user_id": me }),
         json!({ "source": "plex", "server_url": server.uri(), "token": "t" }),
         json!({ "source": "plex", "server_url": server.uri(), "token": "t", "user_id": 999 }),
         json!({ "source": "jellyfin", "server_url": server.uri() }),
@@ -741,4 +755,270 @@ async fn jellyfin_real_payloads_by_sign_in() {
         .await
         .unwrap();
     assert!(matrix.played && matrix.favorite);
+}
+
+// ---- Real Plex payloads ---------------------------------------------------------------
+//
+// `fixtures/plex_import/*.json` are trimmed JSON responses of a real, unclaimed Plex Media
+// Server (`plexinc/pms-docker:1.43.4.10903-e5521bd8c`) for the library built below. Plex
+// matched three movies and the series online (`plex://` guids plus a `Guid` array with
+// imdb/tmdb/tvdb), left "Ein Film ohne IDs" unmatched (`local://2`, title-cased to
+// "Ein Film Ohne IDs") and put a home video into a "Personal Media" section
+// (`tv.plex.agents.none://35`, year taken from the file date). Watch state was set
+// through `/:/scrobble`, `/:/progress` and `/:/rate`: The Matrix watched twice and
+// started again at 2:30, Inception at 2:00, ratings on three movies and on the series,
+// episodes 1–2 watched and episode 3 at 1:30. `movies_page{1,2}.json` are the same
+// section read two entries at a time (`X-Plex-Container-Start`/`-Size`).
+
+fn plex_fixture(name: &str) -> Value {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/plex_import")
+        .join(name);
+    serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap()
+}
+
+struct PlexLibrary {
+    admin: String,
+    admin_id: i64,
+    ids: std::collections::HashMap<&'static str, i64>,
+}
+
+async fn plex_real_library(app: &TestApp) -> PlexLibrary {
+    let root = app.dir.path().join("media");
+    for file in [
+        "movies/The Matrix (1999) {tmdb-603}/The Matrix (1999).mkv",
+        "movies/Inception (2010)/Inception (2010).mkv",
+        "movies/Alien (1979) {imdb-tt0078748}/Alien (1979).mkv",
+        "movies/Ein Film ohne IDs (2015)/Ein Film ohne IDs (2015).mkv",
+        "shows/Dark (2017) {tvdb-334824}/Season 01/Dark (2017) - S01E01.mkv",
+        "shows/Dark (2017) {tvdb-334824}/Season 01/Dark (2017) - S01E02.mkv",
+        "shows/Dark (2017) {tvdb-334824}/Season 01/Dark (2017) - S01E03.mkv",
+    ] {
+        let path = root.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"v").unwrap();
+    }
+    let queue = JobRuntime::new(app.db.clone(), EventBus::new())
+        .handle()
+        .queue()
+        .clone();
+    for (name, kind, dir) in [("Filme", "movies", "movies"), ("Serien", "shows", "shows")] {
+        let path = root.join(dir).to_string_lossy().into_owned();
+        let id = libraries::create(&app.db, name, kind, &[path])
+            .await
+            .unwrap()
+            .id;
+        scan_library(&app.db, &queue, id).await.unwrap();
+    }
+    let admin = app.setup_admin().await;
+    let mut ids = std::collections::HashMap::new();
+    for kind in ["movie", "series", "episode"] {
+        let list = app
+            .get(&format!("/api/v1/items?kind={kind}"), Some(&admin))
+            .await
+            .json;
+        for item in list["items"].as_array().unwrap() {
+            let title = item["title"].as_str().unwrap();
+            let key = match (kind, item["index_number"].as_i64(), title) {
+                ("episode", Some(1), _) => "e1",
+                ("episode", Some(2), _) => "e2",
+                ("episode", Some(3), _) => "e3",
+                (_, _, "The Matrix") => "matrix",
+                (_, _, "Inception") => "inception",
+                (_, _, "Alien") => "alien",
+                (_, _, "Ein Film ohne IDs") => "ohne",
+                (_, _, "Dark") => "dark",
+                _ => panic!("unexpected {kind} {title}"),
+            };
+            ids.insert(key, item["id"].as_i64().unwrap());
+        }
+    }
+    assert_eq!(ids.len(), 8, "{ids:?}");
+    let me = app.get("/api/v1/users/me", Some(&admin)).await.json;
+    PlexLibrary {
+        admin_id: me["id"].as_i64().unwrap(),
+        admin,
+        ids,
+    }
+}
+
+/// Serves the captured PMS responses. `paged`: the movie section answers two entries
+/// per request, whatever page size was asked for.
+async fn real_plex(paged: bool) -> MockServer {
+    let server = MockServer::start().await;
+    let section = |id: &str, kind: &str| {
+        Mock::given(method("GET"))
+            .and(path(format!("/library/sections/{id}/all")))
+            .and(query_param("type", kind))
+            .and(query_param("includeGuids", "1"))
+            .and(header("Accept", "application/json"))
+    };
+    Mock::given(method("GET"))
+        .and(path("/library/sections"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(plex_fixture("sections.json")))
+        .mount(&server)
+        .await;
+    if paged {
+        for (start, name) in [("0", "movies_page1.json"), ("2", "movies_page2.json")] {
+            section("1", "1")
+                .and(query_param("X-Plex-Container-Start", start))
+                .respond_with(ResponseTemplate::new(200).set_body_json(plex_fixture(name)))
+                .mount(&server)
+                .await;
+        }
+    } else {
+        section("1", "1")
+            .and(query_param("X-Plex-Container-Start", "0"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(plex_fixture("movies.json")))
+            .mount(&server)
+            .await;
+    }
+    for (id, kind, name) in [
+        ("2", "2", "shows.json"),
+        ("2", "4", "episodes.json"),
+        ("3", "1", "other.json"),
+    ] {
+        section(id, kind)
+            .and(query_param("X-Plex-Container-Start", "0"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(plex_fixture(name)))
+            .mount(&server)
+            .await;
+    }
+    server
+}
+
+#[tokio::test]
+async fn plex_real_payloads() {
+    let server = real_plex(true).await;
+    let app = app().await;
+    let lib = plex_real_library(&app).await;
+    // Plex ignores the token of a network it lets in without sign-in.
+    let request = json!({
+        "source": "plex", "server_url": format!("{}/", server.uri()), "token": "dummy-token",
+        "user_id": lib.admin_id
+    });
+
+    let preview = app
+        .post("/api/v1/import/preview", request.clone(), Some(&lib.admin))
+        .await;
+    assert_eq!(preview.status, StatusCode::OK, "{}", preview.json);
+    let user = &preview.json["users"][0];
+    // All four movies arrive although each page held two; the series rating counts.
+    assert_eq!(
+        user["stats"],
+        json!({
+            "entries": 9, "matched": 8, "unmatched": 1, "by_provider_id": 3, "by_title_year": 2,
+            "by_episode": 3, "played": 4, "in_progress": 2, "favorites": 0, "rated": 4
+        })
+    );
+    assert_eq!(
+        user["unmatched_samples"],
+        json!(["Urlaubsvideo 2019 (2026)"])
+    );
+    let movie_requests: Vec<_> = server
+        .received_requests()
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.url.path() == "/library/sections/1/all")
+        .collect();
+    assert_eq!(movie_requests.len(), 2);
+    assert!(
+        movie_requests
+            .iter()
+            .all(|r| r.headers.get("x-plex-token").unwrap() == "dummy-token")
+    );
+
+    let applied = app
+        .post("/api/v1/import/apply", request.clone(), Some(&lib.admin))
+        .await;
+    assert_eq!(applied.status, StatusCode::OK, "{}", applied.json);
+    assert_eq!(applied.json["users"][0]["written_items"], 8);
+    assert_eq!(applied.json["users"][0]["written_history"], 4);
+
+    let get = |key: &str| {
+        let db = app.db.clone();
+        let (user, id) = (lib.admin_id, lib.ids[key]);
+        async move { userdata::get(&db, user, id).await.unwrap() }
+    };
+    let matrix = get("matrix").await;
+    assert!(matrix.played);
+    assert_eq!(matrix.play_count, 2);
+    assert_eq!(matrix.rating, Some(8.0));
+    // Watched twice and started again: the new resume point stays.
+    assert_eq!(matrix.position_ms, 150_000);
+    assert_eq!(matrix.last_played_at, Some(1_793_344_188_000));
+    let inception = get("inception").await;
+    assert!(!inception.played);
+    assert_eq!(inception.position_ms, 120_000);
+    assert_eq!(inception.last_played_at, Some(1_793_344_068_000));
+    let alien = get("alien").await;
+    assert!(!alien.played);
+    assert_eq!(alien.rating, Some(10.0));
+    let ohne = get("ohne").await;
+    assert!(ohne.played);
+    assert_eq!(ohne.rating, Some(6.0));
+    let dark = get("dark").await;
+    assert_eq!(dark.rating, Some(9.0));
+    assert!(!dark.played, "the show's viewCount counts episodes");
+    assert!(get("e1").await.played);
+    assert!(get("e2").await.played);
+    let e3 = get("e3").await;
+    assert!(!e3.played);
+    assert_eq!(e3.position_ms, 90_000);
+    let resume = app.get("/api/v1/items/resume", Some(&lib.admin)).await;
+    let resumable: Vec<i64> = resume
+        .json
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["id"].as_i64().unwrap())
+        .collect();
+    for key in ["matrix", "inception", "e3"] {
+        assert!(resumable.contains(&lib.ids[key]), "{key}: {resumable:?}");
+    }
+
+    // Repeating changes nothing.
+    let again = app
+        .post("/api/v1/import/apply", request, Some(&lib.admin))
+        .await;
+    assert_eq!(again.status, StatusCode::OK, "{}", again.json);
+    assert_eq!(again.json["users"][0]["written_history"], 0);
+    let history = playstate::events(&app.db, lib.admin_id).await.unwrap();
+    assert_eq!(history.len(), 4);
+    assert!(
+        history
+            .iter()
+            .all(|e| e.completed && e.client.as_deref() == Some("Plex-Import"))
+    );
+    let matrix = get("matrix").await;
+    assert_eq!(
+        (matrix.play_count, matrix.position_ms, matrix.rating),
+        (2, 150_000, Some(8.0))
+    );
+}
+
+#[tokio::test]
+async fn plex_without_token() {
+    let server = real_plex(false).await;
+    let app = app().await;
+    let lib = plex_real_library(&app).await;
+    for token in [json!(null), json!(""), json!("  ")] {
+        let preview = app
+            .post(
+                "/api/v1/import/preview",
+                json!({ "source": "plex", "server_url": server.uri(), "token": token, "user_id": lib.admin_id }),
+                Some(&lib.admin),
+            )
+            .await;
+        assert_eq!(preview.status, StatusCode::OK, "{}", preview.json);
+        assert_eq!(preview.json["users"][0]["stats"]["matched"], 8);
+    }
+    let requests = server.received_requests().await.unwrap();
+    assert!(!requests.is_empty());
+    assert!(
+        requests
+            .iter()
+            .all(|r| !r.headers.contains_key("x-plex-token"))
+    );
 }

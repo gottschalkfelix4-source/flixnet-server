@@ -112,10 +112,9 @@ export function ImportSettings() {
             label={source === 'plex' ? 'Plex-Token' : 'API-Schlüssel (alle Nutzer)'}
             type="password"
             autoComplete="off"
-            required={source === 'plex'}
             hint={
               source === 'plex'
-                ? 'X-Plex-Token, z. B. aus „XML anzeigen“ eines Eintrags in Plex Web.'
+                ? 'X-Plex-Token, z. B. aus „XML anzeigen“ eines Eintrags in Plex Web. Leer lassen, wenn Plex dieses Netzwerk ohne Anmeldung zulässt.'
                 : 'Jellyfin → Dashboard → API-Schlüssel. Alternativ unten mit Name und Passwort.'
             }
             value={token}

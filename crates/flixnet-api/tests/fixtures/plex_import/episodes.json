@@ -1,0 +1,119 @@
+{
+ "MediaContainer": {
+  "size": 3,
+  "totalSize": 3,
+  "offset": 0,
+  "allowSync": true,
+  "identifier": "com.plexapp.plugins.library",
+  "librarySectionID": 2,
+  "librarySectionTitle": "Serien",
+  "librarySectionUUID": "1d7164f7-73bc-4a1e-b316-be6b9d017fcc",
+  "title1": "Serien",
+  "title2": "All Shows",
+  "viewGroup": "show",
+  "Metadata": [
+   {
+    "ratingKey": "7",
+    "key": "/library/metadata/7",
+    "parentRatingKey": "6",
+    "grandparentRatingKey": "5",
+    "guid": "plex://episode/5d9c186cef619b00204b7f73",
+    "parentGuid": "plex://season/602e70ebfdd281002ce05479",
+    "grandparentGuid": "plex://show/5d9c08ccba2e21001f192e95",
+    "type": "episode",
+    "title": "Secrets",
+    "grandparentTitle": "Dark",
+    "parentTitle": "Season 1",
+    "originalTitle": "Geheimnisse",
+    "index": 1,
+    "parentIndex": 1,
+    "viewCount": 1,
+    "lastViewedAt": 1793344068,
+    "year": 2017,
+    "duration": 240023,
+    "originallyAvailableAt": "2017-12-01",
+    "addedAt": 1793343963,
+    "updatedAt": 1793344028,
+    "Guid": [
+     {
+      "id": "imdb://tt6305578"
+     },
+     {
+      "id": "tmdb://1279454"
+     },
+     {
+      "id": "tvdb://6327940"
+     }
+    ]
+   },
+   {
+    "ratingKey": "8",
+    "key": "/library/metadata/8",
+    "parentRatingKey": "6",
+    "grandparentRatingKey": "5",
+    "guid": "plex://episode/5d9c186b0aaccd001f927ac3",
+    "parentGuid": "plex://season/602e70ebfdd281002ce05479",
+    "grandparentGuid": "plex://show/5d9c08ccba2e21001f192e95",
+    "type": "episode",
+    "title": "Lies",
+    "grandparentTitle": "Dark",
+    "parentTitle": "Season 1",
+    "originalTitle": "Lügen",
+    "index": 2,
+    "parentIndex": 1,
+    "viewCount": 1,
+    "lastViewedAt": 1793344068,
+    "year": 2017,
+    "duration": 240023,
+    "originallyAvailableAt": "2017-12-01",
+    "addedAt": 1793343965,
+    "updatedAt": 1793344028,
+    "Guid": [
+     {
+      "id": "imdb://tt7305776"
+     },
+     {
+      "id": "tmdb://1375781"
+     },
+     {
+      "id": "tvdb://6347551"
+     }
+    ]
+   },
+   {
+    "ratingKey": "9",
+    "key": "/library/metadata/9",
+    "parentRatingKey": "6",
+    "grandparentRatingKey": "5",
+    "guid": "plex://episode/5d9c186b0aaccd001f927ab7",
+    "parentGuid": "plex://season/602e70ebfdd281002ce05479",
+    "grandparentGuid": "plex://show/5d9c08ccba2e21001f192e95",
+    "type": "episode",
+    "title": "Past and Present",
+    "grandparentTitle": "Dark",
+    "parentTitle": "Season 1",
+    "originalTitle": "Gestern und Heute",
+    "index": 3,
+    "parentIndex": 1,
+    "viewOffset": 90000,
+    "lastViewedAt": 1793344080,
+    "year": 2017,
+    "duration": 240023,
+    "originallyAvailableAt": "2017-12-01",
+    "addedAt": 1793343967,
+    "updatedAt": 1793344028,
+    "Guid": [
+     {
+      "id": "imdb://tt7305820"
+     },
+     {
+      "id": "tmdb://1375782"
+     },
+     {
+      "id": "tvdb://6347552"
+     }
+    ]
+   }
+  ]
+ }
+}
