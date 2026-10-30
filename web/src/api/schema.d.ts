@@ -1086,6 +1086,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/jobs/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scans per library, then every other kind of work as one batch with its progress. */
+        get: operations["getServerActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs/summary": {
         parameters: {
             query?: never;
@@ -3088,6 +3105,31 @@ export interface components {
             user_id: number;
             /** @description Profile name. */
             user_name: string;
+        };
+        /** @description What the server is busy with, for the activity indicator in the top bar. */
+        ActivityDto: {
+            /**
+             * Format: int64
+             * @description Finished since this batch began.
+             */
+            done: number;
+            /** @description Job kind, e.g. `library.scan`, `media.probe` or `metadata.refresh`. */
+            kind: string;
+            /**
+             * Format: int64
+             * @description Scans: the library being scanned.
+             */
+            library_id?: number | null;
+            library_name?: string | null;
+            /**
+             * Format: double
+             * @description 0–1 when known (share of the batch, or what a single job reported).
+             */
+            progress?: number | null;
+            /** Format: int64 */
+            queued: number;
+            /** Format: int64 */
+            running: number;
         };
         AddedDto: {
             /**
@@ -9640,6 +9682,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getServerActivity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current server activity, oldest first; empty when idle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityDto"][];
                 };
             };
             /** @description Missing or invalid token */

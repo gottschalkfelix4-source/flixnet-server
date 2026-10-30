@@ -116,8 +116,18 @@ test('progress is saved, shows in "Weiterschauen" and playback resumes there', a
   await seek(video, 300)
   await reported
 
-  // The dashboard shows the session live.
+  // The activity bubble in the top bar counts the stream and lists it.
   const dashboard = await page.context().newPage()
+  await dashboard.goto('/')
+  const bubble = dashboard.getByTestId('activity-button')
+  await expect(bubble.getByTestId('activity-streams')).toHaveText(/^[1-9]\d*$/)
+  await bubble.click()
+  const panel = dashboard.getByTestId('activity-panel')
+  await expect(panel.getByTestId('activity-stream').filter({ hasText: MOVIE })).toContainText('Felix')
+  await panel.getByRole('link', { name: 'Dashboard öffnen' }).click()
+  await expect(dashboard).toHaveURL(/tab=dashboard/)
+
+  // The sessions page shows it live.
   await dashboard.goto('/settings?tab=sessions')
   const session = dashboard.getByTestId('active-session').filter({ hasText: MOVIE })
   await expect(session).toBeVisible()

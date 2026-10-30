@@ -47,3 +47,17 @@
     @apply outline-2 outline-offset-2 outline-accent;
   }
 }
+
+/* Progress of work whose size is unknown: a short bar sweeping across the track. */
+@keyframes indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@utility animate-indeterminate {
+  animation: indeterminate 1.4s ease-in-out infinite;
+}

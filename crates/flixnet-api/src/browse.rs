@@ -535,6 +535,40 @@ fn filter_from(
     })
 }
 
+/// Episodes without artwork of their own borrow their series' poster (what "now
+/// playing" lists show, like Plex does).
+pub(crate) async fn with_series_posters(
+    state: &AppState,
+    mut cards: Vec<ItemCardDto>,
+) -> ApiResult<Vec<ItemCardDto>> {
+    let series: Vec<i64> = cards
+        .iter()
+        .filter(|c| c.kind == "episode" && c.poster_url.is_none())
+        .filter_map(|c| c.series_id)
+        .collect();
+    if series.is_empty() {
+        return Ok(cards);
+    }
+    let posters: std::collections::HashMap<i64, ItemSummary> =
+        browse::summaries(&state.db, &series, None)
+            .await?
+            .into_iter()
+            .map(|s| (s.id, s))
+            .collect();
+    for c in cards
+        .iter_mut()
+        .filter(|c| c.kind == "episode" && c.poster_url.is_none())
+    {
+        if let Some(series) = c.series_id.and_then(|id| posters.get(&id)) {
+            c.poster_url = series
+                .poster_id
+                .map(|id| state.signer.image_url(id, Some(342)));
+            c.poster_blurhash = series.poster_blurhash.clone();
+        }
+    }
+    Ok(cards)
+}
+
 pub(crate) fn card(state: &AppState, s: ItemSummary) -> ItemCardDto {
     ItemCardDto {
         poster_url: s.poster_id.map(|id| state.signer.image_url(id, Some(342))),

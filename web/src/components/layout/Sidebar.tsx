@@ -1,7 +1,10 @@
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { LoaderCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { useServerActivity } from '@/api/queries/jobs'
+import { useLibraries } from '@/api/queries/libraries'
 import { useSystemInfo } from '@/api/queries/system'
+import { useSession } from '@/lib/session'
 import { ChatPanel } from '@/components/assistant/ChatPanel'
 import { Logo } from './Logo'
 import { footerNav, mainNav, type NavItem } from './nav'
@@ -13,6 +16,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const busy = useBusyPaths()
   return (
     <aside
       className={clsx(
@@ -29,7 +33,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <nav aria-label="Hauptnavigation" className="flex-1 overflow-y-auto px-2 py-2">
         <ul className="space-y-1">
           {mainNav.map((item) => (
-            <NavLink key={item.to} item={item} collapsed={collapsed} />
+            <NavLink key={item.to} item={item} collapsed={collapsed} busy={busy.has(item.to)} />
           ))}
         </ul>
       </nav>
@@ -82,7 +86,33 @@ function ServerStatus({ collapsed }: { collapsed: boolean }) {
   )
 }
 
-function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+const LIBRARY_PATHS: Record<string, string> = {
+  movies: '/movies',
+  shows: '/shows',
+  music: '/music',
+  photos: '/photos',
+  audiobooks: '/audiobooks',
+}
+
+/**
+ * Sections whose library is being scanned (or still analysed while analysis runs),
+ * so their entry can spin like a library in Plex' sidebar. Administrators only.
+ */
+function useBusyPaths(): Set<string> {
+  const isAdmin = useSession()?.user.is_admin ?? false
+  const work = useServerActivity(isAdmin).data ?? []
+  const libraries = useLibraries().data ?? []
+  const analysing = work.some((w) => w.kind === 'media.probe' && w.running > 0)
+  const busy = new Set<string>()
+  for (const library of libraries) {
+    const scanning = work.some((w) => w.kind === 'library.scan' && w.library_id === library.id && w.running > 0)
+    const path = LIBRARY_PATHS[library.kind]
+    if (path && (scanning || (analysing && library.counts.unprobed > 0))) busy.add(path)
+  }
+  return busy
+}
+
+function NavLink({ item, collapsed, busy = false }: { item: NavItem; collapsed: boolean; busy?: boolean }) {
   const Icon = item.icon
   return (
     <li>
@@ -91,13 +121,20 @@ function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
         activeOptions={{ exact: item.to === '/' }}
         title={collapsed ? item.label : undefined}
         className={clsx(
-          'group flex h-10 items-center gap-3 rounded-lg text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-fg',
+          'group relative flex h-10 items-center gap-3 rounded-lg text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-fg',
           'data-[status=active]:bg-surface-3 data-[status=active]:text-fg',
           collapsed ? 'justify-center' : 'px-3',
         )}
       >
         <Icon className="size-5 shrink-0 group-data-[status=active]:text-accent" />
         <span className={clsx(collapsed && 'sr-only')}>{item.label}</span>
+        {busy && (
+          <LoaderCircle
+            className={clsx('size-3.5 shrink-0 text-accent motion-safe:animate-spin', collapsed ? 'absolute top-1 right-1' : 'ml-auto')}
+            aria-label="Wird gescannt"
+            data-testid="library-busy"
+          />
+        )}
       </Link>
     </li>
   )

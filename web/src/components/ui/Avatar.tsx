@@ -19,7 +19,7 @@ export function Avatar({
 }: {
   id: number
   name: string
-  size?: 'sm' | 'md' | 'xl'
+  size?: 'xs' | 'sm' | 'md' | 'xl'
   className?: string
 }) {
   return (
@@ -28,6 +28,7 @@ export function Avatar({
       className={clsx(
         'flex shrink-0 items-center justify-center bg-gradient-to-br font-extrabold text-white/95',
         GRADIENTS[Math.abs(id) % GRADIENTS.length],
+        size === 'xs' && 'size-4 rounded-full text-[9px]',
         size === 'sm' && 'size-9 rounded-full text-sm',
         size === 'md' && 'size-11 rounded-full text-base',
         size === 'xl' && 'size-28 rounded-2xl text-5xl md:size-32',

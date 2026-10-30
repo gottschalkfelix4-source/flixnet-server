@@ -477,11 +477,16 @@ async fn list_active_sessions(
     let active = state.playback.list(flixnet_db::now_ms());
     let transcodes = state.transcoder.sessions().await;
     let ids: Vec<i64> = active.iter().map(|s| s.item_id).collect();
+    let summaries = browse::summaries(&state.db, &ids, Some(admin.user_id))
+        .await?
+        .into_iter()
+        .map(|s| card(&state, s))
+        .collect();
     let mut cards: std::collections::HashMap<i64, ItemCardDto> =
-        browse::summaries(&state.db, &ids, Some(admin.user_id))
+        crate::browse::with_series_posters(&state, summaries)
             .await?
             .into_iter()
-            .map(|s| (s.id, card(&state, s)))
+            .map(|c| (c.id, c))
             .collect();
     Ok(Json(
         active

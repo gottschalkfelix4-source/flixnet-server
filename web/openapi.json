@@ -4555,6 +4555,50 @@
         }
       }
     },
+    "/api/v1/jobs/activity": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Scans per library, then every other kind of work as one batch with its progress.",
+        "operationId": "getServerActivity",
+        "responses": {
+          "200": {
+            "description": "Current server activity, oldest first; empty when idle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/jobs/summary": {
       "get": {
         "tags": [
@@ -13035,6 +13079,57 @@
           "user_name": {
             "type": "string",
             "description": "Profile name."
+          }
+        }
+      },
+      "ActivityDto": {
+        "type": "object",
+        "description": "What the server is busy with, for the activity indicator in the top bar.",
+        "required": [
+          "kind",
+          "running",
+          "queued",
+          "done"
+        ],
+        "properties": {
+          "done": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Finished since this batch began."
+          },
+          "kind": {
+            "type": "string",
+            "description": "Job kind, e.g. `library.scan`, `media.probe` or `metadata.refresh`."
+          },
+          "library_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Scans: the library being scanned."
+          },
+          "library_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "progress": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "0–1 when known (share of the batch, or what a single job reported)."
+          },
+          "queued": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "running": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

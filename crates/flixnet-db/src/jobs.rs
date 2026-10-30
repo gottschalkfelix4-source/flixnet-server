@@ -225,6 +225,58 @@ pub async fn counts(db: &Db) -> Result<Vec<Count>> {
     Ok(counts)
 }
 
+/// Work happening right now for one job kind: running jobs plus queued ones that are
+/// due (retries still waiting for their back-off do not count).
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
+pub struct KindActivity {
+    pub kind: String,
+    pub running: i64,
+    pub queued: i64,
+    /// Creation time of the oldest pending job: where the current batch began.
+    pub since: i64,
+    /// Jobs of this kind finished since the batch began.
+    pub done: i64,
+    /// Highest progress a pending job reported.
+    pub progress: Option<f64>,
+}
+
+pub async fn activity(db: &Db, now: i64) -> Result<Vec<KindActivity>> {
+    let rows = sqlx::query_as(
+        "SELECT p.kind, p.running, p.queued, p.since, p.progress,
+                (SELECT COUNT(*) FROM jobs d
+                  WHERE d.kind = p.kind AND d.state = 'done' AND d.created_at >= p.since) AS done
+         FROM (SELECT kind,
+                      SUM(CASE WHEN state = 'running' THEN 1 ELSE 0 END) AS running,
+                      SUM(CASE WHEN state = 'queued' THEN 1 ELSE 0 END) AS queued,
+                      MIN(created_at) AS since,
+                      MAX(progress) AS progress
+                 FROM jobs
+                WHERE state = 'running' OR (state = 'queued' AND run_after <= ?)
+                GROUP BY kind) p
+         ORDER BY p.since, p.kind",
+    )
+    .bind(now)
+    .fetch_all(db.reader())
+    .await?;
+    Ok(rows)
+}
+
+/// Running and due jobs of one kind, oldest first.
+pub async fn pending_of_kind(db: &Db, kind: &str, now: i64) -> Result<Vec<Job>> {
+    let jobs = sqlx::query_as(concat!(
+        "SELECT ",
+        job_columns!(),
+        " FROM jobs
+          WHERE kind = ? AND (state = 'running' OR (state = 'queued' AND run_after <= ?))
+          ORDER BY created_at, id"
+    ))
+    .bind(kind)
+    .bind(now)
+    .fetch_all(db.reader())
+    .await?;
+    Ok(jobs)
+}
+
 /// Deletes finished jobs older than the cut-off. Returns how many were removed.
 pub async fn delete_finished_before(db: &Db, cutoff: i64) -> Result<u64> {
     let result = sqlx::query(

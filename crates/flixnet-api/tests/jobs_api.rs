@@ -148,3 +148,74 @@ async fn members_cannot_see_jobs() {
         StatusCode::FORBIDDEN
     );
 }
+
+#[tokio::test]
+async fn activity_lists_scans_per_library_and_batches_with_progress() {
+    use flixnet_db::jobs::{self, NewJob};
+
+    let app = app().await;
+    let admin = app.setup_admin().await;
+    assert_eq!(
+        app.get("/api/v1/jobs/activity", None).await.status,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        app.get("/api/v1/jobs/activity", Some(&admin)).await.json,
+        json!([]),
+        "idle server"
+    );
+
+    // Creating a library queues its scan.
+    let media = tempfile::tempdir().unwrap();
+    let created = app
+        .post(
+            "/api/v1/libraries",
+            json!({ "name": "Filme", "kind": "movies", "paths": [media.path().to_string_lossy()] }),
+            Some(&admin),
+        )
+        .await;
+    let library = created.json["id"].as_i64().unwrap();
+
+    let job = |kind: &'static str, pool: &'static str, run_after: Option<i64>| NewJob {
+        kind,
+        pool,
+        payload: "{}",
+        priority: 50,
+        max_attempts: 3,
+        dedupe_key: None,
+        run_after,
+    };
+    // A batch of three probes: one done, one running, one waiting.
+    for _ in 0..3 {
+        jobs::enqueue(&app.db, &job("media.probe", "probe", None))
+            .await
+            .unwrap();
+    }
+    let first = jobs::claim(&app.db, "probe").await.unwrap().unwrap();
+    jobs::complete(&app.db, first.id).await.unwrap();
+    jobs::claim(&app.db, "probe").await.unwrap().unwrap();
+    // Bookkeeping and retries waiting for their back-off are not activity.
+    jobs::enqueue(&app.db, &job("notify.deliver", "io", None))
+        .await
+        .unwrap();
+    let later = flixnet_db::now_ms() + 60_000;
+    jobs::enqueue(&app.db, &job("media.trickplay", "cpu", Some(later)))
+        .await
+        .unwrap();
+
+    let activity = app.get("/api/v1/jobs/activity", Some(&admin)).await;
+    assert_eq!(activity.status, StatusCode::OK);
+    assert_eq!(
+        activity.json,
+        json!([
+            {
+                "kind": "library.scan", "library_id": library, "library_name": "Filme",
+                "running": 0, "queued": 1, "done": 0, "progress": null
+            },
+            {
+                "kind": "media.probe", "library_id": null, "library_name": null,
+                "running": 1, "queued": 1, "done": 1, "progress": 1.0 / 3.0
+            }
+        ])
+    );
+}

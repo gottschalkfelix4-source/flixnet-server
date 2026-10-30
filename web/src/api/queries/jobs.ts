@@ -12,6 +12,16 @@ export function useJobs() {
   })
 }
 
+/** What the server is busy with (administrators); polled faster while something runs. */
+export function useServerActivity(enabled: boolean) {
+  return useQuery({
+    queryKey: ['jobs', 'activity'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/jobs/activity')),
+    enabled,
+    refetchInterval: (query) => (query.state.data?.length ? 2000 : 8000),
+  })
+}
+
 export function useTasks() {
   return useQuery({
     queryKey: ['jobs', 'tasks'],

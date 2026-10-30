@@ -290,11 +290,15 @@ async fn get_dashboard(
             }
             None => (None, None),
         };
-        let item = browse::summaries(&state.db, &[session.item_id], Some(session.user_id))
+        let cards = browse::summaries(&state.db, &[session.item_id], Some(session.user_id))
             .await?
             .into_iter()
-            .next()
-            .map(|s| card(&state, s));
+            .map(|s| card(&state, s))
+            .collect();
+        let item = crate::browse::with_series_posters(&state, cards)
+            .await?
+            .into_iter()
+            .next();
         let usage = match &session.transcode_session_id {
             Some(id) => meter.stream(&format!("transcode:{id}")),
             None => {

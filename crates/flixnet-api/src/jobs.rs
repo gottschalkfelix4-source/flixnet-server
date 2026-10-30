@@ -17,6 +17,7 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
     OpenApiRouter::new()
         .routes(routes!(list_jobs))
         .routes(routes!(job_summary))
+        .routes(routes!(get_activity))
         .routes(routes!(cancel_job))
         .routes(routes!(retry_job))
         .routes(routes!(list_tasks))
@@ -119,6 +120,88 @@ async fn list_jobs(
     let limit = query.limit.unwrap_or(100).clamp(1, 500);
     let list = jobs::list(&state.db, query.state.map(JobState::as_str), limit).await?;
     Ok(Json(list.into_iter().map(JobDto::from).collect()))
+}
+
+/// What the server is busy with, for the activity indicator in the top bar.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ActivityDto {
+    /// Job kind, e.g. `library.scan`, `media.probe` or `metadata.refresh`.
+    pub kind: String,
+    /// Scans: the library being scanned.
+    pub library_id: Option<i64>,
+    pub library_name: Option<String>,
+    pub running: i64,
+    pub queued: i64,
+    /// Finished since this batch began.
+    pub done: i64,
+    /// 0–1 when known (share of the batch, or what a single job reported).
+    pub progress: Option<f64>,
+}
+
+/// Kinds that are bookkeeping rather than server work worth showing.
+const QUIET_KINDS: &[&str] = &["notify.deliver", "maintenance.cleanup_jobs"];
+
+/// Scans per library, then every other kind of work as one batch with its progress.
+#[utoipa::path(
+    get,
+    path = "/jobs/activity",
+    operation_id = "getServerActivity",
+    tag = "jobs",
+    responses(
+        (status = OK, description = "Current server activity, oldest first; empty when idle", body = Vec<ActivityDto>),
+        (status = UNAUTHORIZED, description = "Missing or invalid token", body = ErrorBody),
+        (status = FORBIDDEN, description = "Not an administrator", body = ErrorBody),
+    )
+)]
+async fn get_activity(
+    _: AdminUser,
+    State(state): State<AppState>,
+) -> ApiResult<Json<Vec<ActivityDto>>> {
+    let now = flixnet_db::now_ms();
+    let kinds = jobs::activity(&state.db, now).await?;
+    let mut out = Vec::new();
+    for kind in kinds {
+        if QUIET_KINDS.contains(&kind.kind.as_str()) {
+            continue;
+        }
+        if kind.kind == "library.scan" {
+            let libraries = flixnet_db::libraries::list(&state.db).await?;
+            for job in jobs::pending_of_kind(&state.db, &kind.kind, now).await? {
+                let library_id = serde_json::from_str::<serde_json::Value>(&job.payload)
+                    .ok()
+                    .and_then(|p| p.get("library_id").and_then(serde_json::Value::as_i64));
+                let running = job.state == "running";
+                out.push(ActivityDto {
+                    kind: job.kind,
+                    library_name: library_id
+                        .and_then(|id| libraries.iter().find(|l| l.id == id))
+                        .map(|l| l.name.clone()),
+                    library_id,
+                    running: i64::from(running),
+                    queued: i64::from(!running),
+                    done: 0,
+                    progress: job.progress,
+                });
+            }
+            continue;
+        }
+        let total = kind.running + kind.queued + kind.done;
+        let progress = if total > 1 {
+            Some(kind.done as f64 / total as f64)
+        } else {
+            kind.progress
+        };
+        out.push(ActivityDto {
+            kind: kind.kind,
+            library_id: None,
+            library_name: None,
+            running: kind.running,
+            queued: kind.queued,
+            done: kind.done,
+            progress,
+        });
+    }
+    Ok(Json(out))
 }
 
 /// Job counts per pool and state.

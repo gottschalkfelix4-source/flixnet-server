@@ -5,21 +5,8 @@ import { useCancelJob, useJobs, useRetryJob, useRunTask, useTasks } from '@/api/
 import { Button } from '@/components/ui/Button'
 import { Section } from '@/components/ui/Section'
 import { formatDateTime, relativeTime } from '@/lib/format'
+import { KIND_LABELS } from '@/lib/jobs'
 
-/** Human labels for job kinds; unknown kinds show their technical name. */
-const KIND_LABELS: Record<string, string> = {
-  'maintenance.cleanup_jobs': 'Aufgabenverlauf aufräumen',
-  'library.scan': 'Bibliothek scannen',
-  'library.scan_all': 'Alle Bibliotheken scannen',
-  'media.probe': 'Mediendatei analysieren',
-  'media.trickplay': 'Vorschaubilder erzeugen',
-  'media.chapter_images': 'Kapitelbilder erzeugen',
-  'media.thumbnails_backfill': 'Fehlende Vorschau- und Kapitelbilder suchen',
-  'metadata.refresh': 'Metadaten aktualisieren',
-  'notify.deliver': 'Benachrichtigung zustellen',
-  'maintenance.backup': 'Datenbank sichern',
-  'trakt.sync_all': 'Mit Trakt abgleichen',
-}
 
 const STATE_STYLES: Record<string, { label: string; className: string }> = {
   queued: { label: 'Wartet', className: 'bg-surface-3 text-muted' },
