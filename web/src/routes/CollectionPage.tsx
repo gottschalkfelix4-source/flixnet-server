@@ -49,7 +49,7 @@ export function CollectionPage() {
         </div>
         <div className="flex min-h-[45vh] flex-col justify-end gap-4 px-6 pt-20 pb-8 md:px-10">
           <p className="text-xs font-bold tracking-widest text-accent uppercase">
-            {c.kind === 'auto' ? 'Filmreihe' : 'Sammlung'}
+            {c.kind === 'auto' ? 'Filmreihe' : c.kind === 'theme' ? 'Thema' : 'Sammlung'}
           </p>
           <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">{c.name}</h1>
           <p className="text-sm text-fg/85" data-testid="collection-counts">

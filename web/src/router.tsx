@@ -22,7 +22,7 @@ import { PersonPage } from '@/routes/PersonPage'
 import { PlaylistPage } from '@/routes/PlaylistPage'
 import { PlaylistsPage } from '@/routes/PlaylistsPage'
 import { PlayerPage } from '@/routes/PlayerPage'
-import { SearchPage } from '@/routes/SearchPage'
+import { type SearchMode, SearchPage } from '@/routes/SearchPage'
 import { InvitePage } from '@/routes/InvitePage'
 import { LoginPage } from '@/routes/LoginPage'
 import { NotFoundPage } from '@/routes/NotFoundPage'
@@ -219,8 +219,10 @@ const searchRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/search',
   component: SearchPage,
-  validateSearch: (search: Record<string, unknown>): { q?: string } =>
-    typeof search.q === 'string' && search.q ? { q: search.q } : {},
+  validateSearch: (search: Record<string, unknown>): { q?: string; mode?: SearchMode } => ({
+    ...(typeof search.q === 'string' && search.q ? { q: search.q } : {}),
+    ...(search.mode === 'scenes' || search.mode === 'natural' ? { mode: search.mode } : {}),
+  }),
 })
 
 function placeholder(path: string, title: string, note: string) {

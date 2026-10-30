@@ -297,3 +297,47 @@ async fn tool_calls_written_as_text_are_understood() {
         vec![("lookup".to_owned(), json!({"q": "Text"}))]
     );
 }
+
+/// Against a real endpoint (not in CI): `FLIXNET_TEST_LLM_URL=http://localhost:11434/v1
+/// FLIXNET_TEST_LLM_MODEL=llama3.1:8b cargo test -p flixnet-llm -- --ignored`.
+#[tokio::test]
+#[ignore = "needs a real LLM endpoint"]
+async fn real_endpoint_smoke() {
+    let (Ok(url), Ok(model)) = (
+        std::env::var("FLIXNET_TEST_LLM_URL"),
+        std::env::var("FLIXNET_TEST_LLM_MODEL"),
+    ) else {
+        eprintln!("FLIXNET_TEST_LLM_URL / FLIXNET_TEST_LLM_MODEL not set");
+        return;
+    };
+    let client = LlmClient::new(LlmConfig {
+        base_url: url,
+        model,
+        api_key: std::env::var("FLIXNET_TEST_LLM_KEY").ok(),
+        timeout: Duration::from_secs(300),
+    });
+    let q = query::natural_query(
+        &client,
+        "lustige Filme aus den 90ern unter 2 Stunden die ich noch nicht gesehen habe",
+        &["Komödie".into(), "Drama".into(), "Horror".into()],
+        2026,
+    )
+    .await
+    .expect("filter");
+    eprintln!("{q:#?}");
+    assert_eq!(q.played, Some(false), "{q:?}");
+
+    let tools = Tools::default();
+    let outcome = agent::run(
+        &client,
+        vec![
+            Message::system("Nutze das Werkzeug lookup, dann antworte kurz auf Deutsch."),
+            Message::user("Such mir einen Kinderfilm."),
+        ],
+        &tools,
+        4,
+    )
+    .await
+    .expect("agent");
+    eprintln!("{outcome:#?}");
+}
