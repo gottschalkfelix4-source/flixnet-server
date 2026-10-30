@@ -414,7 +414,12 @@ impl TranscodeManager {
         let _ = std::fs::remove_file(session.dir.join(FFMPEG_PLAYLIST));
         let args = hls::hls_args(&HlsJob {
             input: &session.spec.input,
-            out_dir: &session.dir,
+            // Output names relative to the working directory (the session directory):
+            // ffmpeg puts the init segment next to the playlist by cutting the
+            // playlist path at its last '/', which on Windows lands outside the
+            // session directory as soon as the path mixes '/' and '\'
+            // (`D:/flixnet\transcode\…`). Without any separator it uses the cwd.
+            out_dir: Path::new(""),
             start_segment: segment,
             segments: &session.spec.segments,
             plan: &session.spec.plan,
