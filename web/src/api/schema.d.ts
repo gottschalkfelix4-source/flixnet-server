@@ -4003,7 +4003,10 @@ export interface components {
             /** @description Base URL of the other server, e.g. `http://192.168.1.10:32400`. */
             server_url: string;
             source: components["schemas"]["ImportSource"];
-            /** @description Plex: `X-Plex-Token`. Jellyfin: an API key (Dashboard → API-Schlüssel). */
+            /**
+             * @description Plex: `X-Plex-Token` (not needed when Plex lets this network in without
+             *     sign-in). Jellyfin: an API key (Dashboard → API-Schlüssel).
+             */
             token?: string | null;
             /**
              * Format: int64

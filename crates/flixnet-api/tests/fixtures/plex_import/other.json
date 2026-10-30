@@ -1,0 +1,32 @@
+{
+ "MediaContainer": {
+  "size": 1,
+  "totalSize": 1,
+  "offset": 0,
+  "allowSync": true,
+  "identifier": "com.plexapp.plugins.library",
+  "librarySectionID": 3,
+  "librarySectionTitle": "Andere",
+  "librarySectionUUID": "c394fc49-d225-4760-a77e-bdd9b98cc880",
+  "title1": "Andere",
+  "title2": "All Andere",
+  "viewGroup": "movie",
+  "Metadata": [
+   {
+    "ratingKey": "35",
+    "key": "/library/metadata/35",
+    "guid": "tv.plex.agents.none://35",
+    "type": "movie",
+    "title": "Urlaubsvideo 2019",
+    "subtype": "clip",
+    "viewCount": 1,
+    "lastViewedAt": 1793344069,
+    "year": 2026,
+    "duration": 120023,
+    "originallyAvailableAt": "2026-10-30",
+    "addedAt": 1793343969,
+    "updatedAt": 1793344027
+   }
+  ]
+ }
+}

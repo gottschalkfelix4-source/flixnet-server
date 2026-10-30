@@ -15609,7 +15609,7 @@
               "string",
               "null"
             ],
-            "description": "Plex: `X-Plex-Token`. Jellyfin: an API key (Dashboard → API-Schlüssel)."
+            "description": "Plex: `X-Plex-Token` (not needed when Plex lets this network in without\nsign-in). Jellyfin: an API key (Dashboard → API-Schlüssel)."
           },
           "user_id": {
             "type": [

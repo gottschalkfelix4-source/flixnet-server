@@ -1,0 +1,48 @@
+{
+ "MediaContainer": {
+  "size": 1,
+  "totalSize": 1,
+  "offset": 0,
+  "allowSync": true,
+  "identifier": "com.plexapp.plugins.library",
+  "librarySectionID": 2,
+  "librarySectionTitle": "Serien",
+  "librarySectionUUID": "1d7164f7-73bc-4a1e-b316-be6b9d017fcc",
+  "title1": "Serien",
+  "title2": "All Shows",
+  "viewGroup": "show",
+  "Metadata": [
+   {
+    "ratingKey": "5",
+    "key": "/library/metadata/5/children",
+    "guid": "plex://show/5d9c08ccba2e21001f192e95",
+    "type": "show",
+    "title": "Dark",
+    "index": 1,
+    "userRating": 9.0,
+    "viewCount": 2,
+    "lastViewedAt": 1793344080,
+    "lastRatedAt": 1793344068,
+    "year": 2017,
+    "duration": 3600000,
+    "originallyAvailableAt": "2017-12-01",
+    "leafCount": 3,
+    "viewedLeafCount": 2,
+    "childCount": 1,
+    "addedAt": 1793344026,
+    "updatedAt": 1793344027,
+    "Guid": [
+     {
+      "id": "imdb://tt5753856"
+     },
+     {
+      "id": "tmdb://70523"
+     },
+     {
+      "id": "tvdb://334824"
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,71 @@
+{
+ "MediaContainer": {
+  "size": 2,
+  "totalSize": 4,
+  "offset": 2,
+  "allowSync": true,
+  "identifier": "com.plexapp.plugins.library",
+  "librarySectionID": 1,
+  "librarySectionTitle": "Filme",
+  "librarySectionUUID": "dab8c057-c9a4-483c-9823-2056e565a204",
+  "title1": "Filme",
+  "title2": "All Filme",
+  "viewGroup": "movie",
+  "Metadata": [
+   {
+    "ratingKey": "3",
+    "key": "/library/metadata/3",
+    "guid": "plex://movie/5d77685333f255001e852e11",
+    "type": "movie",
+    "title": "Inception",
+    "viewOffset": 120000,
+    "lastViewedAt": 1793344068,
+    "year": 2010,
+    "duration": 300023,
+    "originallyAvailableAt": "2010-07-14",
+    "addedAt": 1793343955,
+    "updatedAt": 1793344026,
+    "Guid": [
+     {
+      "id": "imdb://tt1375666"
+     },
+     {
+      "id": "tmdb://27205"
+     },
+     {
+      "id": "tvdb://113"
+     }
+    ]
+   },
+   {
+    "ratingKey": "4",
+    "key": "/library/metadata/4",
+    "guid": "plex://movie/5d776827880197001ec90904",
+    "type": "movie",
+    "title": "The Matrix",
+    "titleSort": "Matrix",
+    "userRating": 8.0,
+    "viewOffset": 150000,
+    "viewCount": 2,
+    "lastViewedAt": 1793344188,
+    "lastRatedAt": 1793344068,
+    "year": 1999,
+    "duration": 300023,
+    "originallyAvailableAt": "1999-03-31",
+    "addedAt": 1793343953,
+    "updatedAt": 1793344026,
+    "Guid": [
+     {
+      "id": "imdb://tt0133093"
+     },
+     {
+      "id": "tmdb://603"
+     },
+     {
+      "id": "tvdb://169"
+     }
+    ]
+   }
+  ]
+ }
+}

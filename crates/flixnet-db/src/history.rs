@@ -212,7 +212,9 @@ pub async fn apply_import(
             } else {
                 s.play_count.max(0)
             })
-            .bind(if s.played { 0 } else { s.position_ms.max(0) })
+            // A watched item may carry a resume point again (started a second time),
+            // as local playback keeps it.
+            .bind(s.position_ms.max(0))
             .bind(s.last_played_at)
             .bind(s.favorite)
             .bind(s.rating)

@@ -1,0 +1,60 @@
+{
+ "MediaContainer": {
+  "size": 3,
+  "allowSync": false,
+  "title1": "Plex Library",
+  "Directory": [
+   {
+    "allowSync": false,
+    "refreshing": false,
+    "key": "1",
+    "type": "movie",
+    "title": "Filme",
+    "agent": "tv.plex.agents.movie",
+    "scanner": "Plex Movie",
+    "language": "en-US",
+    "uuid": "dab8c057-c9a4-483c-9823-2056e565a204",
+    "Location": [
+     {
+      "id": 1,
+      "path": "/data/movies"
+     }
+    ]
+   },
+   {
+    "allowSync": false,
+    "refreshing": false,
+    "key": "2",
+    "type": "show",
+    "title": "Serien",
+    "agent": "tv.plex.agents.series",
+    "scanner": "Plex TV Series",
+    "language": "en-US",
+    "uuid": "1d7164f7-73bc-4a1e-b316-be6b9d017fcc",
+    "Location": [
+     {
+      "id": 2,
+      "path": "/data/shows"
+     }
+    ]
+   },
+   {
+    "allowSync": false,
+    "refreshing": false,
+    "key": "3",
+    "type": "movie",
+    "title": "Andere",
+    "agent": "tv.plex.agents.none",
+    "scanner": "Plex Video Files",
+    "language": "en-US",
+    "uuid": "c394fc49-d225-4760-a77e-bdd9b98cc880",
+    "Location": [
+     {
+      "id": 3,
+      "path": "/data/other"
+     }
+    ]
+   }
+  ]
+ }
+}
