@@ -8,6 +8,7 @@ export type SettingsTab =
   | 'transcoding'
   | 'ai'
   | 'livetv'
+  | 'network'
   | 'users'
   | 'invitations'
   | 'sso'
@@ -28,6 +29,7 @@ export const SETTINGS_TABS: { id: SettingsTab; label: string; admin: boolean }[]
   { id: 'transcoding', label: 'Transcoding', admin: true },
   { id: 'ai', label: 'KI', admin: true },
   { id: 'livetv', label: 'Live TV', admin: true },
+  { id: 'network', label: 'Netzwerk & Geräte', admin: true },
   { id: 'users', label: 'Nutzer', admin: true },
   { id: 'invitations', label: 'Einladungen', admin: true },
   { id: 'sso', label: 'Anmeldung (SSO)', admin: true },

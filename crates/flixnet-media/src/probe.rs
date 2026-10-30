@@ -26,8 +26,8 @@ pub enum ProbeError {
 /// Runs ffprobe. Cheap to clone.
 #[derive(Debug, Clone)]
 pub struct Ffprobe {
-    path: PathBuf,
-    timeout: Duration,
+    pub(crate) path: PathBuf,
+    pub(crate) timeout: Duration,
 }
 
 impl Ffprobe {

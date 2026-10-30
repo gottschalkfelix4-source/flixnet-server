@@ -241,7 +241,17 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             http: flixnet_library::http::client(),
         })
         .register(scene_jobs::SceneIndexBackfill)
-        .register(flixnet_llm::themes::GenerateThemeCollections);
+        .register(flixnet_llm::themes::GenerateThemeCollections)
+        .register(flixnet_library::photos::AnalyzeClip {
+            ffprobe: flixnet_media::Ffprobe::new(&config.media.ffprobe),
+            ffmpeg: config.media.ffmpeg.clone(),
+            cache_dir: config.paths.config_dir.join("cache"),
+        })
+        .register(flixnet_library::audiobooks::AnalyzeBook {
+            ffprobe: flixnet_media::Ffprobe::new(&config.media.ffprobe),
+            ffmpeg: config.media.ffmpeg.clone(),
+            cache_dir: config.paths.config_dir.join("cache"),
+        });
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
     let tasks = TaskRegistry::new(
@@ -313,6 +323,9 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     let jellyfin = config.jellyfin.clone();
     let state = AppState::new(config, db.clone(), services);
     let app = flixnet_api::router(state.clone()).fallback_service(web::router());
+    // DLNA runs only once an administrator picked its user (settings).
+    state.dlna.apply(&state).await;
+    let dlna = state.dlna.clone();
 
     let listener = tokio::net::TcpListener::bind(bind)
         .await
@@ -355,6 +368,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         tracing::warn!(%err, "Jellyfin-compatible API stopped with an error");
     }
 
+    dlna.stop().await;
     transcoder.stop_all().await;
     livetv.stop_all().await;
     stop_scheduler.cancel();

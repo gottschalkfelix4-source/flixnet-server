@@ -11,6 +11,7 @@ pub mod probe;
 mod process;
 pub mod segments;
 pub mod subtitles;
+pub mod tags;
 pub mod transcode;
 pub mod transcript;
 pub mod trickplay;

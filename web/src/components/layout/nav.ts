@@ -1,7 +1,9 @@
 import {
+  BookAudio,
   Clapperboard,
   Film,
   House,
+  Images,
   Layers,
   ListVideo,
   Music,
@@ -25,6 +27,8 @@ export const mainNav: NavItem[] = [
   { to: '/collections', label: 'Sammlungen', icon: Layers },
   { to: '/playlists', label: 'Playlists', icon: ListVideo },
   { to: '/music', label: 'Musik', icon: Music },
+  { to: '/photos', label: 'Fotos', icon: Images },
+  { to: '/audiobooks', label: 'Hörbücher', icon: BookAudio },
   { to: '/live', label: 'Live TV', icon: Radio },
   { to: '/for-you', label: 'Für dich', icon: Sparkles },
   { to: '/search', label: 'Suche', icon: Search },

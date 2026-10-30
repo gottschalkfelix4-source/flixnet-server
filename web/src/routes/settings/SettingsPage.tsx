@@ -16,6 +16,7 @@ import { JobsSettings } from './JobsSettings'
 import { LibrariesSettings } from './LibrariesSettings'
 import { LiveTvSettings } from './LiveTvSettings'
 import { MetadataSettings } from './MetadataSettings'
+import { NetworkSettings } from './NetworkSettings'
 import { SessionsSettings } from './SessionsSettings'
 import { SubtitleSettings } from './SubtitleSettings'
 import { SETTINGS_TABS as TABS } from './tabs'
@@ -55,6 +56,7 @@ export function SettingsPage() {
         {active === 'transcoding' && <TranscodingSettings />}
         {active === 'ai' && <AiSettings />}
         {active === 'livetv' && <LiveTvSettings />}
+        {active === 'network' && <NetworkSettings />}
         {active === 'users' && <UsersSettings />}
         {active === 'invitations' && <InvitationsSettings />}
         {active === 'jobs' && <JobsSettings />}

@@ -37,6 +37,8 @@ interface PlayerControlsProps {
   onNext: () => void
   /** The settings sheet (gear button). */
   settings: ReactNode
+  /** More buttons before the settings (watch together, cast). */
+  extra?: ReactNode
 }
 
 /** The control bar: seek bar on top, buttons below. */
@@ -92,6 +94,7 @@ export function PlayerControls(props: PlayerControlsProps) {
               <SkipForward className="size-6" />
             </IconButton>
           )}
+          {props.extra}
           {props.settings}
           {props.pipAvailable && (
             <IconButton label="Bild-in-Bild" wide onClick={props.onTogglePip}>

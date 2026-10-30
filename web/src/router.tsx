@@ -11,6 +11,8 @@ import { currentUserQuery, setupStatusQuery } from '@/api/queries/auth'
 import { AppShell } from '@/components/layout/AppShell'
 import { itemQuery } from '@/api/queries/items'
 import { getSession } from '@/lib/session'
+import { AudiobookPage } from '@/routes/AudiobookPage'
+import { AudiobooksPage } from '@/routes/AudiobooksPage'
 import { type BrowseSearch, BrowsePage } from '@/routes/BrowsePage'
 import { CollectionPage } from '@/routes/CollectionPage'
 import { CollectionsPage } from '@/routes/CollectionsPage'
@@ -19,6 +21,7 @@ import { ItemPage } from '@/routes/ItemPage'
 import { LivePlayerPage } from '@/routes/LivePlayerPage'
 import { LiveTvPage } from '@/routes/LiveTvPage'
 import { PersonPage } from '@/routes/PersonPage'
+import { PhotosPage } from '@/routes/PhotosPage'
 import { PlaylistPage } from '@/routes/PlaylistPage'
 import { PlaylistsPage } from '@/routes/PlaylistsPage'
 import { PlayerPage } from '@/routes/PlayerPage'
@@ -35,6 +38,7 @@ import { NotFoundPage } from '@/routes/NotFoundPage'
 import { PlaceholderPage } from '@/routes/PlaceholderPage'
 import { ProfilesPage } from '@/routes/ProfilesPage'
 import { SetupPage } from '@/routes/SetupPage'
+import { WatchTogetherPage } from '@/routes/WatchTogetherPage'
 import { SettingsPage } from '@/routes/settings/SettingsPage'
 import { SETTINGS_TABS, type SettingsTab } from '@/routes/settings/tabs'
 
@@ -133,9 +137,13 @@ const playRoute = createRoute({
   component: PlayerPage,
   beforeLoad: requireSession,
   // `start` (ms) overrides the resume point; `start=0` plays from the beginning.
-  validateSearch: (search: Record<string, unknown>): { start?: number } => {
+  // `group`: the SyncPlay group to follow.
+  validateSearch: (search: Record<string, unknown>): { start?: number; group?: string } => {
+    const out: { start?: number; group?: string } = {}
     const start = Number(search.start)
-    return search.start !== undefined && Number.isInteger(start) && start >= 0 ? { start } : {}
+    if (search.start !== undefined && Number.isInteger(start) && start >= 0) out.start = start
+    if (typeof search.group === 'string' && /^[0-9a-f]{16}$/.test(search.group)) out.group = search.group
+    return out
   },
 })
 
@@ -151,6 +159,36 @@ const liveRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/live',
   component: LiveTvPage,
+})
+
+/** Invitation to a SyncPlay group: joins and opens the player. */
+const watchRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/watch/$code',
+  component: WatchTogetherPage,
+  beforeLoad: requireSession,
+})
+
+const photosRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/photos',
+  component: PhotosPage,
+  validateSearch: (search: Record<string, unknown>): { album?: number } => {
+    const album = Number(search.album)
+    return Number.isInteger(album) && album > 0 ? { album } : {}
+  },
+})
+
+const audiobooksRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/audiobooks',
+  component: AudiobooksPage,
+})
+
+const audiobookRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/audiobook/$id',
+  component: AudiobookPage,
 })
 
 /** Public invitation landing page. */
@@ -281,6 +319,7 @@ const routeTree = rootRoute.addChildren([
   playRoute,
   livePlayRoute,
   inviteRoute,
+  watchRoute,
   appRoute.addChildren([
     settingsRoute,
     createRoute({ getParentRoute: () => appRoute, path: '/', component: HomePage }),
@@ -297,6 +336,9 @@ const routeTree = rootRoute.addChildren([
     musicRoute,
     musicAlbumRoute,
     musicArtistRoute,
+    photosRoute,
+    audiobooksRoute,
+    audiobookRoute,
     placeholder('/for-you', 'Für dich', 'KI-Empfehlungen folgen in Phase 6.'),
   ]),
 ])

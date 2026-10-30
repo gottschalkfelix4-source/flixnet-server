@@ -32,6 +32,10 @@ pub enum LibraryKind {
     Shows,
     /// Audio files; items come from the tags (artist → album → track).
     Music,
+    /// Pictures and short clips, albums by folder.
+    Photos,
+    /// One book per folder (or m4b file).
+    Audiobooks,
 }
 
 impl LibraryKind {
@@ -40,6 +44,8 @@ impl LibraryKind {
             LibraryKind::Movies => "movies",
             LibraryKind::Shows => "shows",
             LibraryKind::Music => "music",
+            LibraryKind::Photos => "photos",
+            LibraryKind::Audiobooks => "audiobooks",
         }
     }
 }

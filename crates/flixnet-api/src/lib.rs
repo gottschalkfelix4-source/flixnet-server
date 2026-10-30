@@ -24,9 +24,11 @@ use utoipa_scalar::{Scalar, Servable};
 pub mod active_sessions;
 mod ai_settings;
 mod assistant;
+mod audiobooks;
 pub mod auth;
 pub mod browse;
 mod collections;
+pub mod dlna;
 pub mod error;
 pub mod images;
 mod invitations;
@@ -36,7 +38,9 @@ mod libraries;
 pub mod limiter;
 mod livetv;
 mod music;
+mod network;
 pub mod ops;
+mod photos;
 pub mod playback;
 mod playlists;
 pub mod playstate;
@@ -46,6 +50,7 @@ pub mod session;
 mod settings;
 pub mod signing;
 mod subtitle_search;
+pub mod syncplay;
 mod system;
 pub mod tracks;
 mod transcode;
@@ -80,6 +85,10 @@ pub struct AppState {
     /// Local embeddings for semantic search (flixnet-ai), if available; without it
     /// natural-language and scene search use FTS5 only.
     pub semantic: Option<Arc<dyn flixnet_llm::semantic::SemanticIndex>>,
+    /// "Gemeinsam schauen" groups.
+    pub syncplay: syncplay::SyncPlay,
+    /// The DLNA server (started by [`dlna::DlnaService::apply`]).
+    pub dlna: dlna::DlnaService,
 }
 
 /// Long-lived services the API talks to.
@@ -104,6 +113,8 @@ impl AppState {
     pub fn new(config: Config, db: Db, services: Services) -> Self {
         let playback = active_sessions::ActiveSessions::default();
         playback.spawn_reaper(db.clone(), services.events.clone());
+        let syncplay = syncplay::SyncPlay::default();
+        syncplay.spawn_ticker();
         let state = Self {
             config: Arc::new(config),
             db,
@@ -121,6 +132,8 @@ impl AppState {
             playback,
             ops: ops::Ops::default(),
             semantic: None,
+            syncplay,
+            dlna: dlna::DlnaService::default(),
         };
         ops::spawn_listeners(&state);
         state
@@ -163,7 +176,11 @@ impl AppState {
         (name = "dashboard", description = "Server overview and logs (administrators)"),
         (name = "assistant", description = "Scene search and the optional LLM assistant: natural-language search, explanations, chat, recaps"),
         (name = "music", description = "Music: albums, artists, tracks, lyrics and audio playback"),
-    )
+        (name = "syncplay", description = "Watch together: synchronized playback groups"),
+        (name = "photos", description = "Photo libraries: timeline, albums and pictures"),
+        (name = "audiobooks", description = "Audiobook libraries: books, chapters and listening progress"),
+    ),
+    components(schemas(syncplay::SyncPlayClientMessage))
 )]
 struct ApiDoc;
 
@@ -219,6 +236,10 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, assistant::router())
         .nest(API_PREFIX, scenes::router())
         .nest(API_PREFIX, ai_settings::router())
+        .nest(API_PREFIX, syncplay::router())
+        .nest(API_PREFIX, photos::router())
+        .nest(API_PREFIX, audiobooks::router())
+        .nest(API_PREFIX, network::router())
         .split_for_parts()
 }
 

@@ -1,4 +1,4 @@
-import { Clapperboard, Film, FolderPlus, Music, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { BookAudio, Clapperboard, Film, FolderPlus, Images, Music, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import type { Schemas } from '@/api/client'
 import {
@@ -21,6 +21,9 @@ type LibraryKind = Schemas['LibraryKind']
 
 function countLabel(library: Library): string {
   const c = library.counts
+  if (library.kind === 'photos' || library.kind === 'audiobooks') {
+    return library.kind === 'photos' ? 'Fotos' : 'Hörbücher'
+  }
   if (library.kind === 'shows') {
     return `${c.series} ${c.series === 1 ? 'Serie' : 'Serien'} · ${c.episodes} ${c.episodes === 1 ? 'Folge' : 'Folgen'}`
   }
@@ -39,7 +42,7 @@ export function LibrariesSettings() {
   return (
     <Section
       title="Bibliotheken"
-      description="Ordner mit Filmen, Serien oder Musik. Neue Dateien werden beim Scannen erkannt."
+      description="Ordner mit Filmen, Serien, Musik, Fotos oder Hörbüchern. Neue Dateien werden beim Scannen erkannt."
       action={
         <Button variant="accent" className="h-10" onClick={() => setEditing('new')}>
           <Plus className="size-4" aria-hidden="true" />
@@ -52,7 +55,16 @@ export function LibrariesSettings() {
       )}
       <ul className="divide-y divide-line/60" data-testid="library-list">
         {libraries.data?.map((library) => {
-          const Icon = library.kind === 'shows' ? Clapperboard : library.kind === 'music' ? Music : Film
+          const Icon =
+            library.kind === 'shows'
+              ? Clapperboard
+              : library.kind === 'music'
+                ? Music
+                : library.kind === 'photos'
+                  ? Images
+                  : library.kind === 'audiobooks'
+                    ? BookAudio
+                    : Film
           return (
             <li key={library.id} className="flex flex-wrap items-center gap-4 py-3">
               <Icon className="size-5 shrink-0 text-accent" aria-hidden="true" />
@@ -141,6 +153,8 @@ function LibraryDialog({ library, onClose }: { library: Library | null; onClose:
               { value: 'movies', label: 'Filme' },
               { value: 'shows', label: 'Serien' },
               { value: 'music', label: 'Musik' },
+              { value: 'photos', label: 'Fotos' },
+              { value: 'audiobooks', label: 'Hörbücher' },
             ]}
           />
         )}
