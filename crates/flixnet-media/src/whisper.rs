@@ -148,20 +148,60 @@ impl WhisperArgs {
             self.language.as_str().into(),
             "-t".into(),
             self.threads.clamp(1, 64).to_string().into(),
-            // SubRip output only, no live printing.
+            // SubRip for the text, JSON for the detected language (`-np` silences
+            // the log that would otherwise name it), no live printing.
             "-osrt".into(),
+            "-oj".into(),
             "-np".into(),
             "-of".into(),
             self.output_base.as_os_str().to_owned(),
         ]
     }
 
-    /// Where whisper writes the subtitles.
-    pub fn srt_path(&self) -> PathBuf {
+    fn output(&self, extension: &str) -> PathBuf {
         let mut name = self.output_base.as_os_str().to_owned();
-        name.push(".srt");
+        name.push(".");
+        name.push(extension);
         PathBuf::from(name)
     }
+
+    /// Where whisper writes the subtitles.
+    pub fn srt_path(&self) -> PathBuf {
+        self.output("srt")
+    }
+
+    /// Where whisper writes the JSON result.
+    pub fn json_path(&self) -> PathBuf {
+        self.output("json")
+    }
+}
+
+/// The language whisper detected (or was told), from its JSON output
+/// (`"result": { "language": "de" }`). whisper.cpp escapes only quotes and
+/// backslashes in that file, so a transcript with control characters makes it
+/// invalid JSON; then the value is looked up in the text.
+pub fn detected_language(json: &str) -> Option<String> {
+    let value = match serde_json::from_str::<serde_json::Value>(json) {
+        Ok(v) => v["result"]["language"].as_str().map(str::to_owned),
+        Err(_) => {
+            let result = &json[json.find("\"result\"")?..];
+            let after = &result[result.find("\"language\"")? + "\"language\"".len()..];
+            let after = after.trim_start().strip_prefix(':')?.trim_start();
+            let after = after.strip_prefix('"')?;
+            Some(after[..after.find('"')?].to_owned())
+        }
+    }?;
+    // ISO 639-1, or the three-letter codes whisper uses for a few (`haw`, `yue`).
+    (matches!(value.len(), 2 | 3) && value.bytes().all(|b| b.is_ascii_lowercase())).then_some(value)
+}
+
+/// What a transcription produced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Transcript {
+    /// SubRip text.
+    pub srt: String,
+    /// Spoken language as whisper detected it (`de`, `en`, …).
+    pub language: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -227,13 +267,12 @@ pub struct Transcription<'a> {
     pub work_dir: &'a Path,
 }
 
-/// Transcribes the first audio stream of the input and returns the SubRip text.
-/// `cancel` stops both processes (used when a transcode starts or the job is
-/// cancelled).
+/// Transcribes the first audio stream of the input. `cancel` stops both processes
+/// (used when a transcode starts or the job is cancelled).
 pub async fn transcribe(
     t: &Transcription<'_>,
     cancel: &CancellationToken,
-) -> Result<String, WhisperError> {
+) -> Result<Transcript, WhisperError> {
     tokio::fs::create_dir_all(t.work_dir).await?;
     let audio = t.work_dir.join("audio.wav");
     let args = WhisperArgs {
@@ -246,11 +285,19 @@ pub async fn transcribe(
     let result = async {
         run(t.ffmpeg, &audio_args(t.input, 0, &audio), cancel).await?;
         run(t.whisper, &args.to_args(), cancel).await?;
-        Ok(tokio::fs::read_to_string(args.srt_path()).await?)
+        // Lossy: whisper.cpp can end a segment inside a multi-byte character (it
+        // writes tokens, not characters), which must not cost the whole transcript.
+        let srt = String::from_utf8_lossy(&tokio::fs::read(args.srt_path()).await?).into_owned();
+        let language = match tokio::fs::read(args.json_path()).await {
+            Ok(json) => detected_language(&String::from_utf8_lossy(&json)),
+            Err(_) => None,
+        };
+        Ok(Transcript { srt, language })
     }
     .await;
     let _ = tokio::fs::remove_file(&audio).await;
     let _ = tokio::fs::remove_file(args.srt_path()).await;
+    let _ = tokio::fs::remove_file(args.json_path()).await;
     result
 }
 
@@ -294,9 +341,59 @@ mod tests {
         };
         assert_eq!(
             joined(&args.to_args()),
-            "-m /config/models/whisper/ggml-base-q5_1.bin -f /w/audio.wav -l de -t 1 -osrt -np -of /w/transcript"
+            "-m /config/models/whisper/ggml-base-q5_1.bin -f /w/audio.wav -l de -t 1 -osrt -oj -np -of /w/transcript"
         );
         assert_eq!(args.srt_path(), PathBuf::from("/w/transcript.srt"));
+        assert_eq!(args.json_path(), PathBuf::from("/w/transcript.json"));
+    }
+
+    /// Output of the official whisper.cpp b5454 (v1.9.5) Windows build
+    /// (`whisper-cli -m ggml-base-q5_1.bin -l auto -osrt -oj -np`) for a German test
+    /// clip: CRLF line endings, a leading space in every cue, the language only in the
+    /// JSON (the log naming it is silenced by `-np`).
+    const REAL_SRT: &str = "1\r\n00:00:00,000 --> 00:00:08,000\r\n Willkommen zum Test von FlixNet.\r\n\r\n2\r\n00:00:08,000 --> 00:00:16,000\r\n Heute ist ein ruhiger Abend am See.\r\n\r\n3\r\n00:00:16,000 --> 00:00:25,000\r\n Der Lila Elefand tanzt um miter Nacht auf dem gefrorenen See.\r\n\r\n4\r\n00:00:25,000 --> 00:00:32,000\r\n Danach bestellt der Kapitän Dreiteller Tomaten Suppe.\r\n\r\n";
+    const REAL_JSON: &str = "{\r\n\t\"systeminfo\": \"WHISPER : VITISAI = 0 | COREML = 0 | OPENVINO = 0 | CPU : SSE3 = 1 | AVX2 = 1 | OPENMP = 1 | REPACK = 1 | \",\r\n\t\"model\": {\r\n\t\t\"type\": \"base\",\r\n\t\t\"multilingual\": true,\r\n\t\t\"vocab\": 51865,\r\n\t\t\"mels\": 80,\r\n\t\t\"ftype\": 9\r\n\t},\r\n\t\"params\": {\r\n\t\t\"model\": \"../cfg/models/whisper/ggml-base-q5_1.bin\",\r\n\t\t\"language\": \"auto\",\r\n\t\t\"translate\": false\r\n\t},\r\n\t\"result\": {\r\n\t\t\"language\": \"de\"\r\n\t},\r\n\t\"transcription\": [\r\n\t\t{\r\n\t\t\t\"timestamps\": {\r\n\t\t\t\t\"from\": \"00:00:00,000\",\r\n\t\t\t\t\"to\": \"00:00:08,000\"\r\n\t\t\t},\r\n\t\t\t\"offsets\": {\r\n\t\t\t\t\"from\": 0,\r\n\t\t\t\t\"to\": 8000\r\n\t\t\t},\r\n\t\t\t\"text\": \" Willkommen zum Test von FlixNet.\"\r\n\t\t}\r\n\t]\r\n}\r\n";
+
+    #[test]
+    fn real_whisper_output_is_understood() {
+        let cues = crate::transcript::parse_cues(REAL_SRT);
+        let got: Vec<(i64, i64, &str)> = cues
+            .iter()
+            .map(|c| (c.start_ms, c.end_ms, c.text.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                (0, 8000, "Willkommen zum Test von FlixNet."),
+                (8000, 16000, "Heute ist ein ruhiger Abend am See."),
+                (
+                    16000,
+                    25000,
+                    "Der Lila Elefand tanzt um miter Nacht auf dem gefrorenen See."
+                ),
+                (
+                    25000,
+                    32000,
+                    "Danach bestellt der Kapitän Dreiteller Tomaten Suppe."
+                ),
+            ]
+        );
+        assert_eq!(detected_language(REAL_JSON).as_deref(), Some("de"));
+        // whisper.cpp does not escape control characters: invalid JSON, same answer.
+        let broken = REAL_JSON.replace("Willkommen", "Will\u{1}kommen");
+        assert!(serde_json::from_str::<serde_json::Value>(&broken).is_err());
+        assert_eq!(detected_language(&broken).as_deref(), Some("de"));
+        // The requested language ("params") is not the detected one.
+        let no_result = REAL_JSON.replace("\"result\"", "\"other\"");
+        assert_eq!(detected_language(&no_result), None);
+        assert_eq!(
+            detected_language("{\"result\":{\"language\":\"-l x\"}}"),
+            None
+        );
+        assert_eq!(
+            detected_language("{\"result\":{\"language\":\"yue\"}}").as_deref(),
+            Some("yue")
+        );
     }
 
     #[test]

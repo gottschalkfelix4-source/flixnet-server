@@ -289,7 +289,7 @@ impl JobHandler for TranscribeAudio {
         let cancel = ctx.cancel_token();
 
         // Restart from scratch whenever a transcode interrupts the run.
-        let srt = loop {
+        let transcript = loop {
             if !wait_until_idle(&self.transcoder, &cancel).await {
                 anyhow::bail!("cancelled");
             }
@@ -326,7 +326,7 @@ impl JobHandler for TranscribeAudio {
             run.cancel();
             let _ = watcher.await;
             match result {
-                Ok(srt) => break srt,
+                Ok(transcript) => break transcript,
                 Err(whisper::WhisperError::Cancelled) if !cancel.is_cancelled() => {
                     tracing::info!(file = file.id, "Whisper paused for a transcode");
                 }
@@ -337,16 +337,19 @@ impl JobHandler for TranscribeAudio {
             }
         };
         let _ = tokio::fs::remove_dir_all(&work_dir).await;
-        let chunks: Vec<NewChunk> = chunk_cues(&parse_cues(&srt), ChunkOptions::default())
-            .into_iter()
-            .map(|c| NewChunk {
-                start_ms: c.start_ms,
-                end_ms: c.end_ms,
-                text: c.text,
-            })
-            .collect();
+        let chunks: Vec<NewChunk> =
+            chunk_cues(&parse_cues(&transcript.srt), ChunkOptions::default())
+                .into_iter()
+                .map(|c| NewChunk {
+                    start_ms: c.start_ms,
+                    end_ms: c.end_ms,
+                    text: c.text,
+                })
+                .collect();
+        // With "auto" the language whisper detected (so German transcripts are
+        // preferred as German, like subtitles).
         let language_code = match language {
-            WhisperLanguage::Auto => None,
+            WhisperLanguage::Auto => transcript.language.as_deref(),
             WhisperLanguage::Code(_) => Some(settings.language.as_str()),
         };
         transcripts::store(
