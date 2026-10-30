@@ -2,8 +2,6 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
 import { ArrowLeft } from 'lucide-react'
 import { useSystemInfo } from '@/api/queries/system'
-import { Logo } from '@/components/layout/Logo'
-import { UserMenu } from '@/components/layout/UserMenu'
 import { lastMediaPath } from '@/lib/lastMediaPath'
 import { useSession } from '@/lib/session'
 import { AccountSettings } from './AccountSettings'
@@ -76,14 +74,9 @@ export function SettingsPage() {
     <div className="flex min-h-full">
       <aside
         aria-label="Einstellungsbereiche"
-        className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line/60 bg-sidebar md:flex"
+        className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-64 shrink-0 flex-col border-r border-line/60 bg-sidebar md:flex"
       >
-        <div className="flex h-16 items-center px-5">
-          <Link to="/" aria-label="Zur Startseite">
-            <Logo />
-          </Link>
-        </div>
-        <div className="px-2 pb-3">
+        <div className="px-2 py-3">
           <BackLink />
         </div>
         <nav className="flex flex-1 flex-col gap-5 overflow-y-auto border-t border-line/60 py-5 [scrollbar-color:var(--color-surface-3)_transparent] [scrollbar-width:thin]">
@@ -113,9 +106,6 @@ export function SettingsPage() {
             </div>
           ))}
         </nav>
-        <div className="border-t border-line/60 px-2 py-3">
-          <UserMenu collapsed={false} />
-        </div>
       </aside>
 
       <div className="min-w-0 flex-1 pb-16">

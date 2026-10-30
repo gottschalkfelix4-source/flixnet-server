@@ -33,7 +33,8 @@ test('household profiles: create, switch with and without PIN, back to admin', a
   await createUser(page, teen, { pin: '2580' })
 
   // Switch to the kid profile: no PIN.
-  await page.getByRole('link', { name: 'Profil wechseln' }).click()
+  await page.getByRole('button', { name: /^Profilmenü/ }).click()
+  await page.getByRole('menuitem', { name: 'Profil wechseln' }).click()
   await expect(page.getByRole('heading', { name: 'Wer schaut?' })).toBeVisible()
   await page.getByRole('button', { name: kid }).click()
   await expect(page.getByTestId('current-user')).toHaveText(kid)

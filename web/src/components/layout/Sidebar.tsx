@@ -1,37 +1,25 @@
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { LoaderCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { LoaderCircle } from 'lucide-react'
 import { useServerActivity } from '@/api/queries/jobs'
 import { useLibraries } from '@/api/queries/libraries'
 import { useSystemInfo } from '@/api/queries/system'
 import { useSession } from '@/lib/session'
 import { ChatPanel } from '@/components/assistant/ChatPanel'
-import { Logo } from './Logo'
-import { footerNav, mainNav, type NavItem } from './nav'
-import { UserMenu } from './UserMenu'
+import { mainNav, type NavItem } from './nav'
 
-interface SidebarProps {
-  collapsed: boolean
-  onToggle: () => void
-}
-
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+/** The media navigation below the top bar; collapses to an icon rail. */
+export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const busy = useBusyPaths()
   return (
     <aside
       className={clsx(
-        'sticky top-0 flex h-dvh shrink-0 flex-col border-r border-line/60 bg-sidebar transition-[width] duration-200',
+        'sticky top-14 flex h-[calc(100dvh-3.5rem)] shrink-0 flex-col border-r border-line/60 bg-sidebar transition-[width] duration-200',
         collapsed ? 'w-16' : 'w-64',
       )}
     >
-      <div className={clsx('flex h-16 items-center', collapsed ? 'justify-center' : 'px-5')}>
-        <Link to="/" aria-label="Zur Startseite">
-          <Logo compact={collapsed} />
-        </Link>
-      </div>
-
-      <nav aria-label="Hauptnavigation" className="flex-1 overflow-y-auto px-2 py-2">
-        <ul className="space-y-1">
+      <nav aria-label="Hauptnavigation" className="flex-1 overflow-y-auto px-2 py-3">
+        <ul className="space-y-0.5">
           {mainNav.map((item) => (
             <NavLink key={item.to} item={item} collapsed={collapsed} busy={busy.has(item.to)} />
           ))}
@@ -40,25 +28,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       <div className="space-y-1 border-t border-line/60 px-2 py-3">
         <ChatPanel collapsed={collapsed} />
-        <UserMenu collapsed={collapsed} />
-        <ul className="space-y-1">
-          {footerNav.map((item) => (
-            <NavLink key={item.to} item={item} collapsed={collapsed} />
-          ))}
-        </ul>
-        <button
-          type="button"
-          onClick={onToggle}
-          className={clsx(
-            'flex h-10 w-full items-center gap-3 rounded-lg text-sm text-muted transition-colors hover:bg-surface-2 hover:text-fg',
-            collapsed ? 'justify-center' : 'px-3',
-          )}
-          aria-label={collapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
-          title={collapsed ? 'Ausklappen' : 'Einklappen'}
-        >
-          {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
-          {!collapsed && <span>Einklappen</span>}
-        </button>
         <ServerStatus collapsed={collapsed} />
       </div>
     </aside>
@@ -122,11 +91,12 @@ function NavLink({ item, collapsed, busy = false }: { item: NavItem; collapsed: 
         title={collapsed ? item.label : undefined}
         className={clsx(
           'group relative flex h-10 items-center gap-3 rounded-lg text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-fg',
-          'data-[status=active]:bg-surface-3 data-[status=active]:text-fg',
+          // Active entry like Plex: accent text and icon with a bar at the left edge.
+          'before:absolute before:inset-y-2 before:-left-2 before:w-[3px] before:rounded-r-full data-[status=active]:text-accent data-[status=active]:before:bg-accent',
           collapsed ? 'justify-center' : 'px-3',
         )}
       >
-        <Icon className="size-5 shrink-0 group-data-[status=active]:text-accent" />
+        <Icon className="size-5 shrink-0" />
         <span className={clsx(collapsed && 'sr-only')}>{item.label}</span>
         {busy && (
           <LoaderCircle

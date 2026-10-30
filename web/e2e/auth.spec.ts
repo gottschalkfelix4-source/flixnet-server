@@ -34,7 +34,8 @@ test('sign out returns to the sign-in page and revokes the session', async ({ pa
   const token = await page.evaluate(
     () => JSON.parse(localStorage.getItem('flixnet.session') ?? 'null')?.token as string,
   )
-  await page.getByRole('button', { name: 'Abmelden' }).click()
+  await page.getByRole('button', { name: /^Profilmenü/ }).click()
+  await page.getByRole('menuitem', { name: 'Abmelden' }).click()
   await expect(page).toHaveURL(/\/login$/)
 
   const me = await page.request.get('/api/v1/users/me', {

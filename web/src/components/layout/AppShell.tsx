@@ -24,22 +24,25 @@ export function AppShell() {
   // Room at the bottom so the music player bar never covers content.
   const hasQueue = usePlayerSelect((s) => s.queue.length > 0)
 
-  // Settings are their own view (like Plex): no media sidebar, no top bar.
+  // Settings are their own view (like Plex): the top bar stays, their own list
+  // replaces the media sidebar.
   const location = useRouterState({ select: (s) => s.location })
   const inSettings = location.pathname.startsWith('/settings')
-  // Where "Zurück" in the settings leads: the last media page.
+  // Where "Zurück zur Mediathek" in the settings leads: the last media page.
   useEffect(() => {
     if (!inSettings) rememberMediaPath(location.href)
   }, [inSettings, location.href])
 
   return (
-    <div className="flex">
-      {!inSettings && <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />}
-      <main className={clsx('min-w-0 flex-1', hasQueue && 'pb-20')}>
-        {!inSettings && <TopBar />}
-        <Outlet />
-      </main>
-      <MiniPlayer />
-    </div>
+    <>
+      <TopBar collapsed={collapsed} onToggleSidebar={inSettings ? undefined : () => setCollapsed((c) => !c)} />
+      <div className="flex pt-14">
+        {!inSettings && <Sidebar collapsed={collapsed} />}
+        <main className={clsx('min-w-0 flex-1', hasQueue && 'pb-20')}>
+          <Outlet />
+        </main>
+        <MiniPlayer />
+      </div>
+    </>
   )
 }

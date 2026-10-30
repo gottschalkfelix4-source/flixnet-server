@@ -9,7 +9,6 @@ import {
   Music,
   Radio,
   Search,
-  Settings,
   Sparkles,
   type LucideIcon,
 } from 'lucide-react'
@@ -34,4 +33,3 @@ export const mainNav: NavItem[] = [
   { to: '/search', label: 'Suche', icon: Search },
 ]
 
-export const footerNav: NavItem[] = [{ to: '/settings', label: 'Einstellungen', icon: Settings }]
