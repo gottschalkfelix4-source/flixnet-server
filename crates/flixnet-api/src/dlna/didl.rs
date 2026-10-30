@@ -65,6 +65,8 @@ pub fn protocol_info(mime: &str) -> String {
     )
 }
 
+pub const STORAGE_FOLDER: &str = "object.container.storageFolder";
+
 /// A container (folder-like object) in a Browse result.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Container {
@@ -136,6 +138,12 @@ pub fn didl(objects: &[Object]) -> String {
                 out.push('>');
                 element(&mut out, "dc:title", Some(&c.title));
                 element(&mut out, "upnp:class", Some(c.class));
+                // Required for storage folders (ContentDirectory:1, B.1.4); -1 is
+                // "unknown". Strict parsers (python-didl-lite, Home Assistant) reject
+                // the folder without it.
+                if c.class == STORAGE_FOLDER {
+                    out.push_str("<upnp:storageUsed>-1</upnp:storageUsed>");
+                }
                 element(&mut out, "upnp:albumArtURI", c.album_art.as_deref());
                 out.push_str("</container>");
             }
@@ -231,7 +239,7 @@ mod tests {
             xml.starts_with("<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"")
         );
         assert!(xml.contains(
-            r#"<container id="lib:1" parentID="0" restricted="1" searchable="0" childCount="3"><dc:title>Filme &amp; Serien</dc:title><upnp:class>object.container.storageFolder</upnp:class></container>"#
+            r#"<container id="lib:1" parentID="0" restricted="1" searchable="0" childCount="3"><dc:title>Filme &amp; Serien</dc:title><upnp:class>object.container.storageFolder</upnp:class><upnp:storageUsed>-1</upnp:storageUsed></container>"#
         ), "{xml}");
         assert!(xml.contains(r#"<item id="item:5" parentID="lib:1" restricted="1"><dc:title>Matrix</dc:title><upnp:class>object.item.videoItem.movie</upnp:class><dc:date>1999-03-31</dc:date><dc:description>Neo &lt;3</dc:description><upnp:albumArtURI>http://h/art/1?a=1&amp;b=2</upnp:albumArtURI>"#), "{xml}");
         assert!(xml.contains(

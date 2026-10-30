@@ -701,7 +701,7 @@ fn container_class(kind: &str) -> &'static str {
         "photo_album" => "object.container.album.photoAlbum",
         "album" | "audiobook" => "object.container.album.musicAlbum",
         "artist" => "object.container.person.musicArtist",
-        _ => "object.container.storageFolder",
+        _ => didl::STORAGE_FOLDER,
     }
 }
 
@@ -770,7 +770,7 @@ impl Browser<'_> {
             id: format!("lib:{}", library.id),
             parent_id: "0".to_owned(),
             title: library.name.clone(),
-            class: "object.container.storageFolder",
+            class: didl::STORAGE_FOLDER,
             child_count: Some(total),
             album_art: None,
         }))
@@ -896,7 +896,7 @@ impl Browser<'_> {
                     id: "0".to_owned(),
                     parent_id: "-1".to_owned(),
                     title: self.ctx.name.clone(),
-                    class: "object.container.storageFolder",
+                    class: didl::STORAGE_FOLDER,
                     child_count: Some(count),
                     album_art: None,
                 })))

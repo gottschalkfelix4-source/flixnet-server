@@ -308,6 +308,16 @@ async fn dlna_serves_the_chosen_users_view_over_soap() {
     let library_ids = ids(&root, "container");
     assert_eq!(library_ids.len(), 3);
     assert!(root.contains("<dc:title>Fotos</dc:title>"));
+    // ContentDirectory:1 requires `upnp:storageUsed` on storage folders: strict
+    // parsers (python-didl-lite, i.e. Home Assistant) rejected the libraries without.
+    assert_eq!(
+        root.matches(
+            "<upnp:class>object.container.storageFolder</upnp:class><upnp:storageUsed>-1</upnp:storageUsed>"
+        )
+        .count(),
+        3,
+        "{root}"
+    );
     let (_, root_meta, total) = browse(port, "0", "BrowseMetadata").await;
     assert_eq!(total, 1);
     assert!(

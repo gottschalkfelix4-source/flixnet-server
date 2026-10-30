@@ -134,14 +134,53 @@ pub fn local_ip_towards(peer: SocketAddr) -> Option<IpAddr> {
     (!ip.is_unspecified()).then_some(ip)
 }
 
-/// The LAN address announcements carry (the default route's interface).
+/// The LAN address used where no peer is known: the interface of the default route.
+///
+/// Not the route towards the multicast group: on Windows that is often a virtual
+/// adapter (Hyper-V "Default Switch", WSL) with a lower metric, so announcements went
+/// out there with a `LOCATION` no TV can reach (seen on Windows 11 with Hyper-V).
 pub fn lan_ip() -> IpAddr {
-    local_ip_towards(SocketAddr::V4(SocketAddrV4::new(MULTICAST_ADDR, SSDP_PORT)))
+    // `connect` on UDP sends nothing; it only picks the route.
+    local_ip_towards(SocketAddr::from((Ipv4Addr::new(1, 1, 1, 1), 53)))
+        .or_else(|| local_ip_towards(SocketAddr::V4(SocketAddrV4::new(MULTICAST_ADDR, SSDP_PORT))))
         .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
 }
 
+/// Whether discovery runs on an interface with this address.
+fn discovery_address(ip: Ipv4Addr) -> bool {
+    !(ip.is_loopback() || ip.is_link_local() || ip.is_unspecified() || ip.is_multicast())
+}
+
+/// IPv4 addresses of the interfaces discovery runs on, the default route's first.
+pub fn interface_ips() -> Vec<Ipv4Addr> {
+    let mut out = Vec::new();
+    if let IpAddr::V4(ip) = lan_ip()
+        && discovery_address(ip)
+    {
+        out.push(ip);
+    }
+    if let Ok(networks) = sysinfo::Networks::new_with_refreshed_list() {
+        let mut found: Vec<Ipv4Addr> = networks
+            .values()
+            .flat_map(|data| data.ip_networks())
+            .filter_map(|net| match net.addr {
+                IpAddr::V4(ip) if discovery_address(ip) => Some(ip),
+                _ => None,
+            })
+            .collect();
+        found.sort();
+        for ip in found {
+            if !out.contains(&ip) {
+                out.push(ip);
+            }
+        }
+    }
+    out
+}
+
 /// Binds the shared SSDP port (other UPnP software on the host keeps working) and
-/// joins the multicast group.
+/// joins the multicast group on every interface: joining with `INADDR_ANY` lets the
+/// system pick one, which on Windows may be a virtual adapter instead of the LAN.
 pub fn bind_multicast(port: u16) -> std::io::Result<UdpSocket> {
     use socket2::{Domain, Protocol, Socket, Type};
     let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
@@ -150,7 +189,17 @@ pub fn bind_multicast(port: u16) -> std::io::Result<UdpSocket> {
     socket.set_reuse_port(true)?;
     socket.set_nonblocking(true)?;
     socket.bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)).into())?;
-    socket.join_multicast_v4(&MULTICAST_ADDR, &Ipv4Addr::UNSPECIFIED)?;
+    let mut joined = 0;
+    // Loopback too: apps on the same Windows host search over it by default.
+    for ip in interface_ips().into_iter().chain([Ipv4Addr::LOCALHOST]) {
+        match socket.join_multicast_v4(&MULTICAST_ADDR, &ip) {
+            Ok(()) => joined += 1,
+            Err(err) => tracing::debug!(%ip, %err, "SSDP: joining the multicast group failed"),
+        }
+    }
+    if joined == 0 {
+        socket.join_multicast_v4(&MULTICAST_ADDR, &Ipv4Addr::UNSPECIFIED)?;
+    }
     socket.set_multicast_loop_v4(true)?;
     socket.set_multicast_ttl_v4(4)?;
     UdpSocket::from_std(socket.into())
@@ -172,11 +221,29 @@ pub async fn serve(
         let socket = &socket;
         async move {
             let Some(target) = announce_to else { return };
-            let ip = lan_ip();
-            for (nt, usn) in device.targets() {
-                let message = device.notify(&nt, &usn, ip, alive);
-                if let Err(err) = socket.send_to(message.as_bytes(), target).await {
-                    tracing::debug!(%err, "SSDP announcement failed");
+            // Out of every interface, each with its own address in LOCATION.
+            let interfaces = interface_ips();
+            let sends: Vec<Option<Ipv4Addr>> = if interfaces.is_empty() {
+                vec![None]
+            } else {
+                interfaces.into_iter().map(Some).collect()
+            };
+            for interface in sends {
+                let ip = match interface {
+                    Some(ip) => {
+                        if let Err(err) = socket2::SockRef::from(socket).set_multicast_if_v4(&ip) {
+                            tracing::debug!(%ip, %err, "SSDP: interface not usable");
+                            continue;
+                        }
+                        IpAddr::V4(ip)
+                    }
+                    None => lan_ip(),
+                };
+                for (nt, usn) in device.targets() {
+                    let message = device.notify(&nt, &usn, ip, alive);
+                    if let Err(err) = socket.send_to(message.as_bytes(), target).await {
+                        tracing::debug!(%ip, %err, "SSDP announcement failed");
+                    }
                 }
             }
         }
@@ -297,6 +364,31 @@ mod tests {
         assert!(alive.contains("NTS: ssdp:alive"));
         let bye = d.notify("upnp:rootdevice", "uuid:x::upnp:rootdevice", ip, false);
         assert!(bye.contains("NTS: ssdp:byebye") && !bye.contains("LOCATION"));
+    }
+
+    /// On Windows with Hyper-V the multicast route went to the "Default Switch"
+    /// adapter (172.19.16.1) while the LAN was 192.168.188.x: announcements must use
+    /// the default route's address and discovery must not depend on one interface.
+    #[test]
+    fn discovery_uses_the_lan_interfaces() {
+        assert!(discovery_address(Ipv4Addr::new(192, 168, 188, 137)));
+        assert!(discovery_address(Ipv4Addr::new(172, 19, 16, 1)));
+        for not in [
+            Ipv4Addr::LOCALHOST,
+            Ipv4Addr::UNSPECIFIED,
+            Ipv4Addr::new(169, 254, 3, 4),
+            MULTICAST_ADDR,
+        ] {
+            assert!(!discovery_address(not), "{not}");
+        }
+        let interfaces = interface_ips();
+        if let IpAddr::V4(lan) = lan_ip()
+            && discovery_address(lan)
+        {
+            assert_eq!(interfaces.first(), Some(&lan), "default route first");
+        }
+        let unique: std::collections::HashSet<_> = interfaces.iter().collect();
+        assert_eq!(unique.len(), interfaces.len());
     }
 
     /// The responder over a real socket (unicast on loopback, so it works anywhere).
