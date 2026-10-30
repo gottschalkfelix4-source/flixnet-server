@@ -12,7 +12,7 @@ import { FolderPicker } from '@/components/FolderPicker'
 import { FormError } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
-import { Section, SelectField } from '@/components/ui/Section'
+import { Checkbox, Section, SelectField } from '@/components/ui/Section'
 import { TextField } from '@/components/ui/TextField'
 import { relativeTime } from '@/lib/format'
 
@@ -91,6 +91,7 @@ function LibraryDialog({ library, onClose }: { library: Library | null; onClose:
   const [name, setName] = useState(library?.name ?? '')
   const [kind, setKind] = useState<'movies' | 'shows'>((library?.kind as 'movies' | 'shows') ?? 'movies')
   const [paths, setPaths] = useState<string[]>(library?.paths ?? [])
+  const [introDetection, setIntroDetection] = useState(library?.intro_detection ?? true)
   const [manualPath, setManualPath] = useState('')
   const [browsing, setBrowsing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -107,9 +108,15 @@ function LibraryDialog({ library, onClose }: { library: Library | null; onClose:
     event.preventDefault()
     const allPaths = manualPath.trim() ? [...paths, manualPath.trim()] : paths
     if (library) {
-      update.mutate({ id: library.id, name: name.trim(), paths: allPaths }, { onSuccess: onClose })
+      update.mutate(
+        { id: library.id, name: name.trim(), paths: allPaths, intro_detection: introDetection },
+        { onSuccess: onClose },
+      )
     } else {
-      create.mutate({ name: name.trim(), kind, paths: allPaths }, { onSuccess: onClose })
+      create.mutate(
+        { name: name.trim(), kind, paths: allPaths, intro_detection: introDetection },
+        { onSuccess: onClose },
+      )
     }
   }
 
@@ -168,6 +175,14 @@ function LibraryDialog({ library, onClose }: { library: Library | null; onClose:
           </div>
           {browsing && <FolderPicker onPick={addPath} />}
         </div>
+        {(library?.kind ?? kind) === 'shows' && (
+          <Checkbox
+            label="Intro-Erkennung"
+            hint="Intros und Abspänne der Folgen einer Staffel erkennen, damit sie sich überspringen lassen."
+            checked={introDetection}
+            onChange={setIntroDetection}
+          />
+        )}
         <FormError error={error} />
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           {library ? (

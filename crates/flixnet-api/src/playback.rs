@@ -80,6 +80,8 @@ pub struct MediaSourceDto {
     /// Subtitle tracks to choose from: text ones with a WebVTT URL, picture ones
     /// burned in when chosen (`subtitle_stream_index`).
     pub subtitle_tracks: Vec<SubtitleTrackDto>,
+    /// Intro, credits and recap of this file (for skip buttons), in playback order.
+    pub segments: Vec<crate::segments::MediaSegmentDto>,
 }
 
 /// Sources of a movie or episode with a playback decision for the client's device.
@@ -140,6 +142,7 @@ async fn get_playback_info(
                 user.user_id,
                 &streams,
             ),
+            segments: crate::segments::for_file(&state, file.id).await?,
         });
     }
     if sources.is_empty() {

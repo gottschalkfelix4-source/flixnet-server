@@ -2376,6 +2376,293 @@
         }
       }
     },
+    "/api/v1/items/{id}/segments": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Intro, credits and recap of an item's files.",
+        "operationId": "getMediaSegments",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id (episode or movie)",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Segments of the item's main files, in playback order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MediaSegmentDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/segments/analyze": {
+      "post": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Detect intros and credits of a series, season or episode's season now (administrators).",
+        "operationId": "analyzeItemSegments",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Series, season or episode id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Analysis queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisQueued"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/segments/{kind}": {
+      "put": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Set a segment by hand (administrators). It replaces the detected one and is kept\nwhen the season is analyzed again.",
+        "operationId": "setMediaSegment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id (episode or movie)",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "description": "Segment kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SegmentKind"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSegmentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Segments of the item after the change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MediaSegmentDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such item or file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Times outside the file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Remove a segment (administrators). A detected one may come back with the next\nanalysis of the season.",
+        "operationId": "deleteMediaSegment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id (episode or movie)",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "description": "Segment kind",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SegmentKind"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "query",
+            "description": "One file of the item; all its main files when omitted.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Segment removed"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such item, file or segment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/jobs": {
       "get": {
         "tags": [
@@ -2921,6 +3208,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ScanQueued"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/libraries/{id}/segments/analyze": {
+      "post": {
+        "tags": [
+          "libraries"
+        ],
+        "summary": "Detect intros and credits in every season of a library now (administrators).",
+        "operationId": "analyzeLibrarySegments",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Library id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Analysis queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisQueued"
                 }
               }
             }
@@ -6405,6 +6755,76 @@
         }
       }
     },
+    "/api/v1/users/me/preferences": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Playback preferences of the signed-in profile.",
+        "operationId": "getMyPreferences",
+        "responses": {
+          "200": {
+            "description": "The preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Change playback preferences of the signed-in profile (omitted fields stay).",
+        "operationId": "updateMyPreferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferencesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The updated preferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreferencesDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/users/{id}": {
       "delete": {
         "tags": [
@@ -6808,6 +7228,19 @@
             "type": "integer",
             "format": "int64",
             "description": "How many were new (already present ones are skipped).",
+            "minimum": 0
+          }
+        }
+      },
+      "AnalysisQueued": {
+        "type": "object",
+        "required": [
+          "seasons"
+        ],
+        "properties": {
+          "seasons": {
+            "type": "integer",
+            "description": "Seasons whose analysis was queued (already pending ones are not counted).",
             "minimum": 0
           }
         }
@@ -7380,6 +7813,13 @@
           "paths"
         ],
         "properties": {
+          "intro_detection": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Detect intros and credits of episodes (default: on)."
+          },
           "kind": {
             "$ref": "#/components/schemas/LibraryKind"
           },
@@ -8520,7 +8960,8 @@
           "id",
           "name",
           "kind",
-          "counts"
+          "counts",
+          "intro_detection"
         ],
         "properties": {
           "counts": {
@@ -8529,6 +8970,10 @@
           "id": {
             "type": "integer",
             "format": "int64"
+          },
+          "intro_detection": {
+            "type": "boolean",
+            "description": "Whether intros and credits of episodes are detected (\"Intro-Erkennung\")."
           },
           "kind": {
             "type": "string"
@@ -8734,6 +9179,43 @@
           }
         }
       },
+      "MediaSegmentDto": {
+        "type": "object",
+        "required": [
+          "file_id",
+          "kind",
+          "start_ms",
+          "end_ms",
+          "source",
+          "confidence"
+        ],
+        "properties": {
+          "confidence": {
+            "type": "number",
+            "format": "double",
+            "description": "0–1: share of compared episodes that agree (1 for manual segments)."
+          },
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "file_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SegmentKind"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SegmentSource"
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "From the start of the file."
+          }
+        }
+      },
       "MediaSourceDto": {
         "type": "object",
         "required": [
@@ -8743,7 +9225,8 @@
           "direct_url",
           "plan",
           "audio_tracks",
-          "subtitle_tracks"
+          "subtitle_tracks",
+          "segments"
         ],
         "properties": {
           "audio_tracks": {
@@ -8803,6 +9286,13 @@
           "plan": {
             "$ref": "#/components/schemas/PlaybackPlan",
             "description": "How this source would be played on the requesting device, and why."
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaSegmentDto"
+            },
+            "description": "Intro, credits and recap of this file (for skip buttons), in playback order."
           },
           "size": {
             "type": "integer",
@@ -9294,6 +9784,18 @@
           }
         }
       },
+      "PreferencesDto": {
+        "type": "object",
+        "required": [
+          "skip_intro_automatically"
+        ],
+        "properties": {
+          "skip_intro_automatically": {
+            "type": "boolean",
+            "description": "Jump over intros (and recaps) without a click."
+          }
+        }
+      },
       "ProfileDto": {
         "type": "object",
         "required": [
@@ -9459,6 +9961,22 @@
           }
         }
       },
+      "SegmentKind": {
+        "type": "string",
+        "enum": [
+          "intro",
+          "credits",
+          "recap"
+        ]
+      },
+      "SegmentSource": {
+        "type": "string",
+        "enum": [
+          "fingerprint",
+          "blackdetect",
+          "manual"
+        ]
+      },
       "SessionDto": {
         "type": "object",
         "description": "A newly issued device token plus the signed-in user.",
@@ -9511,6 +10029,31 @@
               "null"
             ],
             "description": "4–8 digits, or `null` to remove the PIN."
+          }
+        }
+      },
+      "SetSegmentRequest": {
+        "type": "object",
+        "required": [
+          "start_ms",
+          "end_ms"
+        ],
+        "properties": {
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "file_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "One file of the item; all its main files when omitted."
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -10141,6 +10684,13 @@
       "UpdateLibraryRequest": {
         "type": "object",
         "properties": {
+          "intro_detection": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Switch intro/credits detection on or off."
+          },
           "name": {
             "type": [
               "string",
@@ -10213,6 +10763,17 @@
               {
                 "type": "null"
               }
+            ]
+          }
+        }
+      },
+      "UpdatePreferencesRequest": {
+        "type": "object",
+        "properties": {
+          "skip_intro_automatically": {
+            "type": [
+              "boolean",
+              "null"
             ]
           }
         }

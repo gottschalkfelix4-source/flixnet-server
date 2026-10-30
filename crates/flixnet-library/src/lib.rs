@@ -9,4 +9,5 @@ pub mod parse;
 pub mod providers;
 pub mod refresh;
 pub mod scan;
+pub mod segments;
 pub mod watch;

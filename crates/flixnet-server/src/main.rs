@@ -11,6 +11,7 @@ use flixnet_core::maintenance;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use flixnet_library::jobs as library_jobs;
+use flixnet_library::segments as segment_jobs;
 use flixnet_livetv::jobs as livetv_jobs;
 use flixnet_media::hardware::{HardwareMode, HardwareOptions};
 use flixnet_media::transcode::{TranscodeManager, TranscodeSettings};
@@ -122,7 +123,11 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .register(livetv_jobs::RefreshGuide {
             http: flixnet_livetv::http::client(),
             cache_dir: config.paths.config_dir.join("cache").join("epg"),
-        });
+        })
+        .register(segment_jobs::AnalyzeSeason {
+            analyzer: flixnet_media::segments::SegmentAnalyzer::new(&config.media.ffmpeg),
+        })
+        .register(segment_jobs::AnalyzePendingSeasons);
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
     let tasks = TaskRegistry::new(
@@ -130,6 +135,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             .into_iter()
             .chain(library_jobs::tasks())
             .chain(livetv_jobs::tasks())
+            .chain(segment_jobs::tasks())
             .collect(),
     );
     let stop_scheduler = CancellationToken::new();

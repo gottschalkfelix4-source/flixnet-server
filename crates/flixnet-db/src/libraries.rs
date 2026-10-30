@@ -9,11 +9,13 @@ pub struct Library {
     pub kind: String,
     pub created_at: i64,
     pub last_scan_at: Option<i64>,
+    /// Whether intros and credits of episodes are detected.
+    pub intro_detection: bool,
 }
 
 macro_rules! library_columns {
     () => {
-        "id, name, kind, created_at, last_scan_at"
+        "id, name, kind, created_at, last_scan_at, intro_detection"
     };
 }
 
@@ -123,6 +125,18 @@ pub async fn update(
     }
     tx.commit().await?;
     Ok(true)
+}
+
+/// Switches intro/credits detection of a library on or off.
+pub async fn set_intro_detection(db: &Db, id: i64, enabled: bool) -> Result<bool> {
+    let result =
+        sqlx::query("UPDATE libraries SET intro_detection = ?, updated_at = ? WHERE id = ?")
+            .bind(enabled)
+            .bind(now_ms())
+            .bind(id)
+            .execute(db.writer())
+            .await?;
+    Ok(result.rows_affected() > 0)
 }
 
 pub async fn delete(db: &Db, id: i64) -> Result<bool> {

@@ -36,6 +36,7 @@ mod livetv;
 pub mod playback;
 mod playlists;
 pub mod playstate;
+mod segments;
 pub mod session;
 mod settings;
 pub mod signing;
@@ -181,6 +182,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, tracks::router())
         .nest(API_PREFIX, settings::router())
         .nest(API_PREFIX, livetv::router())
+        .nest(API_PREFIX, segments::router())
         .split_for_parts()
 }
 

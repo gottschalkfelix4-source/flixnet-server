@@ -156,7 +156,10 @@ impl JobHandler for ProbeFile {
     type Payload = ProbePayload;
 
     async fn run(&self, ctx: JobContext, payload: ProbePayload) -> anyhow::Result<()> {
-        probe_file(ctx.db(), &self.ffprobe, payload.file_id).await
+        probe_file(ctx.db(), &self.ffprobe, payload.file_id).await?;
+        // Episodes: find the season's intro and credits once its files are probed.
+        crate::segments::queue_after_probe(ctx.db(), ctx.queue(), payload.file_id).await?;
+        Ok(())
     }
 }
 
