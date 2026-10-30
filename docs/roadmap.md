@@ -6,7 +6,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 
 ## Phase 0 – Grundgerüst
 - [x] 0.0 Rust-Toolchain (rustup, stable 1.99.1, MSVC) auf dem Dev-PC
-- [ ] 0.0b jellyfin-ffmpeg 7 portable auf dem Dev-PC (spätestens vor Phase 4)
+- [x] 0.0b jellyfin-ffmpeg 7 portable auf dem Dev-PC — ersetzt: Dev-PC nutzt ffmpeg 8.1, die CI testet gegen ffmpeg 6.1 und das Docker-Image bringt jellyfin-ffmpeg 7 mit (Versionsunterschiede wurden so gefunden und abgesichert)
 - [x] 0.1 Workspace, axum, tracing, Config, `GET /api/v1/system/info` – *fertig wenn* `cargo test` + `cargo clippy -- -D warnings` grün
 - [x] 0.2 flixnet-db: Migrationen, WAL, Writer-/Read-Pool, Settings – *fertig wenn* Migrationstest auf Temp-DB grün
 - [x] 0.3 OpenAPI (utoipa 6) + Scalar-UI unter `/api/v1/docs`, `flixnet-server openapi --output web/openapi.json` – Redocly-Lint ohne Fehler
