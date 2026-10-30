@@ -24,6 +24,7 @@ pub mod libraries;
 pub mod livetv;
 pub mod media;
 pub mod metadata;
+pub mod music;
 pub mod playlists;
 pub mod playstate;
 pub mod segments;

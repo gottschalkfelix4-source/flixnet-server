@@ -19,6 +19,15 @@ pub struct FoundFile {
 /// Every video file below `root`. Hidden folders and NAS metadata folders are skipped.
 /// Fails only if `root` itself is unreadable (a sub-folder error is logged and skipped).
 pub fn walk(root: &Path) -> std::io::Result<Vec<FoundFile>> {
+    walk_matching(root, is_video_file)
+}
+
+/// Every audio file below `root` (music libraries), like [`walk`].
+pub fn walk_audio(root: &Path) -> std::io::Result<Vec<FoundFile>> {
+    walk_matching(root, crate::music::is_audio_file)
+}
+
+fn walk_matching(root: &Path, wanted: fn(&Path) -> bool) -> std::io::Result<Vec<FoundFile>> {
     // An unreadable root must not look like "all files deleted".
     std::fs::read_dir(root)?;
 
@@ -42,7 +51,7 @@ pub fn walk(root: &Path) -> std::io::Result<Vec<FoundFile>> {
                 continue;
             }
         };
-        if !entry.file_type().is_file() || !is_video_file(entry.path()) {
+        if !entry.file_type().is_file() || !wanted(entry.path()) {
             continue;
         }
         let Ok(metadata) = entry.metadata() else {

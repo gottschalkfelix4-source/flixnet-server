@@ -2,7 +2,10 @@ import { useNavigate, useSearch } from '@tanstack/react-router'
 import { Search as SearchIcon, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { type ItemCard, useItems } from '@/api/queries/items'
+import { useTracks } from '@/api/queries/music'
 import { PosterCard } from '@/components/media/PosterCard'
+import { AlbumCard, ArtistCard, CardGrid } from '@/components/music/MusicCards'
+import { TrackList } from '@/components/music/TrackList'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 /** Search across movies, series and episodes, ranked by relevance (FTS5). */
@@ -24,8 +27,13 @@ export function SearchPage() {
   const movies = useItems({ ...base, kind: 'movie' }, enabled)
   const series = useItems({ ...base, kind: 'series' }, enabled)
   const episodes = useItems({ ...base, kind: 'episode', limit: 24 }, enabled)
-  const loaded = movies.data && series.data && episodes.data
-  const nothing = loaded && movies.data.total + series.data.total + episodes.data.total === 0
+  const artists = useItems({ ...base, kind: 'artist', limit: 12 }, enabled)
+  const albums = useItems({ ...base, kind: 'album', limit: 24 }, enabled)
+  const tracks = useTracks({ search: q, limit: 20 }, enabled)
+  const loaded = movies.data && series.data && episodes.data && artists.data && albums.data && tracks.data
+  const nothing =
+    loaded &&
+    movies.data.total + series.data.total + episodes.data.total + artists.data.total + albums.data.total + tracks.data.total === 0
 
   return (
     <div className="px-6 pt-8 pb-16 md:px-10">
@@ -35,7 +43,7 @@ export function SearchPage() {
           type="search"
           autoFocus
           aria-label="Suche"
-          placeholder="Filme, Serien, Folgen…"
+          placeholder="Filme, Serien, Folgen, Musik…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           className="h-14 w-full rounded-full border border-line bg-surface-2 pr-12 pl-12 text-lg focus:border-accent focus:outline-none [&::-webkit-search-cancel-button]:hidden"
@@ -67,6 +75,32 @@ export function SearchPage() {
           <ResultGroup title="Filme" items={movies.data?.items} />
           <ResultGroup title="Serien" items={series.data?.items} />
           <ResultGroup title="Folgen" items={episodes.data?.items} wide />
+          {!!artists.data?.items.length && (
+            <section className="mb-10" aria-label="Künstler">
+              <h2 className="mb-4 text-lg font-bold">Künstler</h2>
+              <CardGrid round>
+                {artists.data.items.map((a) => (
+                  <ArtistCard key={a.id} artist={a} />
+                ))}
+              </CardGrid>
+            </section>
+          )}
+          {!!albums.data?.items.length && (
+            <section className="mb-10" aria-label="Alben">
+              <h2 className="mb-4 text-lg font-bold">Alben</h2>
+              <CardGrid>
+                {albums.data.items.map((a) => (
+                  <AlbumCard key={a.id} album={a} />
+                ))}
+              </CardGrid>
+            </section>
+          )}
+          {!!tracks.data?.items.length && (
+            <section className="mb-10" aria-label="Titel">
+              <h2 className="mb-4 text-lg font-bold">Titel</h2>
+              <TrackList tracks={tracks.data.items} showAlbum />
+            </section>
+          )}
         </div>
       )}
     </div>

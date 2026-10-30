@@ -215,17 +215,18 @@ pub async fn provider_ids(db: &Db, item_id: i64) -> Result<Vec<(String, String)>
 }
 
 /// Removes items that no longer have any present file (and no children with files).
-/// Movies/episodes first, then empty seasons, then empty series.
+/// Movies/episodes/tracks first, then empty seasons/albums, then empty series/artists.
 pub async fn prune_orphans(db: &Db, library_id: i64) -> Result<u64> {
     let mut removed = 0;
     let mut tx = db.writer().begin().await?;
     for sql in [
-        "DELETE FROM items WHERE library_id = ? AND kind IN ('movie', 'episode')
+        "DELETE FROM items WHERE library_id = ? AND kind IN ('movie', 'episode', 'track')
            AND NOT EXISTS (SELECT 1 FROM media_files f WHERE f.item_id = items.id)",
-        "DELETE FROM items WHERE library_id = ? AND kind = 'season'
+        "DELETE FROM items WHERE library_id = ? AND kind IN ('season', 'album')
            AND NOT EXISTS (SELECT 1 FROM items c WHERE c.parent_id = items.id)",
-        "DELETE FROM items WHERE library_id = ? AND kind = 'series'
+        "DELETE FROM items WHERE library_id = ? AND kind IN ('series', 'artist')
            AND NOT EXISTS (SELECT 1 FROM items c WHERE c.series_id = items.id)
+           AND NOT EXISTS (SELECT 1 FROM items c WHERE c.parent_id = items.id)
            AND NOT EXISTS (SELECT 1 FROM media_files f WHERE f.item_id = items.id)",
     ] {
         removed += sqlx::query(sql)

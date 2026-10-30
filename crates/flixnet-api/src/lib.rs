@@ -33,6 +33,7 @@ mod jobs;
 mod libraries;
 pub mod limiter;
 mod livetv;
+mod music;
 pub mod playback;
 mod playlists;
 pub mod playstate;
@@ -136,6 +137,7 @@ impl AppState {
         (name = "playlists", description = "Personal and smart playlists"),
         (name = "settings", description = "Server settings (administrators)"),
         (name = "livetv", description = "Live TV: tuners, channels, guide and live playback"),
+        (name = "music", description = "Music: albums, artists, tracks, lyrics and audio playback"),
     )
 )]
 struct ApiDoc;
@@ -185,6 +187,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, trickplay::router())
         .nest(API_PREFIX, settings::router())
         .nest(API_PREFIX, livetv::router())
+        .nest(API_PREFIX, music::router())
         .nest(API_PREFIX, segments::router())
         .nest(API_PREFIX, subtitle_search::router())
         .split_for_parts()

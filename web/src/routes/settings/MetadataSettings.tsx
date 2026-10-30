@@ -3,7 +3,7 @@ import { type FormEvent, useState } from 'react'
 import { useMetadataSettings, useUpdateMetadataSettings } from '@/api/queries/settings'
 import { FormError } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
-import { Section, SelectField } from '@/components/ui/Section'
+import { Checkbox, Section, SelectField } from '@/components/ui/Section'
 import { TextField } from '@/components/ui/TextField'
 
 const LANGUAGES = [
@@ -143,6 +143,17 @@ export function MetadataSettings() {
       </Section>
 
       <FanartSection hasKey={settings.data.has_fanart_api_key} />
+
+      <Section
+        title="MusicBrainz & Cover Art Archive"
+        description="Ergänzt Musikalben um Veröffentlichungsdaten, Genres und Cover; Künstlerbilder kommen mit fanart.tv-Schlüssel dazu. Kein Schlüssel nötig, höchstens eine Anfrage pro Sekunde."
+      >
+        <Checkbox
+          label="Musik-Metadaten online ergänzen"
+          checked={settings.data.musicbrainz_enabled}
+          onChange={(checked) => update.mutate({ musicbrainz_enabled: checked })}
+        />
+      </Section>
 
       <Section title="Sprache & Region">
         <div className="grid max-w-xl gap-4 md:grid-cols-2">

@@ -2,6 +2,7 @@
 
 pub mod collections;
 pub mod fanart;
+pub mod musicbrainz;
 pub mod opensubtitles;
 pub mod tmdb;
 
@@ -11,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::scan::{normalize_key, sort_title};
 pub use fanart::Fanart;
+pub use musicbrainz::MusicBrainz;
 pub use tmdb::{Tmdb, TmdbConfig, TmdbError};
 
 /// Admin-editable provider settings (stored as JSON setting `metadata`).
@@ -24,6 +26,15 @@ pub struct MetadataSettings {
     pub language: Option<String>,
     /// Country for age ratings, e.g. `DE`.
     pub country: Option<String>,
+    /// Music metadata and covers from MusicBrainz / Cover Art Archive (no key
+    /// needed; `None` = on).
+    pub musicbrainz_enabled: Option<bool>,
+}
+
+/// A MusicBrainz client unless switched off in the settings.
+pub async fn musicbrainz_from_settings(db: &Db) -> anyhow::Result<Option<MusicBrainz>> {
+    let settings = load_settings(db).await?;
+    Ok((settings.musicbrainz_enabled != Some(false)).then(|| MusicBrainz::new(db.clone())))
 }
 
 pub const SETTINGS_KEY: &str = "metadata";

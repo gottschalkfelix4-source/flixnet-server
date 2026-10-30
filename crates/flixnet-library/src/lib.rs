@@ -4,6 +4,7 @@ pub mod artwork;
 pub mod http;
 pub mod images;
 pub mod jobs;
+pub mod music;
 pub mod nfo;
 pub mod parse;
 pub mod providers;

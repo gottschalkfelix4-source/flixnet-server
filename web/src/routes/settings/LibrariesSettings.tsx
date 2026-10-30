@@ -1,4 +1,4 @@
-import { Clapperboard, Film, FolderPlus, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { Clapperboard, Film, FolderPlus, Music, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import type { Schemas } from '@/api/client'
 import {
@@ -17,11 +17,15 @@ import { TextField } from '@/components/ui/TextField'
 import { relativeTime } from '@/lib/format'
 
 type Library = Schemas['LibraryDto']
+type LibraryKind = Schemas['LibraryKind']
 
 function countLabel(library: Library): string {
   const c = library.counts
   if (library.kind === 'shows') {
     return `${c.series} ${c.series === 1 ? 'Serie' : 'Serien'} · ${c.episodes} ${c.episodes === 1 ? 'Folge' : 'Folgen'}`
+  }
+  if (library.kind === 'music') {
+    return `${c.albums} ${c.albums === 1 ? 'Album' : 'Alben'} · ${c.tracks} ${c.tracks === 1 ? 'Titel' : 'Titel'}`
   }
   return `${c.movies} ${c.movies === 1 ? 'Film' : 'Filme'}`
 }
@@ -35,7 +39,7 @@ export function LibrariesSettings() {
   return (
     <Section
       title="Bibliotheken"
-      description="Ordner mit Filmen oder Serien. Neue Dateien werden beim Scannen erkannt."
+      description="Ordner mit Filmen, Serien oder Musik. Neue Dateien werden beim Scannen erkannt."
       action={
         <Button variant="accent" className="h-10" onClick={() => setEditing('new')}>
           <Plus className="size-4" aria-hidden="true" />
@@ -48,7 +52,7 @@ export function LibrariesSettings() {
       )}
       <ul className="divide-y divide-line/60" data-testid="library-list">
         {libraries.data?.map((library) => {
-          const Icon = library.kind === 'shows' ? Clapperboard : Film
+          const Icon = library.kind === 'shows' ? Clapperboard : library.kind === 'music' ? Music : Film
           return (
             <li key={library.id} className="flex flex-wrap items-center gap-4 py-3">
               <Icon className="size-5 shrink-0 text-accent" aria-hidden="true" />
@@ -89,7 +93,7 @@ function LibraryDialog({ library, onClose }: { library: Library | null; onClose:
   const update = useUpdateLibrary()
   const remove = useDeleteLibrary()
   const [name, setName] = useState(library?.name ?? '')
-  const [kind, setKind] = useState<'movies' | 'shows'>((library?.kind as 'movies' | 'shows') ?? 'movies')
+  const [kind, setKind] = useState<LibraryKind>((library?.kind as LibraryKind) ?? 'movies')
   const [paths, setPaths] = useState<string[]>(library?.paths ?? [])
   const [introDetection, setIntroDetection] = useState(library?.intro_detection ?? true)
   const [manualPath, setManualPath] = useState('')
@@ -132,10 +136,11 @@ function LibraryDialog({ library, onClose }: { library: Library | null; onClose:
           <SelectField
             label="Inhalt"
             value={kind}
-            onChange={(v) => setKind(v as 'movies' | 'shows')}
+            onChange={(v) => setKind(v as LibraryKind)}
             options={[
               { value: 'movies', label: 'Filme' },
               { value: 'shows', label: 'Serien' },
+              { value: 'music', label: 'Musik' },
             ]}
           />
         )}

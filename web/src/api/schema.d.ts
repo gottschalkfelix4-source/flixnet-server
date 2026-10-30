@@ -1162,6 +1162,135 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/music/albums/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An album with its tracks, grouped by disc. */
+        get: operations["getMusicAlbum"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/music/artists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** An artist with albums, appearances and popular tracks. */
+        get: operations["getMusicArtist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/music/playback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * How to play tracks on this client: Direct Play or AAC conversion, with ReplayGain.
+         *     Tracks that are not visible (or have no file) are left out.
+         */
+        post: operations["getMusicPlayback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/music/stream/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A track converted to AAC (`audio/mp4`), with HTTP range support. Converted once,
+         *     then served from the cache.
+         * @description Use the signed `url` from `POST /music/playback`; alternatively authenticate normally.
+         */
+        get: operations["streamMusicConverted"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/music/tracks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tracks: of an album or artist, favorites, a genre or a search. */
+        get: operations["listMusicTracks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/music/tracks/{id}/lyrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lyrics of a track: a sidecar `.lrc` file (synced) or lyrics embedded in the tags. */
+        get: operations["getTrackLyrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/music/tracks/{id}/scrobble": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reports a finished (or skipped) listen. It counts as a play — play count, last
+         *     played, listening history — once it covers half the track or four minutes.
+         */
+        post: operations["scrobbleTrack"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/people/{id}": {
         parameters: {
             query?: never;
@@ -1822,9 +1951,43 @@ export interface components {
              */
             added: number;
         };
+        AlbumDetailDto: components["schemas"]["ItemCardDto"] & {
+            /**
+             * Format: int64
+             * @description Album artist (name in `series_title`).
+             */
+            artist_id?: number | null;
+            /** @description Signed cover URL, 780 px wide. */
+            cover_url?: string | null;
+            discs: components["schemas"]["DiscDto"][];
+            /** Format: int64 */
+            duration_ms: number;
+            genres: string[];
+            /** @description e.g. `{"musicbrainz_album": "…"}`. */
+            provider_ids: {
+                [key: string]: string;
+            };
+            release_date?: string | null;
+            /** Format: int64 */
+            track_count: number;
+        };
         AnalysisQueued: {
             /** @description Seasons whose analysis was queued (already pending ones are not counted). */
             seasons: number;
+        };
+        ArtistDetailDto: components["schemas"]["ItemCardDto"] & {
+            /** @description The artist's own albums, newest first. */
+            albums: components["schemas"]["ItemCardDto"][];
+            /** @description Other artists' albums (compilations) with tracks by this artist. */
+            appears_on: components["schemas"]["ItemCardDto"][];
+            /** @description Signed backdrop URL (fanart.tv or a local `fanart.jpg`), 1920 px wide. */
+            backdrop_url?: string | null;
+            logo_url?: string | null;
+            /** @description Most played tracks (all profiles of the household), then album order. */
+            popular: components["schemas"]["TrackDto"][];
+            provider_ids: {
+                [key: string]: string;
+            };
         };
         ArtworkDto: {
             backdrop_blurhash?: string | null;
@@ -1843,6 +2006,8 @@ export interface components {
              */
             max_channels?: number | null;
         };
+        /** @enum {string} */
+        AudioMethod: "direct_play" | "transcode";
         AudioPlan: {
             action: components["schemas"]["StreamAction"];
             /** Format: int64 */
@@ -2112,6 +2277,14 @@ export interface components {
             parent?: string | null;
             /** @description The listed folder (`null` for the roots). */
             path?: string | null;
+        };
+        DiscDto: {
+            /**
+             * Format: int64
+             * @description Disc number (1 for single-disc albums).
+             */
+            number: number;
+            tracks: components["schemas"]["TrackDto"][];
         };
         DiscoverRequest: {
             /** @description Ask one device directly (IP address or URL) instead of broadcasting. */
@@ -2420,6 +2593,13 @@ export interface components {
         };
         LibraryCountsDto: {
             /** Format: int64 */
+            albums: number;
+            /**
+             * Format: int64
+             * @description Music libraries: album artists, albums and tracks.
+             */
+            artists: number;
+            /** Format: int64 */
             episodes: number;
             /** Format: int64 */
             files: number;
@@ -2427,6 +2607,8 @@ export interface components {
             movies: number;
             /** Format: int64 */
             series: number;
+            /** Format: int64 */
+            tracks: number;
             /**
              * Format: int64
              * @description Files whose technical details are still being read.
@@ -2447,7 +2629,7 @@ export interface components {
             paths?: string[] | null;
         };
         /** @enum {string} */
-        LibraryKind: "movies" | "shows";
+        LibraryKind: "movies" | "shows" | "music";
         LiveSessionDto: {
             /** Format: int64 */
             channel_id: number;
@@ -2473,6 +2655,21 @@ export interface components {
             video_copied: boolean;
             /** @description User ids of the viewers (one entry per player). */
             viewers: number[];
+        };
+        LyricLineDto: {
+            text: string;
+            /**
+             * Format: int64
+             * @description Start of the line in milliseconds (0 for plain lyrics).
+             */
+            time_ms: number;
+        };
+        LyricsDto: {
+            lines: components["schemas"]["LyricLineDto"][];
+            /** @description `sidecar` (`.lrc` next to the file) or `embedded` (in the tags). */
+            source: string;
+            /** @description Lines carry timestamps (LRC) and can follow playback. */
+            synced: boolean;
         };
         MediaFileDto: {
             audio: components["schemas"]["AudioStreamDto"][];
@@ -2556,6 +2753,19 @@ export interface components {
             has_tmdb_api_key: boolean;
             /** @description Metadata language, e.g. `de-DE`. */
             language: string;
+            /** @description Music metadata and covers from MusicBrainz and the Cover Art Archive. */
+            musicbrainz_enabled: boolean;
+        };
+        MusicPlaybackRequest: {
+            /**
+             * Format: int64
+             * @description Bitrate limit (bits/s); larger files are converted.
+             */
+            max_bitrate?: number | null;
+            /** @description What the client plays (from `canPlayType`). */
+            profile?: components["schemas"]["DeviceProfile"];
+            /** @description Tracks to play (at most 1000), e.g. the current and the next queue entry. */
+            track_ids: number[];
         };
         PersonCreditDto: {
             character?: string | null;
@@ -2771,12 +2981,35 @@ export interface components {
              */
             matched: number;
         };
+        ReplayGainDto: {
+            /** Format: double */
+            album_gain_db?: number | null;
+            /** Format: double */
+            album_peak?: number | null;
+            /** Format: double */
+            track_gain_db?: number | null;
+            /** Format: double */
+            track_peak?: number | null;
+        };
         ScanQueued: {
             /**
              * Format: int64
              * @description Job id, or `null` if a scan of this library is already pending.
              */
             job_id?: number | null;
+        };
+        ScrobbleDto: {
+            /** @description The listen was long enough to count as a play. */
+            counted: boolean;
+            /** Format: int64 */
+            play_count: number;
+        };
+        ScrobbleRequest: {
+            /**
+             * Format: int64
+             * @description How long the track was actually listened to (milliseconds, pauses excluded).
+             */
+            listened_ms: number;
         };
         /** @enum {string} */
         SegmentKind: "intro" | "credits" | "recap";
@@ -3036,6 +3269,72 @@ export interface components {
          * @enum {string}
          */
         Tonemap: "software" | "cuda" | "vpp_qsv" | "vaapi";
+        TrackDto: {
+            album_artist?: string | null;
+            /** Format: int64 */
+            album_artist_id?: number | null;
+            /** Format: int64 */
+            album_id?: number | null;
+            album_title?: string | null;
+            /** @description Track artist(s) as tagged, else the album artist. */
+            artist: string;
+            cover_blurhash?: string | null;
+            /** @description Signed album cover URL, 342 px wide. */
+            cover_url?: string | null;
+            /** Format: int64 */
+            disc_number?: number | null;
+            /** Format: int64 */
+            duration_ms?: number | null;
+            favorite: boolean;
+            /** @description Lyrics are available (`GET /music/tracks/{id}/lyrics`). */
+            has_lyrics: boolean;
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            last_played_at?: number | null;
+            /** Format: int64 */
+            library_id: number;
+            /**
+             * Format: int64
+             * @description Times the signed-in user listened to it.
+             */
+            play_count: number;
+            title: string;
+            /** Format: int64 */
+            track_number?: number | null;
+            /** Format: int64 */
+            year?: number | null;
+        };
+        TrackPage: {
+            items: components["schemas"]["TrackDto"][];
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            offset: number;
+            /** Format: int64 */
+            total: number;
+        };
+        TrackSourceDto: {
+            /** Format: int64 */
+            bitrate?: number | null;
+            codec?: string | null;
+            /** @description Container (file extension) and codec of the original. */
+            container: string;
+            /** Format: int64 */
+            duration_ms?: number | null;
+            /** Format: int64 */
+            file_id: number;
+            method: components["schemas"]["AudioMethod"];
+            /** @description Why the file is converted (empty for Direct Play). */
+            reasons: components["schemas"]["Reason"][];
+            replaygain: components["schemas"]["ReplayGainDto"];
+            /** Format: int64 */
+            sample_rate?: number | null;
+            /** Format: int64 */
+            track_id: number;
+            /** @description Signed URL to play (original file or AAC conversion). */
+            url: string;
+        };
         TranscodeSessionDto: {
             /** Format: int64 */
             file_id: number;
@@ -3167,6 +3466,8 @@ export interface components {
             /** @description fanart.tv personal API key; `null` removes it. */
             fanart_api_key?: string | null;
             language?: string | null;
+            /** @description Switch MusicBrainz / Cover Art Archive lookups for music on or off. */
+            musicbrainz_enabled?: boolean | null;
             /** @description TMDB v3 API key or v4 read access token; `null` removes it. */
             tmdb_api_key?: string | null;
         };
@@ -4429,7 +4730,7 @@ export interface operations {
         parameters: {
             query?: {
                 library_id?: number;
-                /** @description Comma-separated: `movie`, `series`, `season`, `episode`. */
+                /** @description Comma-separated: `movie`, `series`, `season`, `episode`, `artist`, `album`, `track`. */
                 kind?: string;
                 parent_id?: number;
                 series_id?: number;
@@ -4489,7 +4790,7 @@ export interface operations {
         parameters: {
             query?: {
                 library_id?: number;
-                /** @description Comma-separated: `movie`, `series`, `season`, `episode`. */
+                /** @description Comma-separated: `movie`, `series`, `season`, `episode`, `artist`, `album`, `track`. */
                 kind?: string;
                 parent_id?: number;
                 series_id?: number;
@@ -7188,6 +7489,326 @@ export interface operations {
             };
             /** @description Unknown tuner */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getMusicAlbum: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Album item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The album */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlbumDetailDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) album */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getMusicArtist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Artist item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The artist */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtistDetailDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) artist */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getMusicPlayback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MusicPlaybackRequest"];
+            };
+        };
+        responses: {
+            /** @description One source per playable track, in request order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackSourceDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many tracks */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    streamMusicConverted: {
+        parameters: {
+            query?: {
+                /** @description User the URL was issued to, from URLs returned by the API. */
+                u?: number;
+                /** @description Expiry of the signature (unix seconds). */
+                exp?: number;
+                /** @description URL signature. */
+                sig?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Media file id of a track */
+                file_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The converted track */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mp4": unknown;
+                };
+            };
+            /** @description The requested byte range */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mp4": unknown;
+                };
+            };
+            /** @description Neither a valid signature nor a valid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such track file, or no access */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listMusicTracks: {
+        parameters: {
+            query?: {
+                library_id?: number;
+                album_id?: number;
+                /** @description Tracks on the albums of this album artist. */
+                artist_id?: number;
+                /** @description Free-text search over track titles. */
+                search?: string;
+                genre?: string;
+                /** @description Only favorites. */
+                favorite?: boolean;
+                sort?: "index" | "title" | "date_added" | "year" | "relevance";
+                order?: "asc" | "desc";
+                /** @description 1–500, default 100. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of tracks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackPage"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getTrackLyrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Track item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The lyrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LyricsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) track, or no lyrics */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    scrobbleTrack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Track item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScrobbleRequest"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScrobbleDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) track */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Negative duration */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

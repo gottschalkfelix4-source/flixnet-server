@@ -214,7 +214,7 @@ async fn browse_search_letters_and_details() {
     assert_eq!(episode.json["series_title"], "Dark");
     assert_eq!(episode.json["season_title"], "Staffel 1");
 
-    let bad = app.get("/api/v1/items?kind=album", Some(&admin)).await;
+    let bad = app.get("/api/v1/items?kind=podcast", Some(&admin)).await;
     assert_eq!(bad.status, StatusCode::UNPROCESSABLE_ENTITY);
 }
 

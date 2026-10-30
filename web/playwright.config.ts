@@ -54,6 +54,9 @@ export default defineConfig({
         FLIXNET_PATHS__CONFIG_DIR: configDir,
         FLIXNET_CONFIG: join(configDir, 'flixnet.toml'),
         FLIXNET_OPENSUBTITLES_URL: `http://127.0.0.1:${stubPort}/api/v1`,
+        // Music lookups stay local (the stub answers 404).
+        FLIXNET_MUSICBRAINZ_URL: `http://127.0.0.1:${stubPort}/musicbrainz`,
+        FLIXNET_COVERART_URL: `http://127.0.0.1:${stubPort}/coverart`,
       },
     },
   ],

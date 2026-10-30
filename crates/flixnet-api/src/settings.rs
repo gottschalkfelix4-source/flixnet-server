@@ -28,6 +28,8 @@ pub struct MetadataSettingsDto {
     pub language: String,
     /// Country for age ratings, e.g. `DE`.
     pub country: String,
+    /// Music metadata and covers from MusicBrainz and the Cover Art Archive.
+    pub musicbrainz_enabled: bool,
 }
 
 #[derive(Debug, Default, Deserialize, ToSchema)]
@@ -42,6 +44,8 @@ pub struct UpdateMetadataSettings {
     pub fanart_api_key: Option<Option<String>>,
     pub language: Option<String>,
     pub country: Option<String>,
+    /// Switch MusicBrainz / Cover Art Archive lookups for music on or off.
+    pub musicbrainz_enabled: Option<bool>,
 }
 
 fn to_dto(s: &MetadataSettings) -> MetadataSettingsDto {
@@ -50,6 +54,7 @@ fn to_dto(s: &MetadataSettings) -> MetadataSettingsDto {
         has_tmdb_api_key: s.tmdb_api_key.as_deref().is_some_and(|k| !k.is_empty()),
         language: s.language.clone().unwrap_or_else(|| "de-DE".to_owned()),
         country: s.country.clone().unwrap_or_else(|| "DE".to_owned()),
+        musicbrainz_enabled: s.musicbrainz_enabled != Some(false),
     }
 }
 
@@ -138,6 +143,9 @@ async fn update_metadata_settings(
         }
         Some(_) => current.fanart_api_key = None,
         None => {}
+    }
+    if let Some(enabled) = body.musicbrainz_enabled {
+        current.musicbrainz_enabled = Some(enabled);
     }
     settings::set(&state.db, providers::SETTINGS_KEY, &current).await?;
     Ok(Json(to_dto(&current)))

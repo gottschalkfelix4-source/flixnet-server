@@ -105,6 +105,10 @@ impl JobHandler for RefreshMetadata {
         let Some(item) = flixnet_db::items::get(ctx.db(), payload.item_id).await? else {
             return Ok(()); // removed meanwhile
         };
+        // Albums and artists: tags, folder/embedded art, MusicBrainz, Cover Art Archive.
+        if flixnet_db::music::MUSIC_KINDS.contains(&item.kind.as_str()) {
+            return crate::music::refresh(ctx.db(), item.id).await;
+        }
         crate::refresh::refresh_local(ctx.db(), item.id).await?;
         // Movies and series are matched online; seasons/episodes follow their series.
         if matches!(item.kind.as_str(), "movie" | "series")
@@ -157,6 +161,13 @@ impl JobHandler for ProbeFile {
 
     async fn run(&self, ctx: JobContext, payload: ProbePayload) -> anyhow::Result<()> {
         probe_file(ctx.db(), &self.ffprobe, payload.file_id).await?;
+        // Audio has no intros, previews or chapter images.
+        if media::get_file(ctx.db(), payload.file_id)
+            .await?
+            .is_some_and(|f| crate::music::is_audio_file(Path::new(&f.path)))
+        {
+            return Ok(());
+        }
         // Episodes: find the season's intro and credits once its files are probed.
         crate::segments::queue_after_probe(ctx.db(), ctx.queue(), payload.file_id).await?;
         // Heavier analysis follows in the background (trickplay, chapter images).

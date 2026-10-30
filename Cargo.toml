@@ -28,6 +28,7 @@ figment = { version = "0.10", features = ["toml", "env"] }
 hex = "0.4"
 blurhash = "0.2"
 hmac = "0.13"
+lofty = "0.25"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "rayon"] }
 notify = "8.2"
 quick-xml = "0.42"

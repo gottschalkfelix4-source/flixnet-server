@@ -226,7 +226,7 @@ pub enum SortOrder {
 #[into_params(parameter_in = Query)]
 pub struct ItemsQuery {
     pub library_id: Option<i64>,
-    /// Comma-separated: `movie`, `series`, `season`, `episode`.
+    /// Comma-separated: `movie`, `series`, `season`, `episode`, `artist`, `album`, `track`.
     pub kind: Option<String>,
     pub parent_id: Option<i64>,
     pub series_id: Option<i64>,
@@ -461,10 +461,12 @@ fn filter_from(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    if let Some(bad) = kinds
-        .iter()
-        .find(|k| !matches!(k.as_str(), "movie" | "series" | "season" | "episode"))
-    {
+    if let Some(bad) = kinds.iter().find(|k| {
+        !matches!(
+            k.as_str(),
+            "movie" | "series" | "season" | "episode" | "artist" | "album" | "track"
+        )
+    }) {
         return Err(ApiError::validation(format!("Unbekannter Typ „{bad}“.")));
     }
     let letter = match query.letter.as_deref() {

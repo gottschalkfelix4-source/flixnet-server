@@ -215,6 +215,9 @@ async fn every_protected_operation_requires_a_token() {
             // The 128-bit live viewer session id is the capability (livetv_api.rs).
             "GET /api/v1/livetv/sessions/{session}/live.m3u8",
             "GET /api/v1/livetv/sessions/{session}/{segment}",
+            // Signed URL bound to user + file (AAC conversion of a track for <audio>),
+            // or a token (music_api.rs).
+            "GET /api/v1/music/stream/{file_id}",
             "GET /api/v1/setup/status",
             // Signed URL bound to user + file, or a token (playback_api.rs).
             "GET /api/v1/stream/{file_id}",

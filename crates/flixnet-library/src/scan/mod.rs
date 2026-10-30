@@ -4,6 +4,10 @@
 //! compares size/mtime with the database, creates items from parsed names and queues
 //! the expensive work (probing, later metadata and analysis) as separate jobs.
 //! A rescan with no changes writes nothing and queues nothing.
+//!
+//! Music libraries are the exception to "names only": their items come from the
+//! tags, which are read (lofty, no subprocess) for each batch of new or changed files
+//! *before* the batch's write transaction starts.
 
 mod mapping;
 mod walk;
@@ -13,13 +17,15 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use flixnet_core::jobs::{JobOptions, JobQueue, priority};
-use flixnet_db::{Db, items, libraries, media};
+use flixnet_db::music::{AudioTags, TagFields};
+use flixnet_db::{Db, items, libraries, media, music};
 use serde::Serialize;
 
 pub use mapping::{normalize_key, sort_title};
-pub use walk::{FoundFile, walk};
+pub use walk::{FoundFile, walk, walk_audio};
 
 use crate::jobs::{ProbeFile, ProbePayload, queue_refresh};
+use crate::music::tags::{EXPLICIT_AGE, chain, read_tags};
 use crate::parse::{FileRole, classify};
 
 /// Files missing for longer than this are removed (with their orphaned items).
@@ -55,6 +61,7 @@ pub async fn scan_library(
         .with_context(|| format!("library {library_id} does not exist"))?;
     let roots = libraries::paths(db, library_id).await?;
     let mut report = ScanReport::default();
+    let is_music = library.kind == "music";
 
     // 1. Walk every folder (blocking I/O off the async runtime).
     let mut found: Vec<FoundFile> = Vec::new();
@@ -63,7 +70,13 @@ pub async fn scan_library(
         let root_path = PathBuf::from(root);
         let walked = tokio::task::spawn_blocking({
             let root_path = root_path.clone();
-            move || walk(&root_path)
+            move || {
+                if is_music {
+                    walk_audio(&root_path)
+                } else {
+                    walk(&root_path)
+                }
+            }
         })
         .await?;
         match walked {
@@ -163,9 +176,26 @@ pub async fn scan_library(
     let mut to_refresh: Vec<i64> = Vec::new(); // items that got new files
     let mut item_ids: HashMap<String, i64> = HashMap::new();
     for chunk in new_files.chunks(BATCH) {
+        // Music: tags first (file I/O), then the short write transaction.
+        let tags = if is_music {
+            read_chunk_tags(chunk.iter()).await?
+        } else {
+            Vec::new()
+        };
         let mut tx = db.writer().begin().await?;
-        for file in chunk {
-            match import_file(&mut tx, library_id, &library.kind, file, &mut item_ids).await? {
+        for (i, file) in chunk.iter().enumerate() {
+            let imported = match tags.get(i) {
+                Some(Some(tags)) => {
+                    let (file_id, chain) =
+                        import_track(&mut tx, library_id, file, tags, &mut item_ids, None).await?;
+                    Some((file_id, chain.to_vec()))
+                }
+                Some(None) => None,
+                None => {
+                    import_file(&mut tx, library_id, &library.kind, file, &mut item_ids).await?
+                }
+            };
+            match imported {
                 Some((file_id, chain)) => {
                     report.added += 1;
                     to_probe.push((file_id, priority::NEW));
@@ -176,17 +206,28 @@ pub async fn scan_library(
         }
         tx.commit().await?;
     }
-    to_refresh.sort_unstable();
-    to_refresh.dedup();
     for chunk in changed.chunks(BATCH) {
+        // Re-tagged music files may now belong to another album or artist.
+        let tags = if is_music {
+            read_chunk_tags(chunk.iter().map(|(_, f)| f)).await?
+        } else {
+            Vec::new()
+        };
         let mut tx = db.writer().begin().await?;
-        for (id, file) in chunk {
+        for (i, (id, file)) in chunk.iter().enumerate() {
             media::mark_changed(&mut tx, *id, file.size as i64, file.mtime_ms).await?;
+            if let Some(Some(tags)) = tags.get(i) {
+                let (_, chain) =
+                    import_track(&mut tx, library_id, file, tags, &mut item_ids, Some(*id)).await?;
+                to_refresh.extend(chain);
+            }
             report.changed += 1;
             to_probe.push((*id, priority::NEW));
         }
         tx.commit().await?;
     }
+    to_refresh.sort_unstable();
+    to_refresh.dedup();
     if !restored.is_empty() || !missing.is_empty() {
         let mut tx = db.writer().begin().await?;
         for id in &restored {
@@ -232,6 +273,175 @@ pub async fn scan_library(
     libraries::mark_scanned(db, library_id).await?;
     tracing::info!(library = %library.name, ?report, "library scanned");
     Ok(report)
+}
+
+/// Tags of a batch of audio files, read on a blocking thread. `None` for files that
+/// are not imported (macOS `._` resource forks and other hidden files).
+async fn read_chunk_tags<'a>(
+    files: impl Iterator<Item = &'a FoundFile>,
+) -> anyhow::Result<Vec<Option<AudioTags>>> {
+    let files: Vec<(PathBuf, PathBuf)> = files
+        .map(|f| (f.path.clone(), f.relative.clone()))
+        .collect();
+    Ok(tokio::task::spawn_blocking(move || {
+        let mut tags: Vec<Option<AudioTags>> = files
+            .iter()
+            .map(|(path, relative)| {
+                let hidden = relative
+                    .file_name()
+                    .is_some_and(|n| n.to_string_lossy().starts_with('.'));
+                (!hidden).then(|| {
+                    let mut tags = read_tags(path, relative);
+                    tags.has_lyrics |= crate::music::lyrics::has_sidecar(path);
+                    tags
+                })
+            })
+            .collect();
+        mark_compilations(&files, &mut tags);
+        tags
+    })
+    .await?)
+}
+
+/// Compilations without album artist or compilation flag (common in MP3 collections,
+/// where ffmpeg and some taggers write the flag as an unknown `TXXX`): one album in
+/// one folder with several track artists is a compilation, not one album per artist.
+fn mark_compilations(files: &[(PathBuf, PathBuf)], tags: &mut [Option<AudioTags>]) {
+    let mut artists: HashMap<(PathBuf, String), Vec<String>> = HashMap::new();
+    let key = |path: &Path, t: &AudioTags| {
+        (
+            path.parent().map(Path::to_path_buf).unwrap_or_default(),
+            t.album.as_deref().map(normalize_key).unwrap_or_default(),
+        )
+    };
+    for ((path, _), t) in files.iter().zip(tags.iter()) {
+        if let Some(t) = t
+            && t.album_artist.is_none()
+            && !t.compilation
+            && let Some(artist) = &t.artist
+        {
+            // "A feat. B" on an album of A is still A's album.
+            let lower = artist.to_lowercase();
+            let primary = [" feat", " ft.", " featuring", ", "]
+                .iter()
+                .filter_map(|sep| lower.find(sep))
+                .min()
+                .map_or(lower.as_str(), |cut| &lower[..cut])
+                .trim()
+                .to_owned();
+            let seen = artists.entry(key(path, t)).or_default();
+            if !seen.contains(&primary) {
+                seen.push(primary);
+            }
+        }
+    }
+    for ((path, _), t) in files.iter().zip(tags.iter_mut()) {
+        if let Some(t) = t
+            && t.album_artist.is_none()
+            && artists.get(&key(path, t)).is_some_and(|a| a.len() > 1)
+        {
+            t.compilation = true;
+        }
+    }
+}
+
+/// Creates (or finds) artist → album → track for an audio file and inserts the file,
+/// or re-attaches an existing one (`existing`, after a re-tag). Returns the file id
+/// and the artist and album ids (they get a metadata refresh; tracks do not).
+async fn import_track(
+    conn: &mut flixnet_db::SqliteConnection,
+    library_id: i64,
+    file: &FoundFile,
+    tags: &AudioTags,
+    item_ids: &mut HashMap<String, i64>,
+    existing: Option<i64>,
+) -> anyhow::Result<(i64, [i64; 2])> {
+    let specs = chain(tags);
+    let mut ids = [0_i64; 3];
+    let mut parent_id = None;
+    let mut artist_id = None;
+    for (n, spec) in specs.iter().enumerate() {
+        let id = match item_ids.get(&spec.key) {
+            Some(id) => *id,
+            None => {
+                let sort = sort_title(&spec.title);
+                let id = items::upsert(
+                    conn,
+                    &items::NewItem {
+                        library_id,
+                        kind: spec.kind,
+                        parent_id,
+                        series_id: artist_id,
+                        title: &spec.title,
+                        sort_title: &sort,
+                        year: spec.year,
+                        index_number: spec.index_number,
+                        index_end: None,
+                        parent_index_number: spec.parent_index_number,
+                        premiere_date: None,
+                        content_key: &spec.key,
+                    },
+                )
+                .await?;
+                for (provider, value) in &spec.provider_ids {
+                    items::add_provider_id(conn, id, provider, value).await?;
+                }
+                item_ids.insert(spec.key.clone(), id);
+                id
+            }
+        };
+        if spec.kind == "artist" {
+            artist_id = Some(id);
+        }
+        parent_id = Some(id);
+        ids[n] = id;
+    }
+    // Tags are the source of truth for a track (the upsert keeps existing titles).
+    let track = &specs[2];
+    let sort = sort_title(&track.title);
+    music::apply_tag_fields(
+        conn,
+        ids[2],
+        &TagFields {
+            title: &track.title,
+            sort_title: &sort,
+            year: track.year,
+            index_number: track.index_number,
+            parent_index_number: track.parent_index_number,
+            age_rating: tags.explicit.then_some(EXPLICIT_AGE),
+        },
+    )
+    .await?;
+    music::set_genres(conn, ids[2], &tags.genres).await?;
+
+    let file_id = match existing {
+        Some(id) => {
+            music::attach_file(conn, id, ids[2]).await?;
+            id
+        }
+        None => {
+            let path = file.path.to_string_lossy();
+            let relative = file.relative.to_string_lossy().replace('\\', "/");
+            media::insert_file(
+                conn,
+                &media::NewFile {
+                    library_id,
+                    item_id: Some(ids[2]),
+                    path: &path,
+                    relative_path: &relative,
+                    size: file.size as i64,
+                    mtime: file.mtime_ms,
+                    role: "main",
+                    extra_kind: None,
+                    part: None,
+                    parsed_json: None,
+                },
+            )
+            .await?
+        }
+    };
+    music::store_tags(conn, file_id, tags).await?;
+    Ok((file_id, [ids[0], ids[1]]))
 }
 
 /// Creates the item chain for a new file and inserts the file.
