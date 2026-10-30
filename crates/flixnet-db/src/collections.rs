@@ -361,3 +361,110 @@ pub async fn of_item(db: &Db, item_id: i64) -> Result<Vec<i64>> {
     .await?;
     Ok(rows.into_iter().map(|(id,)| id).collect())
 }
+
+/// Provider of theme collections (`kind = 'theme'`), proposed by the LLM.
+pub const THEME_PROVIDER: &str = "llm";
+
+/// A theme over the catalogue ("Zeitreisen", "Heist-Filme") with its members.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ThemeCollection {
+    /// Stable key of the theme (lowercase, from its name).
+    pub slug: String,
+    pub name: String,
+    pub sort_name: String,
+    pub overview: Option<String>,
+    /// Identity keys of the members.
+    pub members: Vec<String>,
+}
+
+/// Replaces all theme collections with `themes` in one transaction: existing themes
+/// (same slug) keep their id, their members are replaced, themes not proposed again
+/// are deleted. Returns the ids in input order.
+pub async fn sync_themes(db: &Db, themes: &[ThemeCollection]) -> Result<Vec<i64>> {
+    let now = now_ms();
+    let mut tx = db.writer().begin().await?;
+    let mut ids = Vec::with_capacity(themes.len());
+    for theme in themes {
+        let (id,): (i64,) = sqlx::query_as(
+            "INSERT INTO collections (kind, provider, provider_id, name, sort_name, overview,
+                                      created_at, updated_at)
+             VALUES ('theme', ?, ?, ?, ?, ?, ?, ?)
+             ON CONFLICT (provider, provider_id) DO UPDATE SET
+                 name = excluded.name,
+                 sort_name = excluded.sort_name,
+                 overview = excluded.overview,
+                 updated_at = excluded.updated_at
+             RETURNING id",
+        )
+        .bind(THEME_PROVIDER)
+        .bind(&theme.slug)
+        .bind(&theme.name)
+        .bind(&theme.sort_name)
+        .bind(&theme.overview)
+        .bind(now)
+        .bind(now)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(DbError::from_unique)?;
+        sqlx::query("DELETE FROM collection_items WHERE collection_id = ?")
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+        for (ord, identity) in theme.members.iter().enumerate() {
+            sqlx::query(
+                "INSERT INTO collection_items (collection_id, identity_key, ord, added_at)
+                 VALUES (?, ?, ?, ?) ON CONFLICT (collection_id, identity_key) DO NOTHING",
+            )
+            .bind(id)
+            .bind(identity)
+            .bind(ord as i64)
+            .bind(now)
+            .execute(&mut *tx)
+            .await?;
+        }
+        ids.push(id);
+    }
+    let existing: Vec<(i64,)> =
+        sqlx::query_as("SELECT id FROM collections WHERE kind = 'theme' AND provider = ?")
+            .bind(THEME_PROVIDER)
+            .fetch_all(&mut *tx)
+            .await?;
+    for (id,) in existing {
+        if !ids.contains(&id) {
+            sqlx::query("DELETE FROM collections WHERE id = ?")
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
+        }
+    }
+    tx.commit().await?;
+    Ok(ids)
+}
+
+/// A movie or series of the whole catalogue, as the theme proposer sees it.
+#[derive(Debug, Clone, PartialEq, sqlx::FromRow)]
+pub struct CatalogEntry {
+    pub id: i64,
+    pub identity_key: String,
+    pub kind: String,
+    pub title: String,
+    pub year: Option<i64>,
+    pub overview: Option<String>,
+    /// Comma-separated genre names.
+    pub genres: Option<String>,
+}
+
+/// Movies and series of all libraries, one per identity, by title.
+pub async fn catalog(db: &Db) -> Result<Vec<CatalogEntry>> {
+    Ok(sqlx::query_as(
+        "SELECT i.id, i.identity_key, i.kind, i.title, i.year, i.overview,
+                (SELECT GROUP_CONCAT(g.name, ', ') FROM item_genres ig
+                   JOIN genres g ON g.id = ig.genre_id WHERE ig.item_id = i.id) AS genres
+         FROM items i
+         WHERE i.kind IN ('movie', 'series') AND i.identity_key IS NOT NULL
+           AND i.id = (SELECT MIN(o.id) FROM items o WHERE o.identity_key = i.identity_key)
+         ORDER BY i.sort_title, i.id",
+    )
+    .fetch_all(db.reader())
+    .await?)
+}

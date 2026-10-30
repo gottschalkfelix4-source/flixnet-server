@@ -16,6 +16,7 @@ flixnet-library = { path = "crates/flixnet-library" }
 flixnet-media = { path = "crates/flixnet-media" }
 flixnet-jellyfin = { path = "crates/flixnet-jellyfin" }
 flixnet-livetv = { path = "crates/flixnet-livetv" }
+flixnet-llm = { path = "crates/flixnet-llm" }
 
 anyhow = "1"
 argon2 = "0.6"

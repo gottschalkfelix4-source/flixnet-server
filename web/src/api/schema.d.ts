@@ -4,6 +4,102 @@
  */
 
 export interface paths {
+    "/api/v1/assistant/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * "Frag Flixnet": one turn of the chat assistant (needs a configured LLM). The
+         *     conversation is kept by the client; only user and assistant messages are taken.
+         */
+        post: operations["assistantChat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/explain/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Why a title fits the viewer, based only on their own (visible) history. */
+        get: operations["explainItem"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/recap/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * "Was bisher geschah": a spoiler-free recap up to the viewer's position. Only
+         *     material from before the position is used: earlier episodes of the series and
+         *     the current item's dialogue up to the position — never anything after it.
+         */
+        get: operations["getRecap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Natural-language search ("lustige Filme aus den 90ern unter 2 Stunden, die ich
+         *     noch nicht gesehen habe"). With an LLM the text becomes a browse filter; without
+         *     one (or when it fails) a keyword search runs instead.
+         */
+        get: operations["naturalSearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Which assistant features are available. */
+        get: operations["getAssistantStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -1321,6 +1417,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/scenes/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search scenes by their dialogue (subtitles and Whisper transcripts). */
+        get: operations["searchScenes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/sessions/active": {
         parameters: {
             query?: never;
@@ -1338,6 +1451,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/llm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** LLM endpoint settings. */
+        get: operations["getLlmSettings"];
+        /** Change the LLM endpoint (Ollama, LM Studio, OpenAI, …). */
+        put: operations["updateLlmSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/llm/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a tiny request to the configured endpoint. */
+        post: operations["testLlmSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/metadata": {
         parameters: {
             query?: never;
@@ -1349,6 +1497,24 @@ export interface paths {
         get: operations["getMetadataSettings"];
         /** Change metadata provider settings. A new TMDB key is checked against TMDB. */
         put: operations["updateMetadataSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/scenes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scene search settings and index size. */
+        get: operations["getSceneSettings"];
+        /** Change Whisper settings and which libraries are transcribed. */
+        put: operations["updateSceneSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1834,6 +2000,14 @@ export interface components {
             poster_url?: string | null;
             thumb_url?: string | null;
         };
+        AssistantStatusDto: {
+            /** @description An LLM endpoint is configured and switched on (chat, generated texts). */
+            llm_enabled: boolean;
+            /** @description Scene search has indexed text. */
+            scene_search: boolean;
+            /** @description Local embeddings are available for semantic search. */
+            semantic: boolean;
+        };
         AudioCodecSupport: {
             /** @description ffprobe codec name: `aac`, `ac3`, `eac3`, `opus`, `flac`, `mp3`, … */
             codec: string;
@@ -1934,6 +2108,41 @@ export interface components {
             start_ms: number;
             title?: string | null;
         };
+        ChatActionDto: {
+            /** Format: int64 */
+            item_id: number;
+            /** @description `play` */
+            kind: string;
+            /**
+             * Format: int64
+             * @description Start position in ms (scene hits), else from the resume point.
+             */
+            start_ms?: number | null;
+            title: string;
+            /** @description Player link, e.g. `/play/12?start=93000`. */
+            url: string;
+        };
+        ChatMessageDto: {
+            content: string;
+            role: components["schemas"]["ChatRole"];
+        };
+        ChatRequest: {
+            /** @description The conversation so far, oldest first, ending with the user's message. */
+            messages: components["schemas"]["ChatMessageDto"][];
+        };
+        ChatResponseDto: {
+            /** @description Playback links the assistant offers. */
+            actions: components["schemas"]["ChatActionDto"][];
+            /** @description The step limit was reached. */
+            hit_limit: boolean;
+            /** @description Titles the tools looked at (for cards under the answer). */
+            items: components["schemas"]["ItemCardDto"][];
+            reply: string;
+            /** @description Requests made to the model. */
+            steps: number;
+        };
+        /** @enum {string} */
+        ChatRole: "user" | "assistant";
         CollectionDetailDto: components["schemas"]["CollectionDto"] & {
             /** @description Visible members in release order. */
             items: components["schemas"]["ItemCardDto"][];
@@ -1949,7 +2158,10 @@ export interface components {
              * @description Members the signed-in user may see.
              */
             item_count: number;
-            /** @description `auto` (from TMDB) or `manual` (curated by an administrator). */
+            /**
+             * @description `auto` (from TMDB), `manual` (curated by an administrator) or `theme`
+             *     (proposed by the LLM over the catalogue).
+             */
             kind: string;
             name: string;
             overview?: string | null;
@@ -2237,6 +2449,14 @@ export interface components {
              */
             message: string;
         };
+        ExplanationDto: {
+            /** @description Titles of the viewer's history the explanation is based on. */
+            based_on: string[];
+            /** @description Phrased by the LLM (else rule-based). */
+            generated: boolean;
+            /** @description "Weil du „X“ und „Y“ gesehen hast …"; `null` without related history. */
+            text?: string | null;
+        };
         GenreDto: {
             /** Format: int64 */
             count: number;
@@ -2270,6 +2490,28 @@ export interface components {
         IdentifyRequest: {
             /** Format: int64 */
             tmdb_id: number;
+        };
+        /** @description The filter as understood, shown as chips above the results. */
+        InterpretedQueryDto: {
+            favorite?: boolean | null;
+            genres: string[];
+            kinds: string[];
+            /** Format: int64 */
+            max_runtime_minutes?: number | null;
+            /** Format: double */
+            min_rating?: number | null;
+            /** Format: int64 */
+            min_runtime_minutes?: number | null;
+            /** @description People found in the library. */
+            people: string[];
+            /** @description `false` = only unwatched. */
+            played?: boolean | null;
+            search_text?: string | null;
+            sort?: string | null;
+            /** Format: int64 */
+            year_from?: number | null;
+            /** Format: int64 */
+            year_to?: number | null;
         };
         InvitationDto: {
             /** Format: int64 */
@@ -2474,6 +2716,25 @@ export interface components {
             /** @description User ids of the viewers (one entry per player). */
             viewers: number[];
         };
+        LlmSettingsDto: {
+            /** @description OpenAI-compatible API root, e.g. `http://localhost:11434/v1`. */
+            base_url?: string | null;
+            /** @description Enabled and complete. */
+            configured: boolean;
+            enabled: boolean;
+            /** @description Whether an API key is stored (it is never returned). */
+            has_api_key: boolean;
+            model?: string | null;
+            /** Format: int64 */
+            timeout_secs: number;
+        };
+        LlmTestDto: {
+            /** Format: int64 */
+            duration_ms: number;
+            /** @description The model's answer, or what went wrong. */
+            message: string;
+            ok: boolean;
+        };
         MediaFileDto: {
             audio: components["schemas"]["AudioStreamDto"][];
             /** Format: int64 */
@@ -2556,6 +2817,16 @@ export interface components {
             has_tmdb_api_key: boolean;
             /** @description Metadata language, e.g. `de-DE`. */
             language: string;
+        };
+        NaturalSearchDto: {
+            interpreted?: components["schemas"]["InterpretedQueryDto"] | null;
+            items: components["schemas"]["ItemCardDto"][];
+            /** @description `llm` (filter from the language model) or `keyword` (fallback). */
+            mode: string;
+            /** @description Why the fallback was used, or what could not be applied. */
+            notice?: string | null;
+            /** Format: int64 */
+            total: number;
         };
         PersonCreditDto: {
             character?: string | null;
@@ -2764,6 +3035,18 @@ export interface components {
          * @enum {string}
          */
         Reason: "container_not_supported" | "video_codec_not_supported" | "video_resolution_not_supported" | "video_bit_depth_not_supported" | "video_range_not_supported" | "bitrate_too_high" | "audio_codec_not_supported" | "audio_channels_not_supported" | "audio_track_not_default" | "subtitle_burn_in";
+        RecapDto: {
+            /** @description The parts it covers ("Staffel 1, Folge 2: …"). */
+            covers: string[];
+            /** @description `llm` (generated), `overviews` (earlier overviews, no LLM) or `empty`. */
+            mode: string;
+            /**
+             * Format: int64
+             * @description The position the recap stops at (ms in the item).
+             */
+            position_ms: number;
+            text?: string | null;
+        };
         RematchDto: {
             /**
              * Format: int64
@@ -2777,6 +3060,59 @@ export interface components {
              * @description Job id, or `null` if a scan of this library is already pending.
              */
             job_id?: number | null;
+        };
+        SceneHitDto: {
+            /** Format: int64 */
+            end_ms: number;
+            /** Format: int64 */
+            file_id: number;
+            item: components["schemas"]["ItemCardDto"];
+            /** @description Player link starting at the scene, e.g. `/play/12?start=93000`. */
+            play_url: string;
+            /** @description The dialogue around the match. */
+            snippet: string;
+            /**
+             * Format: int64
+             * @description Start of the matching dialogue window (ms).
+             */
+            start_ms: number;
+        };
+        SceneLibraryDto: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** @description Whisper transcribes files without subtitles in this library. */
+            transcribe: boolean;
+        };
+        SceneSearchDto: {
+            hits: components["schemas"]["SceneHitDto"][];
+            /** @description The words searched for (after dropping filler words). */
+            terms: string[];
+        };
+        SceneSettingsDto: {
+            /** Format: int64 */
+            chunks: number;
+            /**
+             * Format: int64
+             * @description Files with indexed dialogue.
+             */
+            indexed_files: number;
+            /** @description `auto` or an ISO 639-1 code. */
+            language: string;
+            libraries: components["schemas"]["SceneLibraryDto"][];
+            model: string;
+            models: components["schemas"]["WhisperModelDto"][];
+            /** @description Name of the task that (re)builds the index (`POST /tasks/{name}/run`). */
+            task: string;
+            /** Format: int32 */
+            threads: number;
+            /**
+             * Format: int64
+             * @description Files transcribed by Whisper.
+             */
+            whisper_files: number;
+            /** @description Path of the whisper.cpp CLI (`whisper-cli`); `null` = Whisper off. */
+            whisper_path?: string | null;
         };
         /** @enum {string} */
         SegmentKind: "intro" | "credits" | "recap";
@@ -3162,6 +3498,19 @@ export interface components {
             name?: string | null;
             paths?: string[] | null;
         };
+        UpdateLlmSettings: {
+            /** @description `null` removes the stored key. */
+            api_key?: string | null;
+            /** @description `null` removes it. */
+            base_url?: string | null;
+            enabled?: boolean | null;
+            model?: string | null;
+            /**
+             * Format: int64
+             * @description 5–900 seconds.
+             */
+            timeout_secs?: number | null;
+        };
         UpdateMetadataSettings: {
             country?: string | null;
             /** @description fanart.tv personal API key; `null` removes it. */
@@ -3177,6 +3526,19 @@ export interface components {
         };
         UpdatePreferencesRequest: {
             skip_intro_automatically?: boolean | null;
+        };
+        UpdateSceneSettings: {
+            language?: string | null;
+            model?: string | null;
+            /**
+             * Format: int32
+             * @description 1–64.
+             */
+            threads?: number | null;
+            /** @description Libraries to transcribe (replaces the current choice). */
+            transcribe_library_ids?: number[] | null;
+            /** @description `null` switches Whisper off. */
+            whisper_path?: string | null;
         };
         UpdateSubtitleSettings: {
             /** @description OpenSubtitles.com API key (consumer key); `null` removes it. */
@@ -3298,6 +3660,14 @@ export interface components {
             /** @description What the client plays; copied streams need its support for the codecs. */
             device_profile: components["schemas"]["DeviceProfile"];
         };
+        WhisperModelDto: {
+            name: string;
+            /**
+             * Format: int64
+             * @description Download size in bytes.
+             */
+            size: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -3307,6 +3677,223 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    assistantChat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description The assistant's answer */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatResponseDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No LLM configured */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No user message */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The language model failed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    explainItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id (movie, series or episode) */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The explanation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExplanationDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getRecap: {
+        parameters: {
+            query?: {
+                /** @description Current position in the item (ms); default: the viewer's resume point. */
+                position_ms?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Episode or movie id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The recap */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecapDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The language model failed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    naturalSearch: {
+        parameters: {
+            query?: {
+                /** @description What the viewer wants, in their own words. */
+                q?: string;
+                /** @description 1–50, default 24. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NaturalSearchDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getAssistantStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Available features */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantStatusDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     login: {
         parameters: {
             query?: never;
@@ -7801,6 +8388,51 @@ export interface operations {
             };
         };
     };
+    searchScenes: {
+        parameters: {
+            query?: {
+                /** @description What is said or happens in the scene. */
+                q?: string;
+                /** @description Only in this movie or episode (series/season: its episodes). */
+                item_id?: number;
+                /** @description 1–50, default 20. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Matching scenes, best first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneSearchDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     listActiveSessions: {
         parameters: {
             query?: never;
@@ -7830,6 +8462,142 @@ export interface operations {
             };
             /** @description Not an administrator */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getLlmSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateLlmSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLlmSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid URL or timeout */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    testLlmSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Result of the test request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LlmTestDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Nothing configured */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7918,6 +8686,95 @@ export interface operations {
                 };
             };
             /** @description Invalid key, language or country */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getSceneSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateSceneSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSceneSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid path, model, language or library */
             422: {
                 headers: {
                     [name: string]: unknown;

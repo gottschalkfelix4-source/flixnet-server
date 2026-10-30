@@ -44,7 +44,8 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
 #[derive(Debug, Serialize, ToSchema)]
 pub struct CollectionDto {
     pub id: i64,
-    /// `auto` (from TMDB) or `manual` (curated by an administrator).
+    /// `auto` (from TMDB), `manual` (curated by an administrator) or `theme`
+    /// (proposed by the LLM over the catalogue).
     pub kind: String,
     pub name: String,
     pub overview: Option<String>,
@@ -353,7 +354,11 @@ async fn manual_collection(state: &AppState, id: i64) -> ApiResult<Collection> {
     if collection.kind != "manual" {
         return Err(ApiError::conflict(
             "collection_automatic",
-            "Automatische Sammlungen werden aus TMDB gepflegt.",
+            if collection.kind == "theme" {
+                "Themen-Sammlungen werden automatisch erstellt."
+            } else {
+                "Automatische Sammlungen werden aus TMDB gepflegt."
+            },
         ));
     }
     Ok(collection)

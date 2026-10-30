@@ -132,6 +132,9 @@ pub struct ItemFilter {
     pub person_ids: Vec<i64>,
     /// Only items with (`true`) or without (`false`) a resume point of the viewer.
     pub is_resumable: Option<bool>,
+    /// Runtime bounds in milliseconds (metadata runtime, else the main file's duration).
+    pub min_runtime_ms: Option<i64>,
+    pub max_runtime_ms: Option<i64>,
 }
 
 /// One row of a grid: enough to draw a poster card.
@@ -283,6 +286,16 @@ pub(crate) fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
     }
     if let Some(min) = f.min_rating {
         qb.push(" AND i.community_rating >= ").push_bind(min);
+    }
+    if f.min_runtime_ms.is_some() || f.max_runtime_ms.is_some() {
+        let runtime = " COALESCE(i.runtime_ms, (SELECT MAX(rf.duration_ms) FROM media_files rf
+                          WHERE rf.item_id = i.id AND rf.role = 'main'))";
+        if let Some(min) = f.min_runtime_ms {
+            qb.push(" AND").push(runtime).push(" >= ").push_bind(min);
+        }
+        if let Some(max) = f.max_runtime_ms {
+            qb.push(" AND").push(runtime).push(" <= ").push_bind(max);
+        }
     }
     if let Some(from) = f.year_from {
         qb.push(" AND i.year >= ").push_bind(from);

@@ -79,6 +79,11 @@ impl ApiError {
     pub fn status(&self) -> StatusCode {
         self.status
     }
+
+    /// The (German) message shown to users.
+    pub fn message(&self) -> &str {
+        &self.message
+    }
 }
 
 impl From<flixnet_db::DbError> for ApiError {

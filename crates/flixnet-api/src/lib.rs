@@ -22,6 +22,8 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
 pub mod active_sessions;
+mod ai_settings;
+mod assistant;
 pub mod auth;
 pub mod browse;
 mod collections;
@@ -36,6 +38,7 @@ mod livetv;
 pub mod playback;
 mod playlists;
 pub mod playstate;
+mod scenes;
 mod segments;
 pub mod session;
 mod settings;
@@ -70,6 +73,9 @@ pub struct AppState {
     pub playback: active_sessions::ActiveSessions,
     /// Live TV streams (shared per channel).
     pub livetv: flixnet_livetv::LiveTvManager,
+    /// Local embeddings for semantic search (flixnet-ai), if available; without it
+    /// natural-language and scene search use FTS5 only.
+    pub semantic: Option<Arc<dyn flixnet_llm::semantic::SemanticIndex>>,
 }
 
 /// Long-lived services the API talks to.
@@ -109,7 +115,14 @@ impl AppState {
             subtitles: services.subtitles,
             livetv: services.livetv,
             playback,
+            semantic: None,
         }
+    }
+
+    /// Plugs in a semantic index (local embeddings).
+    pub fn with_semantic(mut self, index: Arc<dyn flixnet_llm::semantic::SemanticIndex>) -> Self {
+        self.semantic = Some(index);
+        self
     }
 }
 
@@ -136,6 +149,7 @@ impl AppState {
         (name = "playlists", description = "Personal and smart playlists"),
         (name = "settings", description = "Server settings (administrators)"),
         (name = "livetv", description = "Live TV: tuners, channels, guide and live playback"),
+        (name = "assistant", description = "Scene search and the optional LLM assistant: natural-language search, explanations, chat, recaps"),
     )
 )]
 struct ApiDoc;
@@ -187,6 +201,9 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, livetv::router())
         .nest(API_PREFIX, segments::router())
         .nest(API_PREFIX, subtitle_search::router())
+        .nest(API_PREFIX, assistant::router())
+        .nest(API_PREFIX, scenes::router())
+        .nest(API_PREFIX, ai_settings::router())
         .split_for_parts()
 }
 

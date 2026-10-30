@@ -12,6 +12,286 @@
     }
   ],
   "paths": {
+    "/api/v1/assistant/chat": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "\"Frag Flixnet\": one turn of the chat assistant (needs a configured LLM). The\nconversation is kept by the client; only user and assistant messages are taken.",
+        "operationId": "assistantChat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The assistant's answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No LLM configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No user message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The language model failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/explain/{id}": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Why a title fits the viewer, based only on their own (visible) history.",
+        "operationId": "explainItem",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id (movie, series or episode)",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The explanation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplanationDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/recap/{id}": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "\"Was bisher geschah\": a spoiler-free recap up to the viewer's position. Only\nmaterial from before the position is used: earlier episodes of the series and\nthe current item's dialogue up to the position — never anything after it.",
+        "operationId": "getRecap",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Episode or movie id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "position_ms",
+            "in": "query",
+            "description": "Current position in the item (ms); default: the viewer's resume point.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The recap",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecapDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The language model failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/search": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Natural-language search (\"lustige Filme aus den 90ern unter 2 Stunden, die ich\nnoch nicht gesehen habe\"). With an LLM the text becomes a browse filter; without\none (or when it fails) a keyword search runs instead.",
+        "operationId": "naturalSearch",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "What the viewer wants, in their own words.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–50, default 24.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NaturalSearchDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant/status": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Which assistant features are available.",
+        "operationId": "getAssistantStatus",
+        "responses": {
+          "200": {
+            "description": "Available features",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantStatusDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [
@@ -6049,6 +6329,78 @@
         }
       }
     },
+    "/api/v1/scenes/search": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Search scenes by their dialogue (subtitles and Whisper transcripts).",
+        "operationId": "searchScenes",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "What is said or happens in the scene.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "query",
+            "description": "Only in this movie or episode (series/season: its episodes).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–50, default 20.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching scenes, best first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneSearchDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sessions/active": {
       "get": {
         "tags": [
@@ -6082,6 +6434,157 @@
           },
           "403": {
             "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/llm": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "LLM endpoint settings.",
+        "operationId": "getLlmSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Change the LLM endpoint (Ollama, LM Studio, OpenAI, …).",
+        "operationId": "updateLlmSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLlmSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid URL or timeout",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/llm/test": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Send a tiny request to the configured endpoint.",
+        "operationId": "testLlmSettings",
+        "responses": {
+          "200": {
+            "description": "Result of the test request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LlmTestDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nothing configured",
             "content": {
               "application/json": {
                 "schema": {
@@ -6182,6 +6685,106 @@
           },
           "422": {
             "description": "Invalid key, language or country",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/scenes": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Scene search settings and index size.",
+        "operationId": "getSceneSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Change Whisper settings and which libraries are transcribed.",
+        "operationId": "updateSceneSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSceneSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid path, model, language or library",
             "content": {
               "application/json": {
                 "schema": {
@@ -7933,6 +8536,28 @@
           }
         }
       },
+      "AssistantStatusDto": {
+        "type": "object",
+        "required": [
+          "llm_enabled",
+          "scene_search",
+          "semantic"
+        ],
+        "properties": {
+          "llm_enabled": {
+            "type": "boolean",
+            "description": "An LLM endpoint is configured and switched on (chat, generated texts)."
+          },
+          "scene_search": {
+            "type": "boolean",
+            "description": "Scene search has indexed text."
+          },
+          "semantic": {
+            "type": "boolean",
+            "description": "Local embeddings are available for semantic search."
+          }
+        }
+      },
       "AudioCodecSupport": {
         "type": "object",
         "required": [
@@ -8280,6 +8905,115 @@
           }
         }
       },
+      "ChatActionDto": {
+        "type": "object",
+        "required": [
+          "kind",
+          "item_id",
+          "title",
+          "url"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`play`"
+          },
+          "start_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Start position in ms (scene hits), else from the resume point."
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "Player link, e.g. `/play/12?start=93000`."
+          }
+        }
+      },
+      "ChatMessageDto": {
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ChatRole"
+          }
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "properties": {
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageDto"
+            },
+            "description": "The conversation so far, oldest first, ending with the user's message."
+          }
+        }
+      },
+      "ChatResponseDto": {
+        "type": "object",
+        "required": [
+          "reply",
+          "actions",
+          "items",
+          "steps",
+          "hit_limit"
+        ],
+        "properties": {
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatActionDto"
+            },
+            "description": "Playback links the assistant offers."
+          },
+          "hit_limit": {
+            "type": "boolean",
+            "description": "The step limit was reached."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemCardDto"
+            },
+            "description": "Titles the tools looked at (for cards under the answer)."
+          },
+          "reply": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "integer",
+            "description": "Requests made to the model.",
+            "minimum": 0
+          }
+        }
+      },
+      "ChatRole": {
+        "type": "string",
+        "enum": [
+          "user",
+          "assistant"
+        ]
+      },
       "CollectionDetailDto": {
         "allOf": [
           {
@@ -8336,7 +9070,7 @@
           },
           "kind": {
             "type": "string",
-            "description": "`auto` (from TMDB) or `manual` (curated by an administrator)."
+            "description": "`auto` (from TMDB), `manual` (curated by an administrator) or `theme`\n(proposed by the LLM over the catalogue)."
           },
           "name": {
             "type": "string"
@@ -9100,6 +9834,33 @@
           }
         }
       },
+      "ExplanationDto": {
+        "type": "object",
+        "required": [
+          "generated",
+          "based_on"
+        ],
+        "properties": {
+          "based_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Titles of the viewer's history the explanation is based on."
+          },
+          "generated": {
+            "type": "boolean",
+            "description": "Phrased by the LLM (else rule-based)."
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "\"Weil du „X“ und „Y“ gesehen hast …\"; `null` without related history."
+          }
+        }
+      },
       "GenreDto": {
         "type": "object",
         "required": [
@@ -9190,6 +9951,96 @@
         "properties": {
           "tmdb_id": {
             "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "InterpretedQueryDto": {
+        "type": "object",
+        "description": "The filter as understood, shown as chips above the results.",
+        "required": [
+          "kinds",
+          "genres",
+          "people"
+        ],
+        "properties": {
+          "favorite": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "kinds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "max_runtime_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "min_rating": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "min_runtime_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "people": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "People found in the library."
+          },
+          "played": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "`false` = only unwatched."
+          },
+          "search_text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "year_from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "year_to": {
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64"
           }
         }
@@ -9824,6 +10675,67 @@
           }
         }
       },
+      "LlmSettingsDto": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "has_api_key",
+          "timeout_secs",
+          "configured"
+        ],
+        "properties": {
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "OpenAI-compatible API root, e.g. `http://localhost:11434/v1`."
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "Enabled and complete."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "has_api_key": {
+            "type": "boolean",
+            "description": "Whether an API key is stored (it is never returned)."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "LlmTestDto": {
+        "type": "object",
+        "required": [
+          "ok",
+          "message",
+          "duration_ms"
+        ],
+        "properties": {
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "type": "string",
+            "description": "The model's answer, or what went wrong."
+          },
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
       "MediaFileDto": {
         "type": "object",
         "required": [
@@ -10067,6 +10979,48 @@
           "language": {
             "type": "string",
             "description": "Metadata language, e.g. `de-DE`."
+          }
+        }
+      },
+      "NaturalSearchDto": {
+        "type": "object",
+        "required": [
+          "mode",
+          "items",
+          "total"
+        ],
+        "properties": {
+          "interpreted": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/InterpretedQueryDto",
+                "description": "The filter the model chose (`llm` mode)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemCardDto"
+            }
+          },
+          "mode": {
+            "type": "string",
+            "description": "`llm` (filter from the language model) or `keyword` (fallback)."
+          },
+          "notice": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Why the fallback was used, or what could not be applied."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -10707,6 +11661,38 @@
           "subtitle_burn_in"
         ]
       },
+      "RecapDto": {
+        "type": "object",
+        "required": [
+          "mode",
+          "position_ms",
+          "covers"
+        ],
+        "properties": {
+          "covers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The parts it covers (\"Staffel 1, Folge 2: …\")."
+          },
+          "mode": {
+            "type": "string",
+            "description": "`llm` (generated), `overviews` (earlier overviews, no LLM) or `empty`."
+          },
+          "position_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The position the recap stops at (ms in the item)."
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "RematchDto": {
         "type": "object",
         "required": [
@@ -10730,6 +11716,151 @@
             ],
             "format": "int64",
             "description": "Job id, or `null` if a scan of this library is already pending."
+          }
+        }
+      },
+      "SceneHitDto": {
+        "type": "object",
+        "required": [
+          "item",
+          "file_id",
+          "start_ms",
+          "end_ms",
+          "snippet",
+          "play_url"
+        ],
+        "properties": {
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "file_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "item": {
+            "$ref": "#/components/schemas/ItemCardDto"
+          },
+          "play_url": {
+            "type": "string",
+            "description": "Player link starting at the scene, e.g. `/play/12?start=93000`."
+          },
+          "snippet": {
+            "type": "string",
+            "description": "The dialogue around the match."
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Start of the matching dialogue window (ms)."
+          }
+        }
+      },
+      "SceneLibraryDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "transcribe"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "transcribe": {
+            "type": "boolean",
+            "description": "Whisper transcribes files without subtitles in this library."
+          }
+        }
+      },
+      "SceneSearchDto": {
+        "type": "object",
+        "required": [
+          "terms",
+          "hits"
+        ],
+        "properties": {
+          "hits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SceneHitDto"
+            }
+          },
+          "terms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The words searched for (after dropping filler words)."
+          }
+        }
+      },
+      "SceneSettingsDto": {
+        "type": "object",
+        "required": [
+          "model",
+          "models",
+          "language",
+          "threads",
+          "libraries",
+          "indexed_files",
+          "chunks",
+          "whisper_files",
+          "task"
+        ],
+        "properties": {
+          "chunks": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "indexed_files": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Files with indexed dialogue."
+          },
+          "language": {
+            "type": "string",
+            "description": "`auto` or an ISO 639-1 code."
+          },
+          "libraries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SceneLibraryDto"
+            }
+          },
+          "model": {
+            "type": "string"
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WhisperModelDto"
+            }
+          },
+          "task": {
+            "type": "string",
+            "description": "Name of the task that (re)builds the index (`POST /tasks/{name}/run`)."
+          },
+          "threads": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "whisper_files": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Files transcribed by Whisper."
+          },
+          "whisper_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Path of the whisper.cpp CLI (`whisper-cli`); `null` = Whisper off."
           }
         }
       },
@@ -11700,6 +12831,46 @@
           }
         }
       },
+      "UpdateLlmSettings": {
+        "type": "object",
+        "properties": {
+          "api_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` removes the stored key."
+          },
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` removes it."
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_secs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "5–900 seconds.",
+            "minimum": 0
+          }
+        }
+      },
       "UpdateMetadataSettings": {
         "type": "object",
         "properties": {
@@ -11767,6 +12938,50 @@
               "boolean",
               "null"
             ]
+          }
+        }
+      },
+      "UpdateSceneSettings": {
+        "type": "object",
+        "properties": {
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "threads": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "1–64.",
+            "minimum": 0
+          },
+          "transcribe_library_ids": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Libraries to transcribe (replaces the current choice)."
+          },
+          "whisper_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` switches Whisper off."
           }
         }
       },
@@ -12146,6 +13361,23 @@
             "description": "What the client plays; copied streams need its support for the codecs."
           }
         }
+      },
+      "WhisperModelDto": {
+        "type": "object",
+        "required": [
+          "name",
+          "size"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Download size in bytes."
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -12217,6 +13449,10 @@
     {
       "name": "livetv",
       "description": "Live TV: tuners, channels, guide and live playback"
+    },
+    {
+      "name": "assistant",
+      "description": "Scene search and the optional LLM assistant: natural-language search, explanations, chat, recaps"
     }
   ]
 }

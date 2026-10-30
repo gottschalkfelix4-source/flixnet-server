@@ -11,6 +11,8 @@ mod process;
 pub mod segments;
 pub mod subtitles;
 pub mod transcode;
+pub mod transcript;
 pub mod trickplay;
+pub mod whisper;
 
 pub use probe::{Chapter, Ffprobe, MediaInfo, ProbeError, StreamInfo, StreamKind};

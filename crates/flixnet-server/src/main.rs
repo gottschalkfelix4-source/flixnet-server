@@ -11,6 +11,7 @@ use flixnet_core::maintenance;
 use flixnet_core::scheduler::TaskRegistry;
 use flixnet_db::Db;
 use flixnet_library::jobs as library_jobs;
+use flixnet_library::scenes as scene_jobs;
 use flixnet_library::segments as segment_jobs;
 use flixnet_library::trickplay as trickplay_jobs;
 use flixnet_livetv::jobs as livetv_jobs;
@@ -110,6 +111,19 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     let db = open_db(&config).await?;
     let events = EventBus::new();
 
+    let transcoder = TranscodeManager::new(
+        &config.media.ffmpeg,
+        config.paths.transcode_dir(),
+        TranscodeSettings::default(),
+    );
+    // Extracting one stream reads the whole file; allow that for long films on slow disks.
+    let subtitles = flixnet_media::subtitles::SubtitleCache::new(
+        &config.media.ffmpeg,
+        config.paths.config_dir.join("cache").join("subtitles"),
+        Duration::from_secs(600),
+        2,
+    );
+
     // Background work: job workers plus the scheduler for recurring tasks.
     let ffprobe = flixnet_media::Ffprobe::new(&config.media.ffprobe);
     let runtime = JobRuntime::new(db.clone(), events.clone())
@@ -140,7 +154,21 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         .register(trickplay_jobs::BackfillThumbnails)
         .register(flixnet_library::subtitles::AutoDownloadSubtitles {
             store_dir: config.paths.config_dir.join("subtitles"),
-        });
+        })
+        // Scene search and the optional LLM features.
+        .register(scene_jobs::IndexSceneText {
+            subtitles: subtitles.clone(),
+            transcoder: transcoder.clone(),
+        })
+        .register(scene_jobs::TranscribeAudio {
+            ffmpeg: config.media.ffmpeg.clone(),
+            models_dir: config.paths.config_dir.join("models").join("whisper"),
+            work_dir: config.paths.transcode_dir().join("whisper"),
+            transcoder: transcoder.clone(),
+            http: flixnet_library::http::client(),
+        })
+        .register(scene_jobs::SceneIndexBackfill)
+        .register(flixnet_llm::themes::GenerateThemeCollections);
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
     let tasks = TaskRegistry::new(
@@ -151,6 +179,8 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             .chain(segment_jobs::tasks())
             .chain(trickplay_jobs::tasks())
             .chain(flixnet_library::subtitles::tasks())
+            .chain(scene_jobs::tasks())
+            .chain(flixnet_llm::themes::tasks())
             .collect(),
     );
     let stop_scheduler = CancellationToken::new();
@@ -178,11 +208,6 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         None
     };
 
-    let transcoder = TranscodeManager::new(
-        &config.media.ffmpeg,
-        config.paths.transcode_dir(),
-        TranscodeSettings::default(),
-    );
     // Testing the GPU takes seconds; transcodes use software until it is done.
     tokio::spawn({
         let transcoder = transcoder.clone();
@@ -208,13 +233,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         watcher,
         transcoder: transcoder.clone(),
         ffprobe: flixnet_media::Ffprobe::new(&config.media.ffprobe),
-        // Extracting one stream reads the whole file; allow that for long films on slow disks.
-        subtitles: flixnet_media::subtitles::SubtitleCache::new(
-            &config.media.ffmpeg,
-            config.paths.config_dir.join("cache").join("subtitles"),
-            Duration::from_secs(600),
-            2,
-        ),
+        subtitles: subtitles.clone(),
         livetv: livetv.clone(),
     };
     let jellyfin = config.jellyfin.clone();
