@@ -130,6 +130,12 @@ pub struct CreateUserRequest {
     #[serde(default)]
     pub is_hidden: bool,
     pub max_age_rating: Option<i64>,
+    /// With an age limit: show content without an age rating anyway.
+    #[serde(default)]
+    pub allow_unrated: bool,
+    /// Genres to hide from the profile.
+    #[serde(default)]
+    pub blocked_genres: Vec<String>,
 }
 
 /// Every field is optional; `null` clears nullable fields (password, PIN, age limit).
@@ -148,6 +154,10 @@ pub struct UpdateUserRequest {
     #[serde(default, deserialize_with = "validate::double_option")]
     #[schema(value_type = Option<String>, nullable)]
     pub pin: Option<Option<String>>,
+    /// With an age limit: show content without an age rating anyway.
+    pub allow_unrated: Option<bool>,
+    /// Genres to hide from the profile (replaces the list; `[]` clears it).
+    pub blocked_genres: Option<Vec<String>>,
 }
 
 /// The signed-in user.
@@ -354,6 +364,7 @@ async fn create_user(
 ) -> ApiResult<(StatusCode, Json<UserDto>)> {
     let name = validate::name(&body.name)?;
     validate::age_rating(body.max_age_rating)?;
+    let blocked_genres = validate::genre_list(&body.blocked_genres)?;
     if body.is_admin && body.password.is_none() {
         return Err(ApiError::validation(
             "Administratoren brauchen ein Passwort.",
@@ -387,6 +398,21 @@ async fn create_user(
     )
     .await
     .map_err(name_taken)?;
+    let user = if body.allow_unrated || blocked_genres.is_some() {
+        users::update(
+            &state.db,
+            user.id,
+            &users::UserPatch {
+                allow_unrated: Some(body.allow_unrated),
+                blocked_genres_json: Some(blocked_genres.as_deref()),
+                ..Default::default()
+            },
+        )
+        .await?
+        .unwrap_or(user)
+    } else {
+        user
+    };
     tracing::info!(user = %user.name, admin = user.is_admin, "user created");
     Ok((StatusCode::CREATED, Json(user.into())))
 }
@@ -422,6 +448,11 @@ async fn update_user(
     if let Some(age) = body.max_age_rating {
         validate::age_rating(age)?;
     }
+    let blocked_genres = body
+        .blocked_genres
+        .as_deref()
+        .map(validate::genre_list)
+        .transpose()?;
     let will_be_admin = body.is_admin.unwrap_or(existing.is_admin);
     if existing.is_admin && !will_be_admin && users::admin_count(&state.db).await? <= 1 {
         return Err(ApiError::conflict(
@@ -466,6 +497,8 @@ async fn update_user(
             max_age_rating: body.max_age_rating,
             password_hash: password_hash.as_ref().map(|h| h.as_deref()),
             pin_hash: pin_hash.as_ref().map(|h| h.as_deref()),
+            allow_unrated: body.allow_unrated,
+            blocked_genres_json: blocked_genres.as_ref().map(|g| g.as_deref()),
         },
     )
     .await

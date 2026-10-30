@@ -221,21 +221,22 @@ pub async fn events(db: &Db, user_id: i64) -> Result<Vec<WatchEvent>> {
     .await?)
 }
 
-/// What the viewer may see: libraries and content age limit.
+/// What the viewer may see: libraries and parental controls.
 #[derive(Debug, Clone, Default)]
 pub struct Visibility {
     pub library_ids: Vec<i64>,
-    pub max_age: Option<i64>,
+    pub restriction: crate::browse::Restriction,
 }
 
 impl Visibility {
     fn filter(&self, kinds: &[&str]) -> ItemFilter {
-        ItemFilter {
+        let mut filter = ItemFilter {
             library_ids: self.library_ids.clone(),
             kinds: kinds.iter().map(|k| (*k).to_owned()).collect(),
-            max_age: self.max_age,
             ..Default::default()
-        }
+        };
+        filter.restrict(&self.restriction);
+        filter
     }
 }
 
@@ -366,7 +367,7 @@ pub async fn next_up(
                 db,
                 next.episode_id,
                 &visibility.library_ids,
-                visibility.max_age,
+                &visibility.restriction,
             )
             .await?
         {

@@ -40,6 +40,7 @@ mod segments;
 pub mod session;
 mod settings;
 pub mod signing;
+mod subtitle_search;
 mod system;
 pub mod tracks;
 mod transcode;
@@ -185,6 +186,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, settings::router())
         .nest(API_PREFIX, livetv::router())
         .nest(API_PREFIX, segments::router())
+        .nest(API_PREFIX, subtitle_search::router())
         .split_for_parts()
 }
 

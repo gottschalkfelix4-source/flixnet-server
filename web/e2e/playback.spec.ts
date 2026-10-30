@@ -45,12 +45,19 @@ async function api(page: Page, path: string): Promise<unknown> {
   }, path)
 }
 
-async function openPlayer(page: Page, title: string) {
+/** Opens the player for a movie and returns its item id. */
+async function openPlayer(page: Page, title: string): Promise<number> {
   await page.goto(`/search?q=${title}`)
   await page.getByRole('region', { name: 'Filme' }).getByTestId('poster-card').click()
   await page.getByRole('link', { name: 'Abspielen' }).click()
   await expect(page).toHaveURL(/\/play\/\d+$/)
   await expect(page.getByTestId('player-title')).toHaveText(title)
+  return Number(new URL(page.url()).pathname.split('/').pop())
+}
+
+/** Transcode sessions of one item (other specs may play other items meanwhile). */
+async function sessionsOf(page: Page, itemId: number) {
+  return ((await api(page, '/api/v1/transcode/sessions')) as { item_id: number }[]).filter((s) => s.item_id === itemId)
 }
 
 test.describe.configure({ mode: 'serial' })
@@ -89,7 +96,7 @@ test('direct play streams the original file with range requests', async ({ page 
 // Milestone 4.3 gate: HEVC 10-bit plays in a browser without HEVC, a seek to 80 %
 // plays within 3 s, and closing the player leaves no ffmpeg running.
 test('HEVC 10-bit is transcoded to HLS, seeks fast and stops on close', async ({ page }) => {
-  await openPlayer(page, HEVC)
+  const itemId = await openPlayer(page, HEVC)
   await expect(page.getByTestId('play-method')).toHaveText('Transcode')
 
   const video = page.getByTestId('player-video')
@@ -99,8 +106,7 @@ test('HEVC 10-bit is transcoded to HLS, seeks fast and stops on close', async ({
   })
   await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 15_000 }).toBeGreaterThan(1)
   expect(await video.evaluate((v: HTMLVideoElement) => Math.round(v.duration))).toBe(60)
-  const sessions = (await api(page, '/api/v1/transcode/sessions')) as { transcoding: boolean }[]
-  expect(sessions).toHaveLength(1)
+  expect(await sessionsOf(page, itemId)).toHaveLength(1)
 
   // Seek to 80 %: playing again at the new position within 3 seconds.
   const seekMs = await video.evaluate(async (v: HTMLVideoElement) => {
@@ -121,11 +127,11 @@ test('HEVC 10-bit is transcoded to HLS, seeks fast and stops on close', async ({
   // Closing the player ends the session and its ffmpeg.
   await page.getByRole('button', { name: 'Zurück' }).click()
   await expect(page.getByRole('heading', { name: HEVC })).toBeVisible()
-  await expect.poll(() => api(page, '/api/v1/transcode/sessions'), { timeout: 5_000 }).toEqual([])
+  await expect.poll(() => sessionsOf(page, itemId), { timeout: 5_000 }).toEqual([])
 })
 
 test('H.264 with AC-3 is remuxed: video copied on keyframes, audio converted', async ({ page }) => {
-  await openPlayer(page, REMUX)
+  const itemId = await openPlayer(page, REMUX)
   await expect(page.getByTestId('play-method')).toHaveText('Remux')
 
   const video = page.getByTestId('player-video')
@@ -154,7 +160,7 @@ test('H.264 with AC-3 is remuxed: video copied on keyframes, audio converted', a
 
   await page.getByRole('button', { name: 'Zurück' }).click()
   await expect(page.getByRole('heading', { name: REMUX })).toBeVisible()
-  await expect.poll(() => api(page, '/api/v1/transcode/sessions'), { timeout: 5_000 }).toEqual([])
+  await expect.poll(() => sessionsOf(page, itemId), { timeout: 5_000 }).toEqual([])
 })
 
 // Milestone 4.6: an MP4 (H.264/AAC, so Direct Play) with German and English audio and

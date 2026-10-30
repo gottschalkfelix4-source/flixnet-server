@@ -1,6 +1,6 @@
 import { Link, Navigate, useParams, useSearch } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { Check, ChevronLeft, Heart, Layers, RefreshCw, Search, Star } from 'lucide-react'
+import { Captions, Check, ChevronLeft, Heart, Layers, RefreshCw, Search, Star } from 'lucide-react'
 import { useState } from 'react'
 import { type ItemCard, type ItemDetail, useItem, useItems, useRefreshItem, useSetFavorite, useSetPlayed } from '@/api/queries/items'
 import { AddToCollectionDialog } from '@/components/media/AddToCollectionDialog'
@@ -12,6 +12,7 @@ import { IdentifyDialog } from '@/components/media/IdentifyDialog'
 import { PlayActions } from '@/components/media/PlayActions'
 import { Row } from '@/components/media/Row'
 import { SegmentsPanel } from '@/components/media/SegmentsPanel'
+import { SubtitleSearchDialog } from '@/components/media/SubtitleSearchDialog'
 import { episodeLabel, formatBadges, formatRuntime, languageName } from '@/lib/media'
 import { useSession } from '@/lib/session'
 import { NotFoundPage } from './NotFoundPage'
@@ -53,6 +54,7 @@ function Header({ item }: { item: ItemDetail }) {
   const refresh = useRefreshItem()
   const [identifying, setIdentifying] = useState(false)
   const [collecting, setCollecting] = useState(false)
+  const [searchingSubtitles, setSearchingSubtitles] = useState(false)
   const badges = formatBadges(item)
   const runtime = formatRuntime(item.runtime_ms)
   const label = episodeLabel(item)
@@ -165,9 +167,15 @@ function Header({ item }: { item: ItemDetail }) {
                 </IconToggle>
               </>
             )}
+            {session?.user.is_admin && (item.kind === 'movie' || item.kind === 'episode') && item.files.length > 0 && (
+              <IconToggle active={false} label="Untertitel suchen" onClick={() => setSearchingSubtitles(true)}>
+                <Captions className="size-5" />
+              </IconToggle>
+            )}
           </div>
         </div>
       </div>
+      {searchingSubtitles && <SubtitleSearchDialog item={item} onClose={() => setSearchingSubtitles(false)} />}
       {identifying && <IdentifyDialog itemId={item.id} title={item.title} onClose={() => setIdentifying(false)} />}
       {collecting && <AddToCollectionDialog item={item} onClose={() => setCollecting(false)} />}
     </section>

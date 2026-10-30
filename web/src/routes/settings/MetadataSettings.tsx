@@ -19,6 +19,10 @@ const COUNTRIES = [
   { value: 'CH', label: 'Schweiz' },
   { value: 'US', label: 'USA (MPAA)' },
   { value: 'GB', label: 'Großbritannien (BBFC)' },
+  { value: 'FR', label: 'Frankreich' },
+  { value: 'NL', label: 'Niederlande (Kijkwijzer)' },
+  { value: 'ES', label: 'Spanien' },
+  { value: 'IT', label: 'Italien' },
 ]
 
 function FanartSection({ hasKey }: { hasKey: boolean }) {

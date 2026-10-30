@@ -21,6 +21,74 @@ pub enum Sort {
     Index,
 }
 
+/// Parental controls of a profile (Jugendschutz): what it must not see.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Restriction {
+    /// Maximum age rating (`None` = no age limit).
+    pub max_age: Option<i64>,
+    /// With an age limit: content without an age rating stays visible (default: hidden).
+    pub allow_unrated: bool,
+    /// Hidden genres; a series' genres apply to its seasons and episodes.
+    pub blocked_genres: Vec<String>,
+}
+
+impl Restriction {
+    /// Restriction from the stored profile columns (`blocked_genres_json` is a JSON
+    /// array of names; anything unreadable counts as no blocked genre).
+    pub fn from_profile(
+        max_age: Option<i64>,
+        allow_unrated: bool,
+        blocked_genres_json: Option<&str>,
+    ) -> Self {
+        Self {
+            max_age,
+            allow_unrated,
+            blocked_genres: blocked_genres_json
+                .and_then(|json| serde_json::from_str::<Vec<String>>(json).ok())
+                .unwrap_or_default(),
+        }
+    }
+
+    /// Whether anything is hidden at all.
+    pub fn is_restricted(&self) -> bool {
+        self.max_age.is_some() || !self.blocked_genres.is_empty()
+    }
+
+    /// Whether `self` hides at least everything `other` hides, i.e. switching from a
+    /// profile with `other` to one with `self` does not widen what can be watched.
+    pub fn at_least_as_strict_as(&self, other: &Restriction) -> bool {
+        let age_ok = match (self.max_age, other.max_age) {
+            (_, None) => true,
+            (None, Some(_)) => false,
+            (Some(mine), Some(theirs)) => {
+                mine <= theirs && (!self.allow_unrated || other.allow_unrated)
+            }
+        };
+        age_ok
+            && other.blocked_genres.iter().all(|g| {
+                self.blocked_genres
+                    .iter()
+                    .any(|mine| mine.eq_ignore_ascii_case(g))
+            })
+    }
+}
+
+/// An age limit alone (the profile's other options at their defaults).
+impl From<Option<i64>> for Restriction {
+    fn from(max_age: Option<i64>) -> Self {
+        Self {
+            max_age,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<&Restriction> for Restriction {
+    fn from(r: &Restriction) -> Self {
+        r.clone()
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ItemFilter {
     /// Libraries to look in (the caller restricts this to what the user may see).
@@ -35,8 +103,13 @@ pub struct ItemFilter {
     pub year_to: Option<i64>,
     /// `a`–`z`, or `#` for everything else.
     pub letter: Option<char>,
-    /// Content age limit of the viewer; unrated content is hidden when set.
+    /// Content age limit of the viewer; unrated content is hidden when set (unless
+    /// `allow_unrated`). Set all three parental fields with [`ItemFilter::restrict`].
     pub max_age: Option<i64>,
+    /// With `max_age`: unrated content stays visible.
+    pub allow_unrated: bool,
+    /// Genres hidden from the viewer (parental controls).
+    pub blocked_genres: Vec<String>,
     /// The viewer, for watched/favorite state on cards and filters.
     pub user_id: Option<i64>,
     pub is_played: Option<bool>,
@@ -239,11 +312,37 @@ pub(crate) fn push_filters(qb: &mut QueryBuilder<Sqlite>, f: &ItemFilter) {
             .push(" AND ud.identity_key = i.identity_key AND ud.favorite = 1)");
     }
     if let Some(max_age) = f.max_age {
-        // Episodes and seasons inherit the series rating; unrated content is hidden.
+        // Episodes and seasons inherit the series rating. Unrated content counts as
+        // age 0 when allowed, otherwise as older than any limit.
         qb.push(
-            " AND COALESCE(i.age_rating, (SELECT s.age_rating FROM items s WHERE s.id = i.series_id)) <= ",
+            " AND COALESCE(i.age_rating, (SELECT s.age_rating FROM items s WHERE s.id = i.series_id), ",
         )
+        .push_bind(if f.allow_unrated { 0_i64 } else { 1000 })
+        .push(") <= ")
         .push_bind(max_age);
+    }
+    if !f.blocked_genres.is_empty() {
+        // The item's own genres and those of its series (seasons and episodes rarely
+        // carry genres of their own).
+        qb.push(
+            " AND NOT EXISTS (SELECT 1 FROM item_genres bg JOIN genres g ON g.id = bg.genre_id
+                              WHERE (bg.item_id = i.id OR bg.item_id = i.series_id)
+                                AND g.name IN (",
+        );
+        let mut names = qb.separated(", ");
+        for genre in &f.blocked_genres {
+            names.push_bind(genre.clone());
+        }
+        qb.push("))");
+    }
+}
+
+impl ItemFilter {
+    /// Applies a profile's parental controls.
+    pub fn restrict(&mut self, r: &Restriction) {
+        self.max_age = r.max_age;
+        self.allow_unrated = r.allow_unrated;
+        self.blocked_genres = r.blocked_genres.clone();
     }
 }
 
@@ -394,24 +493,25 @@ pub async fn letters(db: &Db, f: &ItemFilter) -> Result<Vec<(char, i64)>> {
         .collect())
 }
 
-/// Genres used in the given libraries, with counts.
-pub async fn genres(db: &Db, library_ids: &[i64]) -> Result<Vec<(String, i64)>> {
+/// Genres used in the given libraries, counting the items the viewer may see (genres
+/// with nothing visible are left out).
+pub async fn genres(
+    db: &Db,
+    library_ids: &[i64],
+    restriction: impl Into<Restriction>,
+) -> Result<Vec<(String, i64)>> {
+    let mut filter = ItemFilter {
+        library_ids: library_ids.to_vec(),
+        ..Default::default()
+    };
+    filter.restrict(&restriction.into());
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(
         "SELECT g.name, COUNT(*) AS n FROM genres g
          JOIN item_genres ig ON ig.genre_id = g.id
-         JOIN items i ON i.id = ig.item_id
-         WHERE i.library_id IN (",
+         JOIN items i ON i.id = ig.item_id",
     );
-    {
-        let mut ids = qb.separated(", ");
-        for id in library_ids {
-            ids.push_bind(*id);
-        }
-        if library_ids.is_empty() {
-            ids.push("NULL");
-        }
-    }
-    qb.push(") GROUP BY g.id ORDER BY g.name");
+    push_filters(&mut qb, &filter);
+    qb.push(" GROUP BY g.id ORDER BY g.name");
     Ok(qb.build_query_as().fetch_all(db.reader()).await?)
 }
 
@@ -504,19 +604,20 @@ pub async fn people(
     Ok((rows, total))
 }
 
-/// Is a single item visible under the given restrictions?
+/// Is a single item visible under the given restrictions? `restriction` is a
+/// profile's [`Restriction`] (or just an age limit).
 pub async fn is_visible(
     db: &Db,
     item_id: i64,
     library_ids: &[i64],
-    max_age: Option<i64>,
+    restriction: impl Into<Restriction>,
 ) -> Result<bool> {
-    let filter = ItemFilter {
+    let mut filter = ItemFilter {
         library_ids: library_ids.to_vec(),
-        max_age,
         limit: 1,
         ..Default::default()
     };
+    filter.restrict(&restriction.into());
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT COUNT(*) FROM items i");
     push_filters(&mut qb, &filter);
     qb.push(" AND i.id = ").push_bind(item_id);

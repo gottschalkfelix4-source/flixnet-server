@@ -351,7 +351,7 @@ async fn visibility(
     };
     Ok(Some(Visibility {
         library_ids,
-        max_age: user.max_age_rating,
+        restriction: user.restriction.clone(),
     }))
 }
 
@@ -431,7 +431,7 @@ async fn next_up(
                     db,
                     next.episode_id,
                     &visible_libraries(&state.app, &jf.user, None).await?,
-                    jf.user.max_age_rating,
+                    &jf.user.restriction,
                 )
                 .await? =>
             {

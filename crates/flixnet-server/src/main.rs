@@ -137,7 +137,10 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             ffmpeg: config.media.ffmpeg.clone(),
             cache_dir: config.paths.config_dir.join("cache"),
         })
-        .register(trickplay_jobs::BackfillThumbnails);
+        .register(trickplay_jobs::BackfillThumbnails)
+        .register(flixnet_library::subtitles::AutoDownloadSubtitles {
+            store_dir: config.paths.config_dir.join("subtitles"),
+        });
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
     let tasks = TaskRegistry::new(
@@ -147,6 +150,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             .chain(livetv_jobs::tasks())
             .chain(segment_jobs::tasks())
             .chain(trickplay_jobs::tasks())
+            .chain(flixnet_library::subtitles::tasks())
             .collect(),
     );
     let stop_scheduler = CancellationToken::new();

@@ -9,6 +9,7 @@ import { LibrariesSettings } from './LibrariesSettings'
 import { LiveTvSettings } from './LiveTvSettings'
 import { MetadataSettings } from './MetadataSettings'
 import { SessionsSettings } from './SessionsSettings'
+import { SubtitleSettings } from './SubtitleSettings'
 import { SETTINGS_TABS as TABS } from './tabs'
 import { TranscodingSettings } from './TranscodingSettings'
 import { UsersSettings } from './UsersSettings'
@@ -42,6 +43,7 @@ export function SettingsPage() {
         {active === 'account' && <AccountSettings />}
         {active === 'libraries' && <LibrariesSettings />}
         {active === 'metadata' && <MetadataSettings />}
+        {active === 'subtitles' && <SubtitleSettings />}
         {active === 'transcoding' && <TranscodingSettings />}
         {active === 'livetv' && <LiveTvSettings />}
         {active === 'users' && <UsersSettings />}

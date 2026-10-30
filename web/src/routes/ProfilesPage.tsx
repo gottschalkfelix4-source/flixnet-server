@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Lock, LockKeyhole } from 'lucide-react'
+import { Ban, Lock, LockKeyhole } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import type { Schemas } from '@/api/client'
 import { useProfiles, useSwitchProfile } from '@/api/queries/users'
@@ -18,10 +18,14 @@ export function ProfilesPage() {
   const switchProfile = useSwitchProfile()
   const navigate = useNavigate()
   const [locked, setLocked] = useState<Profile | null>(null)
+  const [blocked, setBlocked] = useState<Profile | null>(null)
 
   function choose(profile: Profile) {
+    setBlocked(null)
     if (profile.is_current) {
       void navigate({ to: '/' })
+    } else if (profile.unlock === 'locked') {
+      setBlocked(profile)
     } else if (profile.unlock === 'none') {
       switchProfile.mutate({ user_id: profile.id }, { onSuccess: () => navigate({ to: '/' }) })
     } else {
@@ -56,6 +60,8 @@ export function ProfilesPage() {
                   <span className="absolute -right-2 -bottom-2 rounded-full border border-line bg-surface p-1.5 text-muted">
                     {profile.unlock === 'pin' ? (
                       <Lock className="size-4" aria-label="PIN-geschützt" />
+                    ) : profile.unlock === 'locked' ? (
+                      <Ban className="size-4" aria-label="Gesperrt" />
                     ) : (
                       <LockKeyhole className="size-4" aria-label="Passwort-geschützt" />
                     )}
@@ -71,6 +77,12 @@ export function ProfilesPage() {
         ))}
       </ul>
       <FormError error={profiles.error ?? (locked ? null : switchProfile.error)} />
+      {blocked && (
+        <p role="alert" className="mt-6 max-w-md text-center text-sm text-muted">
+          Zu „{blocked.name}“ kann von diesem Profil aus nicht gewechselt werden: Es hat weniger
+          Jugendschutz-Beschränkungen, aber keine PIN. Ein Administrator kann eine PIN festlegen.
+        </p>
+      )}
 
       <UnlockDialog
         profile={locked}

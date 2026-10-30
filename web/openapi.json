@@ -2974,6 +2974,242 @@
         }
       }
     },
+    "/api/v1/items/{id}/subtitles/download": {
+      "post": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Download a subtitle from OpenSubtitles for a movie or episode (administrators).",
+        "description": "Saved next to the media file when its folder is writable, otherwise in the config\ndirectory; either way it is a subtitle track of the file right away.",
+        "operationId": "downloadSubtitle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Movie or episode id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DownloadSubtitleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Downloaded and added as a track",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadedSubtitleDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such movie/episode with a file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No OpenSubtitles key configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid language",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or daily download quota reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "OpenSubtitles failed or rejected the key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/subtitles/search": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Search OpenSubtitles for subtitles of a movie or episode (administrators).",
+        "operationId": "searchSubtitles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Movie or episode id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "description": "ISO 639-1 language (`de`, `en`, `pt-br`).",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "query",
+            "description": "Version of the item (media file id); default: the first main file.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching subtitles, best first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubtitleSearchDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such movie/episode with a file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No OpenSubtitles key configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid language",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "OpenSubtitles rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "OpenSubtitles failed or rejected the key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/jobs": {
       "get": {
         "tags": [
@@ -5957,6 +6193,106 @@
         }
       }
     },
+    "/api/v1/settings/subtitles": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "OpenSubtitles settings.",
+        "operationId": "getSubtitleSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubtitleSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Change OpenSubtitles settings. A new key or login is checked against OpenSubtitles.",
+        "operationId": "updateSubtitleSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSubtitleSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubtitleSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid key, login or languages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/setup": {
       "post": {
         "tags": [
@@ -8226,6 +8562,17 @@
           "name"
         ],
         "properties": {
+          "allow_unrated": {
+            "type": "boolean",
+            "description": "With an age limit: show content without an age rating anyway."
+          },
+          "blocked_genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Genres to hide from the profile."
+          },
           "is_admin": {
             "type": "boolean"
           },
@@ -8483,6 +8830,84 @@
           "url": {
             "type": "string",
             "description": "Address to add the device with."
+          }
+        }
+      },
+      "DownloadSubtitleRequest": {
+        "type": "object",
+        "required": [
+          "subtitle_file_id",
+          "language"
+        ],
+        "properties": {
+          "file_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Version of the item (media file id); default: the first main file."
+          },
+          "forced": {
+            "type": "boolean"
+          },
+          "hearing_impaired": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": "string",
+            "description": "ISO 639-1 language of the subtitle (`de`)."
+          },
+          "release": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Release name from the search, kept for reference."
+          },
+          "subtitle_file_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "`subtitle_file_id` from the search."
+          }
+        }
+      },
+      "DownloadedSubtitleDto": {
+        "type": "object",
+        "required": [
+          "stream_index",
+          "file_id",
+          "language",
+          "file_name",
+          "saved_in_library"
+        ],
+        "properties": {
+          "file_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "remaining_downloads": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Downloads left today, if OpenSubtitles said."
+          },
+          "saved_in_library": {
+            "type": "boolean",
+            "description": "`true`: saved next to the media file; `false`: in Flixnet's subtitle store\n(the library folder is not writable)."
+          },
+          "stream_index": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The new subtitle track (`subtitle_stream_index` in playback info)."
           }
         }
       },
@@ -10529,6 +10954,106 @@
           "transcode"
         ]
       },
+      "SubtitleCandidateDto": {
+        "type": "object",
+        "required": [
+          "subtitle_file_id",
+          "download_count",
+          "rating",
+          "votes",
+          "hearing_impaired",
+          "foreign_parts_only",
+          "hd",
+          "from_trusted",
+          "machine_translated",
+          "moviehash_match",
+          "match_score"
+        ],
+        "properties": {
+          "download_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "file_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "foreign_parts_only": {
+            "type": "boolean",
+            "description": "Translates only foreign-language parts."
+          },
+          "fps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "from_trusted": {
+            "type": "boolean"
+          },
+          "hd": {
+            "type": "boolean"
+          },
+          "hearing_impaired": {
+            "type": "boolean"
+          },
+          "language": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "machine_translated": {
+            "type": "boolean",
+            "description": "Machine or AI translated."
+          },
+          "match_score": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How well the release fits the file, 0–100 (100 = hash match)."
+          },
+          "moviehash_match": {
+            "type": "boolean",
+            "description": "Made for exactly this file (same OpenSubtitles hash)."
+          },
+          "rating": {
+            "type": "number",
+            "format": "double",
+            "description": "Rating 0–10 (0 = none yet)."
+          },
+          "release": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Release the subtitle was made for."
+          },
+          "subtitle_file_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "OpenSubtitles file id, for `downloadSubtitle`."
+          },
+          "upload_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "votes": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "SubtitleDelivery": {
         "type": "string",
         "enum": [
@@ -10549,6 +11074,75 @@
           "stream_index": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "SubtitleSearchDto": {
+        "type": "object",
+        "required": [
+          "file_id",
+          "file_name",
+          "results"
+        ],
+        "properties": {
+          "file_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The media file searched for."
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "moviehash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "OpenSubtitles hash of the file, if it could be read."
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubtitleCandidateDto"
+            },
+            "description": "Best matches first."
+          }
+        }
+      },
+      "SubtitleSettingsDto": {
+        "type": "object",
+        "required": [
+          "has_api_key",
+          "has_password",
+          "auto_download",
+          "languages"
+        ],
+        "properties": {
+          "auto_download": {
+            "type": "boolean",
+            "description": "Download subtitles for new movies and episodes automatically."
+          },
+          "has_api_key": {
+            "type": "boolean",
+            "description": "Whether an OpenSubtitles API key is stored (the key itself is never returned)."
+          },
+          "has_password": {
+            "type": "boolean",
+            "description": "Whether a password for the account is stored."
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Languages for automatic downloads (ISO 639-1, e.g. `de`)."
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "OpenSubtitles account (more downloads per day)."
           }
         }
       },
@@ -11022,7 +11616,8 @@
         "enum": [
           "none",
           "pin",
-          "password"
+          "password",
+          "locked"
         ]
       },
       "UpdateChannelRequest": {
@@ -11175,6 +11770,48 @@
           }
         }
       },
+      "UpdateSubtitleSettings": {
+        "type": "object",
+        "properties": {
+          "api_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "OpenSubtitles.com API key (consumer key); `null` removes it."
+          },
+          "auto_download": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "languages": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "ISO 639-1 codes (`de`, `en`, `pt-br`), at most 10."
+          },
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` removes it."
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` removes the account."
+          }
+        }
+      },
       "UpdateTaskRequest": {
         "type": "object",
         "properties": {
@@ -11248,6 +11885,23 @@
         "type": "object",
         "description": "Every field is optional; `null` clears nullable fields (password, PIN, age limit).",
         "properties": {
+          "allow_unrated": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "With an age limit: show content without an age rating anyway."
+          },
+          "blocked_genres": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Genres to hide from the profile (replaces the list; `[]` clears it)."
+          },
           "is_admin": {
             "type": [
               "boolean",
@@ -11296,9 +11950,22 @@
           "is_admin",
           "is_hidden",
           "has_password",
-          "has_pin"
+          "has_pin",
+          "allow_unrated",
+          "blocked_genres"
         ],
         "properties": {
+          "allow_unrated": {
+            "type": "boolean",
+            "description": "With an age limit: content without an age rating is shown anyway."
+          },
+          "blocked_genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Genres hidden from this profile."
+          },
           "has_password": {
             "type": "boolean",
             "description": "Can sign in with a password (profiles without one are reachable by switching only)."

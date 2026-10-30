@@ -2,13 +2,13 @@
 
 pub mod collections;
 pub mod fanart;
+pub mod opensubtitles;
 pub mod tmdb;
 
 use flixnet_db::metadata::{self, Authority, CreditInput, ItemFields, NewImage};
 use flixnet_db::{Db, items, settings};
 use serde::{Deserialize, Serialize};
 
-use crate::nfo::age_from_certification;
 use crate::scan::{normalize_key, sort_title};
 pub use fanart::Fanart;
 pub use tmdb::{Tmdb, TmdbConfig, TmdbError};
@@ -305,7 +305,21 @@ fn images(list: &[tmdb::ImageInfo], kind: &str, language: &str, keep: usize) -> 
     ranked
 }
 
-fn certification_movie(details: &tmdb::MovieDetails, country: &str) -> Option<String> {
+/// A certification as shown (`FSK 12`, `PG-13`) and the age it maps to in the
+/// rating system of the country it was found for.
+fn rated(country: &str, cert: &str) -> (String, Option<i64>) {
+    let shown = if country == "DE" {
+        format!("FSK {cert}")
+    } else {
+        cert.to_owned()
+    };
+    (shown, crate::ratings::age_for(cert, Some(country)))
+}
+
+fn certification_movie(
+    details: &tmdb::MovieDetails,
+    country: &str,
+) -> Option<(String, Option<i64>)> {
     [country, "US"].iter().find_map(|c| {
         details
             .release_dates
@@ -316,30 +330,18 @@ fn certification_movie(details: &tmdb::MovieDetails, country: &str) -> Option<St
             .iter()
             .map(|d| d.certification.trim())
             .find(|c| !c.is_empty())
-            .map(|cert| {
-                if *c == "DE" {
-                    format!("FSK {cert}")
-                } else {
-                    cert.to_owned()
-                }
-            })
+            .map(|cert| rated(c, cert))
     })
 }
 
-fn certification_tv(details: &tmdb::TvDetails, country: &str) -> Option<String> {
+fn certification_tv(details: &tmdb::TvDetails, country: &str) -> Option<(String, Option<i64>)> {
     [country, "US"].iter().find_map(|c| {
         details
             .content_ratings
             .results
             .iter()
             .find(|r| r.iso_3166_1 == *c && !r.rating.trim().is_empty())
-            .map(|r| {
-                if *c == "DE" {
-                    format!("FSK {}", r.rating.trim())
-                } else {
-                    r.rating.trim().to_owned()
-                }
-            })
+            .map(|r| rated(c, r.rating.trim()))
     })
 }
 
@@ -360,8 +362,8 @@ pub async fn apply_movie(db: &Db, tmdb: &Tmdb, item_id: i64, tmdb_id: i64) -> an
         tagline: non_empty(d.tagline.clone()),
         runtime_ms: d.runtime.filter(|r| *r > 0).map(|m| m * 60_000),
         premiere_date: non_empty(d.release_date.clone()),
-        age_rating: rating.as_deref().and_then(age_from_certification),
-        official_rating: rating,
+        age_rating: rating.as_ref().and_then(|(_, age)| *age),
+        official_rating: rating.map(|(shown, _)| shown),
         community_rating: d.vote_average.filter(|v| *v > 0.0),
     };
     metadata::apply_fields(db, item_id, &fields, Authority::Provider).await?;
@@ -434,8 +436,8 @@ pub async fn apply_series(
             .filter(|r| **r > 0)
             .map(|m| m * 60_000),
         premiere_date: non_empty(d.first_air_date.clone()),
-        age_rating: rating.as_deref().and_then(age_from_certification),
-        official_rating: rating,
+        age_rating: rating.as_ref().and_then(|(_, age)| *age),
+        official_rating: rating.map(|(shown, _)| shown),
         community_rating: d.vote_average.filter(|v| *v > 0.0),
     };
     metadata::apply_fields(db, series_id, &fields, Authority::Provider).await?;
