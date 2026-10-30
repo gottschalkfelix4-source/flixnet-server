@@ -1,0 +1,22 @@
+{
+  "User": {
+    "Name": "Felix",
+    "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+    "Id": "35354f0f467b4fe18d4b8334e889599a",
+    "HasPassword": true,
+    "HasConfiguredPassword": true,
+    "EnableAutoLogin": false,
+    "LastLoginDate": "2026-10-30T05:12:38.7670131Z",
+    "LastActivityDate": "2026-10-30T05:12:38.7670131Z"
+  },
+  "SessionInfo": {
+    "Id": "f8f089e3e613d9102855eff1acb5e0ed",
+    "UserId": "35354f0f467b4fe18d4b8334e889599a",
+    "UserName": "Felix",
+    "Client": "verify",
+    "DeviceId": "verify-1",
+    "DeviceName": "verify"
+  },
+  "AccessToken": "jellyfin-user-token",
+  "ServerId": "fb72345946214a6dbbf8bff7c87d2f01"
+}

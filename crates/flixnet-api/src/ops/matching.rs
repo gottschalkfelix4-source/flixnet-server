@@ -161,10 +161,22 @@ impl LibraryIndex {
         })
     }
 
+    /// By title and year; a title that carries the year itself ("Alpha (2020)", as
+    /// Jellyfin names items it has no metadata for) is tried without it as well.
     fn by_title(&self, kind: &str, title: &str, year: Option<i64>) -> Option<i64> {
-        let candidates = self
-            .by_title
-            .get(&(kind.to_owned(), normalize_title(title)))?;
+        let normalized = normalize_title(title);
+        self.by_normalized_title(kind, &normalized, year)
+            .or_else(|| {
+                let (stripped, title_year) = split_trailing_year(&normalized)?;
+                if year.is_some_and(|y| y != title_year) {
+                    return None;
+                }
+                self.by_normalized_title(kind, stripped, Some(title_year))
+            })
+    }
+
+    fn by_normalized_title(&self, kind: &str, title: &str, year: Option<i64>) -> Option<i64> {
+        let candidates = self.by_title.get(&(kind.to_owned(), title.to_owned()))?;
         let year_of = |id: &i64| self.items.get(id).and_then(|i| i.year);
         match year {
             Some(year) => candidates
@@ -236,6 +248,40 @@ impl LibraryIndex {
     }
 }
 
+/// A normalized title that ends in a plausible release year ("alpha2020") split into
+/// the title and the year; the title part must not be empty.
+fn split_trailing_year(normalized: &str) -> Option<(&str, i64)> {
+    let cut = normalized.len().checked_sub(4)?;
+    let (title, digits) = (normalized.get(..cut)?, normalized.get(cut..)?);
+    if title.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let year: i64 = digits.parse().ok()?;
+    (1880..=2100).contains(&year).then_some((title, year))
+}
+
+/// A title without a trailing "(2020)" / "[2020]" / ".2020" (for display).
+pub fn strip_year_suffix(title: &str, year: Option<i64>) -> &str {
+    let Some(year) = year else {
+        return title;
+    };
+    let trimmed = title.trim_end();
+    for suffix in [
+        format!("({year})"),
+        format!("[{year}]"),
+        format!(".{year}"),
+        format!(" {year}"),
+    ] {
+        if let Some(rest) = trimmed.strip_suffix(&suffix) {
+            let rest = rest.trim_end_matches([' ', '.', '-', '_']);
+            if !rest.is_empty() {
+                return rest;
+            }
+        }
+    }
+    title
+}
+
 fn normalize_id(provider: &str, value: &str) -> String {
     let value = value.trim();
     if provider == "imdb" {
@@ -257,6 +303,25 @@ mod tests {
             "diegefährtenextended"
         );
         assert_eq!(normalize_title("  WALL·E "), "walle");
+    }
+
+    #[test]
+    fn trailing_years_split_off() {
+        assert_eq!(
+            split_trailing_year("einfilmohneids2015"),
+            Some(("einfilmohneids", 2015))
+        );
+        assert_eq!(split_trailing_year("1917"), None);
+        assert_eq!(split_trailing_year("alpha1234"), None);
+        assert_eq!(split_trailing_year("ab"), None);
+        assert_eq!(strip_year_suffix("Alpha (2020)", Some(2020)), "Alpha");
+        assert_eq!(strip_year_suffix("Alpha.2020", Some(2020)), "Alpha");
+        assert_eq!(
+            strip_year_suffix("Alpha (2020)", Some(2021)),
+            "Alpha (2020)"
+        );
+        assert_eq!(strip_year_suffix("2020", Some(2020)), "2020");
+        assert_eq!(strip_year_suffix("Alpha", None), "Alpha");
     }
 
     #[test]

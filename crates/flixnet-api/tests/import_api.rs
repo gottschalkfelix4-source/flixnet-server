@@ -319,7 +319,8 @@ fn jellyfin_items(items: Value) -> ResponseTemplate {
 
 async fn jellyfin_user_items(server: &MockServer, user: &str, token: &str) {
     Mock::given(method("GET"))
-        .and(path(format!("/Users/{user}/Items")))
+        .and(path("/Items"))
+        .and(query_param("userId", user))
         .and(query_param("IncludeItemTypes", "Series"))
         .and(header("X-Emby-Token", token))
         .respond_with(jellyfin_items(json!([
@@ -329,7 +330,8 @@ async fn jellyfin_user_items(server: &MockServer, user: &str, token: &str) {
         .mount(server)
         .await;
     Mock::given(method("GET"))
-        .and(path(format!("/Users/{user}/Items")))
+        .and(path("/Items"))
+        .and(query_param("userId", user))
         .and(query_param("IncludeItemTypes", "Movie,Episode"))
         .and(header("X-Emby-Token", token))
         .respond_with(jellyfin_items(json!([
@@ -490,4 +492,253 @@ async fn jellyfin_sign_in_imports_that_user() {
         )
         .await;
     assert_eq!(denied.status, StatusCode::FORBIDDEN);
+}
+
+// ---- Real Jellyfin payloads -----------------------------------------------------------
+//
+// `fixtures/jellyfin_import/*.json` are trimmed responses of a real Jellyfin 12.4
+// (`jellyfin/jellyfin:12.4.20261026-211555`) for the library built below: movies with
+// NFO ids, one movie without any metadata (Jellyfin names it after its folder,
+// "Ein Film ohne IDs (2015)"), a series with three episodes without episode ids, a
+// favorite series, and watch state set through Jellyfin's API.
+
+const JF_FELIX: &str = "35354f0f467b4fe18d4b8334e889599a";
+const JF_GAST: &str = "2c1341e56530432f977d461289d8bc92";
+
+fn fixture(name: &str) -> Value {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/jellyfin_import")
+        .join(name);
+    serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap()
+}
+
+struct RealLibrary {
+    admin: String,
+    admin_id: i64,
+    gast_id: i64,
+    ids: std::collections::HashMap<&'static str, i64>,
+}
+
+async fn real_library(app: &TestApp) -> RealLibrary {
+    let root = app.dir.path().join("media");
+    for file in [
+        "movies/The Matrix (1999) {tmdb-603}/The Matrix (1999).mkv",
+        "movies/Inception (2010) {tmdb-27205}/Inception (2010).mkv",
+        "movies/Alien (1979) {imdb-tt0078748}/Alien (1979).mkv",
+        "movies/Ein Film ohne IDs (2015)/Ein Film ohne IDs (2015).mkv",
+        "shows/Dark (2017) {tvdb-334824}/Season 01/Dark S01E01.mkv",
+        "shows/Dark (2017) {tvdb-334824}/Season 01/Dark S01E02.mkv",
+        "shows/Dark (2017) {tvdb-334824}/Season 01/Dark S01E03.mkv",
+    ] {
+        let path = root.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"v").unwrap();
+    }
+    let queue = JobRuntime::new(app.db.clone(), EventBus::new())
+        .handle()
+        .queue()
+        .clone();
+    for (name, kind, dir) in [("Filme", "movies", "movies"), ("Serien", "shows", "shows")] {
+        let path = root.join(dir).to_string_lossy().into_owned();
+        let id = libraries::create(&app.db, name, kind, &[path])
+            .await
+            .unwrap()
+            .id;
+        scan_library(&app.db, &queue, id).await.unwrap();
+    }
+    let admin = app.setup_admin().await;
+    let gast = app
+        .post(
+            "/api/v1/users",
+            json!({ "name": "Gast", "password": PASSWORD }),
+            Some(&admin),
+        )
+        .await;
+    let mut ids = std::collections::HashMap::new();
+    for kind in ["movie", "series", "episode"] {
+        let list = app
+            .get(&format!("/api/v1/items?kind={kind}"), Some(&admin))
+            .await
+            .json;
+        for item in list["items"].as_array().unwrap() {
+            let title = item["title"].as_str().unwrap();
+            let key = match (kind, item["index_number"].as_i64(), title) {
+                ("episode", Some(1), _) => "e1",
+                ("episode", Some(2), _) => "e2",
+                ("episode", Some(3), _) => "e3",
+                (_, _, "The Matrix") => "matrix",
+                (_, _, "Inception") => "inception",
+                (_, _, "Alien") => "alien",
+                (_, _, "Ein Film ohne IDs") => "ohne",
+                (_, _, "Dark") => "dark",
+                _ => panic!("unexpected {kind} {title}"),
+            };
+            ids.insert(key, item["id"].as_i64().unwrap());
+        }
+    }
+    assert_eq!(ids.len(), 8, "{ids:?}");
+    let me = app.get("/api/v1/users/me", Some(&admin)).await.json;
+    RealLibrary {
+        admin_id: me["id"].as_i64().unwrap(),
+        gast_id: gast.json["id"].as_i64().unwrap(),
+        admin,
+        ids,
+    }
+}
+
+/// Serves the captured responses: `/Users`, `/Items?userId=…` and the sign-in.
+async fn real_jellyfin() -> MockServer {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/Users"))
+        .and(header("X-Emby-Token", "real-api-key"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fixture("users.json")))
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/Users/AuthenticateByName"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(fixture("authenticate.json")))
+        .mount(&server)
+        .await;
+    for (user, label) in [(JF_FELIX, "felix"), (JF_GAST, "gast")] {
+        for (types, name) in [("Series", "series"), ("Movie,Episode", "videos")] {
+            Mock::given(method("GET"))
+                .and(path("/Items"))
+                .and(query_param("userId", user))
+                .and(query_param("IncludeItemTypes", types))
+                .and(query_param("EnableUserData", "true"))
+                .respond_with(
+                    ResponseTemplate::new(200)
+                        .set_body_json(fixture(&format!("items_{label}_{name}.json"))),
+                )
+                .mount(&server)
+                .await;
+        }
+    }
+    server
+}
+
+#[tokio::test]
+async fn jellyfin_real_payloads_by_api_key() {
+    let server = real_jellyfin().await;
+    let app = app().await;
+    let lib = real_library(&app).await;
+    let request =
+        json!({ "source": "jellyfin", "server_url": server.uri(), "token": "real-api-key" });
+
+    let preview = app
+        .post("/api/v1/import/preview", request.clone(), Some(&lib.admin))
+        .await;
+    assert_eq!(preview.status, StatusCode::OK, "{}", preview.json);
+    let users = preview.json["users"].as_array().unwrap();
+    assert_eq!(users.len(), 2);
+    assert_eq!(users[0]["source_user_id"], JF_FELIX);
+    assert_eq!(users[0]["user_id"], lib.admin_id);
+    assert_eq!(users[1]["user_id"], lib.gast_id);
+    // The movie without metadata ("Ein Film ohne IDs (2015)") is found by title and
+    // year, the favorite series by its provider ids.
+    assert_eq!(
+        users[0]["stats"],
+        json!({
+            "entries": 8, "matched": 8, "unmatched": 0, "by_provider_id": 4, "by_title_year": 1,
+            "by_episode": 3, "played": 4, "in_progress": 2, "favorites": 3, "rated": 0
+        })
+    );
+    assert_eq!(users[0]["unmatched_samples"], json!([]));
+    assert_eq!(
+        users[1]["stats"],
+        json!({
+            "entries": 2, "matched": 2, "unmatched": 0, "by_provider_id": 1, "by_title_year": 0,
+            "by_episode": 1, "played": 1, "in_progress": 0, "favorites": 1, "rated": 0
+        })
+    );
+
+    let applied = app
+        .post("/api/v1/import/apply", request.clone(), Some(&lib.admin))
+        .await;
+    assert_eq!(applied.status, StatusCode::OK, "{}", applied.json);
+    assert_eq!(applied.json["users"][0]["written_items"], 8);
+    assert_eq!(applied.json["users"][0]["written_history"], 4);
+    assert_eq!(applied.json["users"][1]["written_history"], 1);
+
+    let get = |user: i64, key: &str| {
+        let db = app.db.clone();
+        let id = lib.ids[key];
+        async move { userdata::get(&db, user, id).await.unwrap() }
+    };
+    let matrix = get(lib.admin_id, "matrix").await;
+    assert!(matrix.played && matrix.favorite);
+    assert_eq!(matrix.play_count, 3);
+    // "2026-03-01T19:00:00.0000000Z"
+    assert_eq!(matrix.last_played_at, Some(1_772_391_600_000));
+    let inception = get(lib.admin_id, "inception").await;
+    assert!(!inception.played);
+    assert_eq!(inception.position_ms, 60_000);
+    assert!(get(lib.admin_id, "alien").await.favorite);
+    assert!(get(lib.admin_id, "ohne").await.played);
+    assert!(get(lib.admin_id, "dark").await.favorite);
+    assert!(get(lib.admin_id, "e1").await.played);
+    assert!(get(lib.admin_id, "e2").await.played);
+    let e3 = get(lib.admin_id, "e3").await;
+    assert!(!e3.played);
+    assert_eq!(e3.position_ms, 45_000);
+    // Nothing of Felix leaked into Gast and vice versa.
+    assert!(get(lib.gast_id, "inception").await.played);
+    assert!(get(lib.gast_id, "e3").await.favorite);
+    assert!(!get(lib.gast_id, "matrix").await.played);
+    assert!(!get(lib.gast_id, "dark").await.favorite);
+
+    // Repeating changes nothing.
+    let again = app
+        .post("/api/v1/import/apply", request, Some(&lib.admin))
+        .await;
+    assert_eq!(again.json["users"][0]["written_history"], 0);
+    assert_eq!(again.json["users"][1]["written_history"], 0);
+    assert_eq!(
+        playstate::events(&app.db, lib.admin_id)
+            .await
+            .unwrap()
+            .len(),
+        4
+    );
+    assert_eq!(get(lib.admin_id, "matrix").await.play_count, 3);
+    assert_eq!(get(lib.admin_id, "inception").await.position_ms, 60_000);
+}
+
+#[tokio::test]
+async fn jellyfin_real_payloads_by_sign_in() {
+    let server = real_jellyfin().await;
+    let app = app().await;
+    let lib = real_library(&app).await;
+    let request = json!({
+        "source": "jellyfin", "server_url": server.uri(), "username": "Felix", "password": "pw",
+        "user_id": lib.gast_id
+    });
+    let applied = app
+        .post("/api/v1/import/apply", request, Some(&lib.admin))
+        .await;
+    assert_eq!(applied.status, StatusCode::OK, "{}", applied.json);
+    let users = applied.json["users"].as_array().unwrap();
+    assert_eq!(users.len(), 1);
+    assert_eq!(users[0]["source_user_id"], JF_FELIX);
+    assert_eq!(users[0]["user_id"], lib.gast_id);
+    assert_eq!(users[0]["stats"]["matched"], 8);
+    assert_eq!(users[0]["written_history"], 4);
+    let items: Vec<_> = server
+        .received_requests()
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|r| r.url.path() == "/Items")
+        .collect();
+    assert_eq!(items.len(), 2);
+    assert!(
+        items
+            .iter()
+            .all(|r| r.headers.get("x-emby-token").unwrap() == "jellyfin-user-token")
+    );
+    let matrix = userdata::get(&app.db, lib.gast_id, lib.ids["matrix"])
+        .await
+        .unwrap();
+    assert!(matrix.played && matrix.favorite);
 }

@@ -20,7 +20,7 @@ use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
-use super::matching::{ExternalIds, LibraryIndex, MatchMethod};
+use super::matching::{ExternalIds, LibraryIndex, MatchMethod, strip_year_suffix};
 use super::time::parse_rfc3339;
 use crate::AppState;
 use crate::auth::AdminUser;
@@ -110,10 +110,12 @@ pub struct ImportResultDto {
     pub users: Vec<ImportUserDto>,
 }
 
-/// What the other server reported for one movie or episode.
+/// What the other server reported for one movie or episode (or a series, which
+/// carries only a favorite or a rating).
 #[derive(Debug, Clone, Default)]
 struct SourceItem {
     episode: bool,
+    series: bool,
     title: String,
     year: Option<i64>,
     ids: ExternalIds,
@@ -142,9 +144,10 @@ impl SourceItem {
                 _ => format!("{} – {}", self.series_title, self.title),
             }
         } else {
+            let title = strip_year_suffix(&self.title, self.year);
             match self.year {
-                Some(y) => format!("{} ({y})", self.title),
-                None => self.title.clone(),
+                Some(y) => format!("{title} ({y})"),
+                None => title.to_owned(),
             }
         }
     }
@@ -370,6 +373,8 @@ fn jellyfin_ids(v: &Value) -> ExternalIds {
     )
 }
 
+/// All items of the given types with the user's data. `/Items?userId=` rather than the
+/// legacy `/Users/{id}/Items`, which Jellyfin 10.9+ no longer documents.
 async fn jellyfin_items(
     http: &reqwest::Client,
     base: &str,
@@ -380,7 +385,7 @@ async fn jellyfin_items(
     let mut out = Vec::new();
     loop {
         let path = format!(
-            "/Users/{user}/Items?Recursive=true&IncludeItemTypes={types}&Fields=ProviderIds,ProductionYear&EnableUserData=true&StartIndex={}&Limit={PAGE}",
+            "/Items?userId={user}&Recursive=true&IncludeItemTypes={types}&Fields=ProviderIds,ProductionYear&EnableUserData=true&StartIndex={}&Limit={PAGE}",
             out.len()
         );
         let page = get_json(jellyfin(http, base, &path, token), "Jellyfin").await?;
@@ -400,12 +405,25 @@ async fn fetch_jellyfin_user(
     token: &str,
     user: &str,
 ) -> ApiResult<Vec<SourceItem>> {
-    let series: HashMap<String, Value> = jellyfin_items(http, base, token, user, "Series")
-        .await?
+    let series_list = jellyfin_items(http, base, token, user, "Series").await?;
+    // Series carry favorites and ratings only; their `Played` / `PlayedPercentage`
+    // summarise the episodes, which are imported one by one.
+    let mut items: Vec<SourceItem> = series_list
+        .iter()
+        .map(|v| SourceItem {
+            series: true,
+            title: str_of(v, "Name").unwrap_or_default(),
+            year: int_of(v, "ProductionYear"),
+            ids: jellyfin_ids(v),
+            favorite: v["UserData"]["IsFavorite"].as_bool().unwrap_or(false),
+            rating: v["UserData"].get("Rating").and_then(Value::as_f64),
+            ..Default::default()
+        })
+        .collect();
+    let series: HashMap<String, Value> = series_list
         .into_iter()
         .filter_map(|s| Some((str_of(&s, "Id")?, s)))
         .collect();
-    let mut items = Vec::new();
     for v in jellyfin_items(http, base, token, user, "Movie,Episode").await? {
         let data = &v["UserData"];
         let episode = v["Type"].as_str() == Some("Episode");
@@ -437,6 +455,7 @@ async fn fetch_jellyfin_user(
             last_played_at: str_of(data, "LastPlayedDate").and_then(|d| parse_rfc3339(&d)),
             favorite: data["IsFavorite"].as_bool().unwrap_or(false),
             rating: data.get("Rating").and_then(Value::as_f64),
+            series: false,
         });
     }
     Ok(items)
@@ -495,7 +514,9 @@ fn plan(index: &LibraryIndex, items: &[SourceItem]) -> Planned {
     let mut by_identity: HashMap<String, ImportedState> = HashMap::new();
     for item in items.iter().filter(|i| i.has_state()) {
         stats.entries += 1;
-        let found = if item.episode {
+        let found = if item.series {
+            index.series(&item.ids, &item.title, item.year)
+        } else if item.episode {
             index.episode(
                 &item.ids,
                 &item.series_ids,

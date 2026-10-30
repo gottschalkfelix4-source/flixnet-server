@@ -1,0 +1,27 @@
+[
+  {
+    "Name": "Felix",
+    "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+    "Id": "35354f0f467b4fe18d4b8334e889599a",
+    "HasPassword": true,
+    "HasConfiguredPassword": true,
+    "EnableAutoLogin": false,
+    "LastLoginDate": "2026-10-30T05:12:10.8644011Z",
+    "LastActivityDate": "2026-10-30T05:12:10.8644011Z",
+    "Policy": {
+      "IsAdministrator": true
+    }
+  },
+  {
+    "Name": "Gast",
+    "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+    "Id": "2c1341e56530432f977d461289d8bc92",
+    "HasPassword": true,
+    "HasConfiguredPassword": true,
+    "EnableAutoLogin": false,
+    "LastActivityDate": "2026-10-30T05:05:31.8260394Z",
+    "Policy": {
+      "IsAdministrator": false
+    }
+  }
+]
