@@ -470,6 +470,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dashboard/bandwidth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Media bandwidth over time, local and remote (administrators). */
+        get: operations["getDashboardBandwidth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Viewing statistics: top users, play history, most played (administrators). */
+        get: operations["getDashboardStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files/{file_id}/chapters": {
         parameters: {
             query?: never;
@@ -3331,6 +3365,28 @@ export interface components {
             /** @description The command that restores a backup (with the server stopped). */
             restore_command: string;
         };
+        BandwidthHistoryDto: {
+            points: components["schemas"]["BandwidthPointDto"][];
+            /** Format: int64 */
+            slot_seconds: number;
+        };
+        BandwidthPointDto: {
+            /**
+             * Format: int64
+             * @description End of the slot (unix ms).
+             */
+            at: number;
+            /**
+             * Format: int64
+             * @description Average rate to clients in the home network.
+             */
+            local_bytes_per_second: number;
+            /**
+             * Format: int64
+             * @description Average rate to clients elsewhere.
+             */
+            remote_bytes_per_second: number;
+        };
         CameraDto: {
             /** @description e.g. `1/250`. */
             exposure?: string | null;
@@ -3685,6 +3741,25 @@ export interface components {
             transcodes: number;
             version: string;
         };
+        DashboardStatsDto: {
+            /**
+             * Format: int64
+             * @description Length of one history bucket (a day, a week or 30 days).
+             */
+            bucket_ms: number;
+            history: components["schemas"]["HistoryBucketDto"][];
+            /**
+             * Format: int64
+             * @description Start and end of the period (unix ms).
+             */
+            since: number;
+            top_artists: components["schemas"]["TopItemDto"][];
+            top_movies: components["schemas"]["TopItemDto"][];
+            top_series: components["schemas"]["TopItemDto"][];
+            top_users: components["schemas"]["TopUserDto"][];
+            /** Format: int64 */
+            until: number;
+        };
         DeviceCodeDto: {
             /**
              * Format: int64
@@ -3994,6 +4069,21 @@ export interface components {
          * @enum {string}
          */
         HardwareMode: "auto" | "none" | "qsv" | "vaapi" | "nvenc";
+        HistoryBucketDto: {
+            /** Format: int64 */
+            movies_ms: number;
+            /** Format: int64 */
+            music_ms: number;
+            /** Format: int64 */
+            other_ms: number;
+            /**
+             * Format: int64
+             * @description Start of the bucket (unix ms).
+             */
+            start: number;
+            /** Format: int64 */
+            tv_ms: number;
+        };
         IdentifyRequest: {
             /** Format: int64 */
             tmdb_id: number;
@@ -5236,6 +5326,7 @@ export interface components {
         /** @enum {string} */
         SegmentSource: "fingerprint" | "blackdetect" | "manual";
         SessionBandwidthDto: {
+            audio?: components["schemas"]["StreamLineDto"] | null;
             /**
              * Format: int64
              * @description Bytes served for this session's stream so far.
@@ -5246,12 +5337,22 @@ export interface components {
              * @description Current rate (average over the last seconds).
              */
             bytes_per_second: number;
+            client?: string | null;
+            device_name?: string | null;
+            /** Format: int64 */
+            duration_ms?: number | null;
             is_paused: boolean;
+            item?: components["schemas"]["ItemCardDto"] | null;
             play_method: components["schemas"]["PlayMethod"];
+            /** Format: int64 */
+            position_ms: number;
             session_id: string;
             /** @description What plays (display title). */
             title: string;
+            /** Format: int64 */
+            user_id: number;
             user_name: string;
+            video?: components["schemas"]["StreamLineDto"] | null;
         };
         /** @description A newly issued device token plus the signed-in user. */
         SessionDto: {
@@ -5384,6 +5485,17 @@ export interface components {
         };
         /** @enum {string} */
         StreamAction: "copy" | "transcode";
+        /** @description How one stream of a playback is delivered ("1080p (H.264)" → "720p (H.264)"). */
+        StreamLineDto: {
+            /** @description `direct` (original file), `copy` (remuxed) or `transcode`. */
+            action: string;
+            /** @description GPU encoder of a video transcode (`QuickSync`, `NVENC`, `VA-API`). */
+            hardware?: string | null;
+            /** @description The file's stream, e.g. `1080p (H.264)` or `AC3 5.1`. */
+            source: string;
+            /** @description What the client gets. */
+            target: string;
+        };
         SubtitleCandidateDto: {
             /** Format: int64 */
             download_count: number;
@@ -5672,6 +5784,33 @@ export interface components {
          * @enum {string}
          */
         Tonemap: "software" | "cuda" | "vpp_qsv" | "vaapi";
+        TopItemDto: {
+            item: components["schemas"]["ItemCardDto"];
+            /** Format: int64 */
+            plays: number;
+            /**
+             * Format: int64
+             * @description How many different users played it.
+             */
+            users: number;
+        };
+        TopUserDto: {
+            /** Format: int64 */
+            movies_ms: number;
+            /** Format: int64 */
+            music_ms: number;
+            name: string;
+            /** Format: int64 */
+            other_ms: number;
+            /** Format: int64 */
+            plays: number;
+            /** Format: int64 */
+            tv_ms: number;
+            /** Format: int64 */
+            user_id: number;
+            /** Format: int64 */
+            watch_ms: number;
+        };
         TrackDto: {
             album_artist?: string | null;
             /** Format: int64 */
@@ -7552,6 +7691,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DashboardDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getDashboardBandwidth: {
+        parameters: {
+            query?: {
+                /** @description `realtime` (default), `hour` or `day`. */
+                range?: "realtime" | "hour" | "day";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bandwidth chart */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BandwidthHistoryDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getDashboardStats: {
+        parameters: {
+            query?: {
+                /** @description Period in days (1–365, default 30). */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Statistics of the period */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardStatsDto"];
                 };
             };
             /** @description Missing or invalid token */

@@ -11,6 +11,27 @@ export function useDashboard() {
   })
 }
 
+export type DashboardStats = Schemas['DashboardStatsDto']
+export type BandwidthRange = 'realtime' | 'hour' | 'day'
+
+/** Top users, play history and most played of the last `days` days. */
+export function useDashboardStats(days: number) {
+  return useQuery({
+    queryKey: ['ops', 'stats', days],
+    queryFn: async () => unwrap(await api.GET('/api/v1/dashboard/stats', { params: { query: { days } } })),
+    refetchInterval: 60_000,
+  })
+}
+
+/** Media bandwidth over time; the real-time chart refreshes every second or two. */
+export function useDashboardBandwidth(range: BandwidthRange) {
+  return useQuery({
+    queryKey: ['ops', 'bandwidth', range],
+    queryFn: async () => unwrap(await api.GET('/api/v1/dashboard/bandwidth', { params: { query: { range } } })),
+    refetchInterval: range === 'realtime' ? 2000 : 30_000,
+  })
+}
+
 export type LogLevel = Schemas['LogLevel']
 export type LogLine = Schemas['LogLine']
 

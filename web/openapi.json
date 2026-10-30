@@ -1713,6 +1713,116 @@
         }
       }
     },
+    "/api/v1/dashboard/bandwidth": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Media bandwidth over time, local and remote (administrators).",
+        "operationId": "getDashboardBandwidth",
+        "parameters": [
+          {
+            "name": "range",
+            "in": "query",
+            "description": "`realtime` (default), `hour` or `day`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "realtime",
+                "hour",
+                "day"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bandwidth chart",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BandwidthHistoryDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/stats": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "Viewing statistics: top users, play history, most played (administrators).",
+        "operationId": "getDashboardStats",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Period in days (1–365, default 30).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statistics of the period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardStatsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/files/{file_id}/chapters": {
       "get": {
         "tags": [
@@ -13780,6 +13890,53 @@
           }
         }
       },
+      "BandwidthHistoryDto": {
+        "type": "object",
+        "required": [
+          "slot_seconds",
+          "points"
+        ],
+        "properties": {
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BandwidthPointDto"
+            }
+          },
+          "slot_seconds": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "BandwidthPointDto": {
+        "type": "object",
+        "required": [
+          "at",
+          "local_bytes_per_second",
+          "remote_bytes_per_second"
+        ],
+        "properties": {
+          "at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "End of the slot (unix ms)."
+          },
+          "local_bytes_per_second": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Average rate to clients in the home network.",
+            "minimum": 0
+          },
+          "remote_bytes_per_second": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Average rate to clients elsewhere.",
+            "minimum": 0
+          }
+        }
+      },
       "CameraDto": {
         "type": "object",
         "properties": {
@@ -14786,6 +14943,65 @@
           }
         }
       },
+      "DashboardStatsDto": {
+        "type": "object",
+        "required": [
+          "since",
+          "until",
+          "bucket_ms",
+          "top_users",
+          "history",
+          "top_movies",
+          "top_series",
+          "top_artists"
+        ],
+        "properties": {
+          "bucket_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Length of one history bucket (a day, a week or 30 days)."
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryBucketDto"
+            }
+          },
+          "since": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Start and end of the period (unix ms)."
+          },
+          "top_artists": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopItemDto"
+            }
+          },
+          "top_movies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopItemDto"
+            }
+          },
+          "top_series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopItemDto"
+            }
+          },
+          "top_users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopUserDto"
+            }
+          },
+          "until": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "DeviceCodeDto": {
         "type": "object",
         "required": [
@@ -15571,6 +15787,39 @@
           "vaapi",
           "nvenc"
         ]
+      },
+      "HistoryBucketDto": {
+        "type": "object",
+        "required": [
+          "start",
+          "movies_ms",
+          "tv_ms",
+          "music_ms",
+          "other_ms"
+        ],
+        "properties": {
+          "movies_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "music_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "other_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "start": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Start of the bucket (unix ms)."
+          },
+          "tv_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
       },
       "IdentifyRequest": {
         "type": "object",
@@ -19171,14 +19420,26 @@
         "type": "object",
         "required": [
           "session_id",
+          "user_id",
           "user_name",
           "title",
+          "position_ms",
           "play_method",
           "is_paused",
           "bytes",
           "bytes_per_second"
         ],
         "properties": {
+          "audio": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StreamLineDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "bytes": {
             "type": "integer",
             "format": "int64",
@@ -19191,11 +19452,45 @@
             "description": "Current rate (average over the last seconds).",
             "minimum": 0
           },
+          "client": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "device_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
           "is_paused": {
             "type": "boolean"
           },
+          "item": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ItemCardDto",
+                "description": "The item, for poster and episode details (`None` if it vanished)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "play_method": {
             "$ref": "#/components/schemas/PlayMethod"
+          },
+          "position_ms": {
+            "type": "integer",
+            "format": "int64"
           },
           "session_id": {
             "type": "string"
@@ -19204,8 +19499,22 @@
             "type": "string",
             "description": "What plays (display title)."
           },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
+          },
           "user_name": {
             "type": "string"
+          },
+          "video": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StreamLineDto"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -19520,6 +19829,36 @@
           "copy",
           "transcode"
         ]
+      },
+      "StreamLineDto": {
+        "type": "object",
+        "description": "How one stream of a playback is delivered (\"1080p (H.264)\" → \"720p (H.264)\").",
+        "required": [
+          "source",
+          "target",
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "description": "`direct` (original file), `copy` (remuxed) or `transcode`."
+          },
+          "hardware": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "GPU encoder of a video transcode (`QuickSync`, `NVENC`, `VA-API`)."
+          },
+          "source": {
+            "type": "string",
+            "description": "The file's stream, e.g. `1080p (H.264)` or `AC3 5.1`."
+          },
+          "target": {
+            "type": "string",
+            "description": "What the client gets."
+          }
+        }
       },
       "SubtitleCandidateDto": {
         "type": "object",
@@ -20407,6 +20746,74 @@
           "vpp_qsv",
           "vaapi"
         ]
+      },
+      "TopItemDto": {
+        "type": "object",
+        "required": [
+          "item",
+          "plays",
+          "users"
+        ],
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/ItemCardDto"
+          },
+          "plays": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "users": {
+            "type": "integer",
+            "format": "int64",
+            "description": "How many different users played it."
+          }
+        }
+      },
+      "TopUserDto": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "plays",
+          "watch_ms",
+          "movies_ms",
+          "tv_ms",
+          "music_ms",
+          "other_ms"
+        ],
+        "properties": {
+          "movies_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "music_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "other_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "plays": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tv_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "watch_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
       },
       "TrackDto": {
         "type": "object",

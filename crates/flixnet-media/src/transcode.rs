@@ -82,7 +82,7 @@ impl Default for TranscodeSettings {
 }
 
 /// Snapshot of a session for dashboards and tests.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SessionInfo {
     pub id: String,
     pub user_id: i64,
@@ -93,6 +93,8 @@ pub struct SessionInfo {
     pub last_requested: Option<u32>,
     /// Encoder of the current pipeline (software for copied video).
     pub encoder: EncoderKind,
+    /// What the session produces (video/audio actions, output size).
+    pub plan: PlaybackPlan,
 }
 
 #[derive(Clone)]
@@ -523,6 +525,7 @@ impl TranscodeManager {
                 transcoding: state.run.as_ref().is_some_and(|r| r.exited.is_none()),
                 last_requested: state.last_requested,
                 encoder: session.encoders[state.level].kind(),
+                plan: session.spec.plan.clone(),
             });
         }
         out.sort_by(|a, b| a.id.cmp(&b.id));

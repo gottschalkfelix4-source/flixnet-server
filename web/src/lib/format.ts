@@ -26,6 +26,16 @@ export const AGE_OPTIONS: { value: number | null; label: string }[] = [
   { value: 18, label: 'Ab 18 (FSK 18)' },
 ]
 
+/** Watch time like Plex: "1 Tag 2 Std", "23 Std 52 Min", "12 Min". */
+export function formatWatchTime(ms: number): string {
+  const minutes = Math.round(ms / 60_000)
+  if (minutes < 60) return `${minutes} Min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return minutes % 60 ? `${hours} Std ${minutes % 60} Min` : `${hours} Std`
+  const days = Math.floor(hours / 24)
+  return `${days} ${days === 1 ? 'Tag' : 'Tage'}${hours % 24 ? ` ${hours % 24} Std` : ''}`
+}
+
 /** Player position: "1:23:45", "4:05". */
 export function formatTimecode(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000))

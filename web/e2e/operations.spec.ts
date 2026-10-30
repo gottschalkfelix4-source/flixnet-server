@@ -9,12 +9,17 @@ async function received(page: Page): Promise<{ path: string; event: string; sign
   return response.json()
 }
 
-test('dashboard shows load, storage and jobs', async ({ page }) => {
+test('dashboard shows playback, charts, load, storage and jobs', async ({ page }) => {
   await page.goto('/settings?tab=dashboard')
   const dashboard = page.getByTestId('dashboard')
   await expect(dashboard.getByText('Arbeitsspeicher')).toBeVisible()
   await expect(dashboard.getByText('Konfiguration', { exact: true })).toBeVisible()
-  await expect(dashboard.getByText('Wiedergaben & Bandbreite')).toBeVisible()
+  await expect(dashboard.getByRole('region', { name: 'Jetzt läuft' })).toBeVisible()
+  await expect(dashboard.getByTestId('bandwidth-chart').locator('svg')).toBeVisible()
+  await expect(dashboard.getByTestId('history-chart').locator('svg')).toBeVisible()
+  await expect(dashboard.getByTestId('top-column')).toHaveCount(3)
+  await page.getByRole('combobox', { name: 'Zeitraum der Bandbreite' }).selectOption('hour')
+  await expect(dashboard.getByTestId('bandwidth-chart').locator('svg')).toBeVisible()
   await dashboard.getByRole('link', { name: 'Protokoll ansehen' }).click()
   await expect(page).toHaveURL(/tab=logs/)
   await expect(page.getByTestId('log-lines')).toContainText('Flixnet is listening')

@@ -534,7 +534,23 @@ pub async fn record_play(db: &Db, user_id: i64, item_id: i64) -> Result<bool> {
     .bind(item_id)
     .execute(db.writer())
     .await?;
-    Ok(result.rows_affected() > 0)
+    if result.rows_affected() == 0 {
+        return Ok(false);
+    }
+    // Into the history as one completed listen, for the dashboard statistics.
+    sqlx::query(
+        "INSERT INTO watch_events
+             (user_id, identity_key, item_id, event, position_ms, duration_ms, play_method,
+              completed, session_id, created_at)
+         SELECT ?, COALESCE(identity_key, content_key), id, 'stop', COALESCE(runtime_ms, 0),
+                runtime_ms, NULL, 1, NULL, ? FROM items WHERE id = ?",
+    )
+    .bind(user_id)
+    .bind(now)
+    .bind(item_id)
+    .execute(db.writer())
+    .await?;
+    Ok(true)
 }
 
 /// Albums and tracks counted for a library card.

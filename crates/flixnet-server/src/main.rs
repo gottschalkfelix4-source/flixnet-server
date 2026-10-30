@@ -387,9 +387,13 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         None
     };
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown.clone().cancelled_owned())
-        .await?;
+    // Client addresses tell local from remote traffic on the dashboard.
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown.clone().cancelled_owned())
+    .await?;
     shutdown.cancel();
     if let Some(server) = jellyfin_server
         && let Err(err) = server.await?
