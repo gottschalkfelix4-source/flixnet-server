@@ -256,4 +256,192 @@ export const TUNER_KIND_LABELS: Record<TunerKind, string> = {
   m3u: 'M3U-Playlist',
   xtream: 'Xtream Codes',
   hdhomerun: 'HDHomeRun',
+  tvheadend: 'tvheadend',
+}
+
+export type EpgSourceKind = Schemas['EpgSourceKind']
+
+export const EPG_KIND_LABELS: Record<EpgSourceKind, string> = {
+  xmltv: 'XMLTV',
+  schedules_direct: 'Schedules Direct',
+  tvheadend: 'tvheadend-EPG',
+}
+
+export function useSchedulesDirect() {
+  return useQuery({
+    queryKey: ['livetv', 'schedules-direct'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/livetv/schedules-direct')),
+  })
+}
+
+export function useUpdateSchedulesDirect() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async (body: Schemas['UpdateSchedulesDirect']) =>
+      unwrap(await api.PUT('/api/v1/livetv/schedules-direct', { body })),
+    onSuccess: invalidate,
+  })
+}
+
+/** Lineups of the Schedules Direct account (only once an account is stored). */
+export function useSchedulesDirectLineups(enabled: boolean) {
+  return useQuery({
+    queryKey: ['livetv', 'schedules-direct', 'lineups'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/livetv/schedules-direct/lineups')),
+    enabled,
+    retry: false,
+  })
+}
+
+// ---- Recordings (DVR) ---------------------------------------------------------------
+
+export type Recording = Schemas['RecordingDto']
+export type RecordingStatus = Schemas['RecordingStatus']
+export type RecordingRule = Schemas['RecordingRuleDto']
+export type LiveTvSettingsData = Schemas['LiveTvSettingsDto']
+
+/** The client's offset from UTC in minutes (time windows, air dates). */
+export function utcOffsetMinutes(): number {
+  return -new Date().getTimezoneOffset()
+}
+
+/** Recordings; polled quickly while one runs, starts soon or waits for the library. */
+export function useRecordings() {
+  return useQuery({
+    queryKey: ['livetv', 'recordings'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/livetv/recordings')),
+    refetchInterval: (query) => {
+      const soon = Date.now() + 2 * MINUTE
+      const busy = query.state.data?.some(
+        (r) =>
+          r.status === 'recording' ||
+          (r.status === 'scheduled' && r.start_ms - r.padding_before_s * 1000 < soon) ||
+          (r.status === 'completed' && r.item_id == null),
+      )
+      return busy ? 2000 : 30_000
+    },
+  })
+}
+
+export function useRecordingRules() {
+  return useQuery({
+    queryKey: ['livetv', 'recording-rules'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/livetv/recording-rules')),
+  })
+}
+
+export function useCreateRecording() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async (programId: number) =>
+      unwrap(
+        await api.POST('/api/v1/livetv/recordings', {
+          body: { program_id: programId, utc_offset_min: utcOffsetMinutes() },
+        }),
+      ),
+    onSuccess: invalidate,
+  })
+}
+
+export function useCreateRecordingRule() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async (body: Schemas['CreateRuleRequest']) =>
+      unwrap(
+        await api.POST('/api/v1/livetv/recording-rules', {
+          body: { utc_offset_min: utcOffsetMinutes(), ...body },
+        }),
+      ),
+    onSuccess: invalidate,
+  })
+}
+
+export function useUpdateRecordingRule() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async ({ id, ...body }: Schemas['UpdateRuleRequest'] & { id: number }) =>
+      unwrap(await api.PATCH('/api/v1/livetv/recording-rules/{id}', { params: { path: { id } }, body })),
+    onSuccess: invalidate,
+  })
+}
+
+export function useDeleteRecordingRule() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async (id: number) =>
+      unwrap(await api.DELETE('/api/v1/livetv/recording-rules/{id}', { params: { path: { id } } })),
+    onSuccess: invalidate,
+  })
+}
+
+/** Cancels a scheduled recording or deletes a finished one. */
+export function useDeleteRecording() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async (id: number) =>
+      unwrap(await api.DELETE('/api/v1/livetv/recordings/{id}', { params: { path: { id } } })),
+    onSuccess: invalidate,
+  })
+}
+
+export function useStopRecording() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async (id: number) =>
+      unwrap(await api.POST('/api/v1/livetv/recordings/{id}/stop', { params: { path: { id } } })),
+    onSuccess: invalidate,
+  })
+}
+
+export function useLiveTvSettings() {
+  return useQuery({
+    queryKey: ['livetv', 'settings'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/livetv/settings')),
+  })
+}
+
+export function useUpdateLiveTvSettings() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async (body: Schemas['UpdateLiveTvSettings']) => unwrap(await api.PUT('/api/v1/livetv/settings', { body })),
+    onSuccess: invalidate,
+  })
+}
+
+export function useLiveTvProfiles() {
+  return useQuery({
+    queryKey: ['livetv', 'profiles'],
+    queryFn: async () => unwrap(await api.GET('/api/v1/livetv/profiles')),
+  })
+}
+
+export function useSetLiveTvAccess() {
+  const invalidate = useInvalidateLiveTv()
+  return useMutation({
+    mutationFn: async ({ id, allowed }: { id: number; allowed: boolean }) =>
+      unwrap(
+        await api.PUT('/api/v1/livetv/profiles/{id}', { params: { path: { id } }, body: { live_tv_allowed: allowed } }),
+      ),
+    onSuccess: invalidate,
+  })
+}
+
+export const RECORDING_STATUS_LABELS: Record<RecordingStatus, string> = {
+  scheduled: 'Geplant',
+  recording: 'Läuft',
+  completed: 'Fertig',
+  failed: 'Fehlgeschlagen',
+  cancelled: 'Übersprungen',
+}
+
+/** "1,2 GB" */
+export function formatBytes(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let unit = 0
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000
+    unit += 1
+  }
+  return `${value.toLocaleString('de', { maximumFractionDigits: unit > 1 ? 1 : 0 })} ${units[unit]}`
 }

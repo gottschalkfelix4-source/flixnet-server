@@ -510,6 +510,35 @@ fn hw_filters(hw: &HwEncoder, gpu_decode: bool, video: &VideoPlan) -> String {
     }
 }
 
+/// ffmpeg options for a hardware encode of live video (Live TV): decoded on the CPU,
+/// where `cpu_filters` (deinterlacing and scaling, ending in an 8-bit format) run,
+/// then encoded on the GPU. Live sources are often interlaced MPEG-2, which not every
+/// GPU decodes, so the GPU only encodes; keyframes are forced by the caller.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HwLiveArgs {
+    /// Device setup; goes before `-i`.
+    pub input: Vec<OsString>,
+    /// Filters and encoder options; goes after `-map`.
+    pub output: Vec<OsString>,
+}
+
+pub fn hw_live_video_args(hw: &HwEncoder, video: &VideoPlan, cpu_filters: &str) -> HwLiveArgs {
+    let cpu_only = HwEncoder {
+        hw_decode: false,
+        ..hw.clone()
+    };
+    let input = hw_input_args(&VideoEncoder::Hardware(cpu_only), None, cfg!(windows));
+    let mut filters = cpu_filters.to_owned();
+    match hw.accel {
+        Accel::Nvenc => {}
+        Accel::Qsv => filters.push_str(",format=nv12"),
+        Accel::Vaapi => filters.push_str(",format=nv12,hwupload"),
+    }
+    let mut output = vec![OsString::from("-vf"), OsString::from(filters)];
+    output.extend(hw_encoder_args(hw, video).into_iter().map(OsString::from));
+    HwLiveArgs { input, output }
+}
+
 /// Bitrate of a hardware transcode without a limit (they encode with a target
 /// bitrate rather than a quality level).
 fn default_bitrate(height: i64) -> i64 {

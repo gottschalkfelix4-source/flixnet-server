@@ -1,14 +1,35 @@
 //! Guide refresh: download (or open) the XMLTV file, parse it on a blocking thread
 //! and write the programs in batches under a new generation; only a complete
 //! refresh becomes visible, then older programs are deleted.
+//!
+//! Other guide sources ([`GuideSource`]: Schedules Direct, the tvheadend EPG) deliver
+//! their channels and programs from an API; they are written the same way.
 
+use std::future::Future;
 use std::path::{Path, PathBuf};
 
-use flixnet_db::livetv::{self, NewEpgChannel, NewProgram};
+use flixnet_db::livetv::{self, EpgSource, NewEpgChannel, NewProgram};
 use flixnet_db::{Db, now_ms};
 
 use crate::http;
+use crate::schedules_direct::{self, SchedulesDirect, SdCredentials};
+use crate::tvheadend::Tvheadend;
 use crate::xmltv::{self, XmltvItem};
+
+/// What an API guide source delivers.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct GuideData {
+    pub channels: Vec<NewEpgChannel>,
+    pub programs: Vec<NewProgram>,
+}
+
+/// A guide that comes from an API rather than an XMLTV file.
+pub trait GuideSource: Send + Sync {
+    fn fetch(
+        &self,
+        client: &reqwest::Client,
+    ) -> impl Future<Output = anyhow::Result<GuideData>> + Send;
+}
 
 /// Programs that ended longer ago than this are not stored.
 const KEEP_PAST_MS: i64 = 12 * 60 * 60 * 1000;
@@ -58,7 +79,11 @@ pub async fn refresh_source(
     let Some(source) = livetv::get_source(db, source_id).await? else {
         return Ok(None);
     };
-    match refresh_inner(db, client, cache_dir, source_id, &source.url).await {
+    let result = match source.kind.as_str() {
+        "schedules_direct" | "tvheadend" => refresh_api(db, client, &source).await,
+        _ => refresh_inner(db, client, cache_dir, source_id, &source.url).await,
+    };
+    match result {
         Ok(report) => {
             tracing::info!(
                 source = source_id,
@@ -78,6 +103,59 @@ pub async fn refresh_source(
             anyhow::bail!("guide refresh of source {source_id} failed: {message}")
         }
     }
+}
+
+/// Fetches an API guide and writes it under a new generation.
+async fn refresh_api(
+    db: &Db,
+    client: &reqwest::Client,
+    source: &EpgSource,
+) -> anyhow::Result<RefreshReport> {
+    let data = match source.kind.as_str() {
+        "schedules_direct" => {
+            let credentials: SdCredentials =
+                flixnet_db::settings::get(db, schedules_direct::SETTINGS_KEY)
+                    .await?
+                    .ok_or_else(|| anyhow::anyhow!("Schedules Direct: keine Zugangsdaten"))?;
+            SchedulesDirect {
+                credentials,
+                lineup: source.url.clone(),
+                from_ms: now_ms(),
+            }
+            .fetch(client)
+            .await?
+        }
+        _ => {
+            let host_id = source
+                .tuner_host_id
+                .ok_or_else(|| anyhow::anyhow!("tvheadend-Quelle ohne Tuner"))?;
+            let host = livetv::get_host(db, host_id)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("Den tvheadend-Tuner gibt es nicht mehr"))?;
+            Tvheadend {
+                url: host.url,
+                username: host.username.filter(|u| !u.is_empty()),
+                password: host.password,
+            }
+            .fetch(client)
+            .await?
+        }
+    };
+    let generation = livetv::next_generation(db, source.id).await?;
+    let cutoff = now_ms() - KEEP_PAST_MS;
+    let programs: Vec<NewProgram> = data
+        .programs
+        .into_iter()
+        .filter(|p| p.end_ms >= cutoff && p.end_ms > p.start_ms)
+        .collect();
+    for batch in programs.chunks(PARSE_BATCH) {
+        livetv::insert_programs(db, source.id, generation, batch).await?;
+    }
+    livetv::finish_refresh(db, source.id, generation, &data.channels).await?;
+    Ok(RefreshReport {
+        channels: data.channels.len(),
+        programs: programs.len(),
+    })
 }
 
 async fn refresh_inner(

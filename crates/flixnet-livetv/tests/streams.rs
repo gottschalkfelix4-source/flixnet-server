@@ -17,7 +17,21 @@ fn settings() -> LiveSettings {
         start_timeout: Duration::from_secs(30),
         viewer_timeout: Duration::from_secs(3),
         probe_timeout: Duration::from_secs(15),
+        // A short buffer: the window visibly moves on.
+        buffer: Duration::from_secs(3),
+        restart_delay: Duration::from_millis(200),
+        restart_max_delay: Duration::from_secs(1),
+        max_restarts: 3,
     }
+}
+
+/// Segment names of a playlist.
+fn names(playlist: &str) -> Vec<String> {
+    playlist
+        .lines()
+        .filter(|l| l.ends_with(".ts"))
+        .map(str::to_owned)
+        .collect()
 }
 
 fn plan(video: StreamAction, audio: StreamAction) -> PlaybackPlan {
@@ -239,5 +253,165 @@ async fn a_broken_source_fails_cleanly() {
         Err(LiveError::Failed(reason)) => assert!(reason.contains("404"), "{reason}"),
         other => panic!("expected a failure, got {other:?}"),
     }
+    assert!(live.streams().is_empty());
+}
+
+#[tokio::test]
+async fn timeshift_keeps_a_buffer_every_viewer_can_rewind_in() {
+    let fake = fake::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let live = LiveTvManager::new(
+        "ffmpeg",
+        "ffprobe",
+        dir.path().join("live"),
+        LiveSettings {
+            buffer: Duration::from_secs(60),
+            ..settings()
+        },
+    );
+    let copy = plan(StreamAction::Copy, StreamAction::Copy);
+    let first = live
+        .watch(request(1, fake.url("/stream/h264/1.ts"), 0, copy.clone()))
+        .await
+        .unwrap();
+
+    // Far more than the live window (4 segments) stays listed.
+    wait_for("a few seconds of buffer", || {
+        live.playlist(&first.session_id)
+            .is_ok_and(|p| names(&p).len() >= 8)
+    })
+    .await;
+    let playlist = live.playlist(&first.session_id).unwrap();
+    assert!(playlist.contains("#EXT-X-PROGRAM-DATE-TIME:"), "{playlist}");
+    assert!(!playlist.contains("#EXT-X-ENDLIST"), "{playlist}");
+    let oldest = names(&playlist)[0].clone();
+
+    // A viewer joining later sees the same buffer and can rewind to its start.
+    let second = live
+        .watch(request(1, fake.url("/stream/h264/1.ts"), 0, copy.clone()))
+        .await
+        .unwrap();
+    assert!(second.shared);
+    let theirs = live.playlist(&second.session_id).unwrap();
+    assert_eq!(names(&theirs)[0], oldest, "the buffer survives the join");
+    let path = live.segment(&second.session_id, &oldest).unwrap();
+    assert!(std::fs::metadata(&path).unwrap().len() > 0);
+
+    // A paused player only refreshes the playlist: it stays a viewer past the
+    // viewer timeout, and its old segment is still there afterwards.
+    live.stop(&second.session_id).await;
+    let paused_until = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < paused_until {
+        live.playlist(&first.session_id).unwrap();
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+    assert!(live.segment(&first.session_id, &oldest).is_ok());
+    let info = &live.streams()[0];
+    assert!(info.buffered_secs >= 8.0, "{info:?}");
+
+    // A smaller buffer trims at once (but never below the live window).
+    live.set_buffer(Duration::from_secs(2));
+    wait_for("the buffer to shrink", || {
+        live.playlist(&first.session_id)
+            .is_ok_and(|p| names(&p).len() <= 5)
+    })
+    .await;
+    assert!(live.segment(&first.session_id, &oldest).is_err());
+    assert!(!path.exists(), "trimmed segments are deleted");
+    live.stop(&first.session_id).await;
+}
+
+#[tokio::test]
+async fn a_dying_upstream_is_restarted_behind_a_discontinuity() {
+    let fake = fake::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let live = LiveTvManager::new(
+        "ffmpeg",
+        "ffprobe",
+        dir.path().join("live"),
+        LiveSettings {
+            buffer: Duration::from_secs(60),
+            ..settings()
+        },
+    );
+    let ticket = live
+        .watch(request(
+            1,
+            fake.url("/stream/h264/1.ts"),
+            1,
+            plan(StreamAction::Copy, StreamAction::Copy),
+        ))
+        .await
+        .unwrap();
+    wait_for("some segments", || {
+        live.playlist(&ticket.session_id)
+            .is_ok_and(|p| names(&p).len() >= 3)
+    })
+    .await;
+    let before = names(&live.playlist(&ticket.session_id).unwrap());
+    let opened = fake.opened_streams();
+
+    // ffmpeg dies: viewers keep their playlist, the tuner stays taken, and a new
+    // run continues the numbering after a discontinuity.
+    assert!(live.interrupt(&ticket.stream_id));
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        let playlist = live
+            .playlist(&ticket.session_id)
+            .expect("no 'stream ended' during a restart");
+        assert_eq!(live.tuners_in_use(7), 1);
+        if playlist.contains("#EXT-X-DISCONTINUITY\n") && names(&playlist).len() > before.len() + 1
+        {
+            let after = names(&playlist);
+            assert_eq!(after[0], before[0], "the buffer is kept");
+            let numbers: Vec<u64> = after
+                .iter()
+                .map(|n| flixnet_livetv::ffmpeg::segment_number(n).unwrap())
+                .collect();
+            assert!(
+                numbers.windows(2).all(|w| w[1] == w[0] + 1),
+                "numbering continues: {numbers:?}"
+            );
+            break;
+        }
+        assert!(Instant::now() < deadline, "no restart: {playlist}");
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    assert!(fake.opened_streams() > opened, "the source was reopened");
+    assert_eq!(live.streams()[0].restarts, 1);
+    live.stop(&ticket.session_id).await;
+}
+
+#[tokio::test]
+async fn pinned_sessions_outlive_the_viewer_timeout_and_list_segments() {
+    let fake = fake::start().await;
+    let dir = tempfile::tempdir().unwrap();
+    let live = LiveTvManager::new("ffmpeg", "ffprobe", dir.path().join("live"), settings());
+    let since = flixnet_db::now_ms();
+    let pinned = live
+        .watch_pinned(request(
+            1,
+            fake.url("/stream/h264/1.ts"),
+            0,
+            plan(StreamAction::Copy, StreamAction::Copy),
+        ))
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    let segments = live
+        .segments_since(&pinned.session_id, None, since)
+        .unwrap();
+    assert!(!segments.is_empty());
+    assert!(segments.iter().all(|s| s.path.is_file()));
+    let last = segments.last().unwrap().seq;
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let more = live
+        .segments_since(&pinned.session_id, Some(last), since)
+        .unwrap();
+    assert!(more.iter().all(|s| s.seq > last) && !more.is_empty());
+    let info = &live.streams()[0];
+    assert_eq!(info.recordings, 1);
+    assert!(info.viewers.is_empty());
+    live.stop(&pinned.session_id).await;
     assert!(live.streams().is_empty());
 }

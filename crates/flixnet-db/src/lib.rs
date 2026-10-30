@@ -21,6 +21,7 @@ pub mod browse;
 pub mod cache;
 pub mod collections;
 pub mod dlna;
+pub mod dvr;
 pub mod history;
 pub mod invitations;
 pub mod items;

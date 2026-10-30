@@ -1242,6 +1242,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/livetv/channels/{id}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A channel's logo from the image cache (fetched from the provider once).
+         * @description Use the signed URL from `listChannels`; alternatively authenticate normally.
+         */
+        get: operations["getChannelLogo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/livetv/channels/{id}/watch": {
         parameters: {
             query?: never;
@@ -1349,6 +1369,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/livetv/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Profiles and whether they may use Live TV (administrators). */
+        get: operations["listLiveTvProfiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/profiles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Allows or bars Live TV for a profile ("Live TV erlaubt"; administrators). */
+        put: operations["setLiveTvAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/livetv/programs": {
         parameters: {
             query?: never;
@@ -1383,6 +1437,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/livetv/recording-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recording rules (one-off programs and series). */
+        get: operations["listRecordingRules"];
+        put?: never;
+        /** Records a series ("Serie aufnehmen") and schedules its upcoming broadcasts. */
+        post: operations["createRecordingRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/recording-rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Deletes a rule with its scheduled recordings (finished ones stay). */
+        delete: operations["deleteRecordingRule"];
+        options?: never;
+        head?: never;
+        /** Changes a rule (priority, filters, padding, retention); its schedule follows. */
+        patch: operations["updateRecordingRule"];
+        trace?: never;
+    };
+    "/api/v1/livetv/recordings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * All recordings the profile may see: scheduled, running, done, failed (with
+         *     conflicts flagged).
+         */
+        get: operations["listRecordings"];
+        put?: never;
+        /**
+         * Records one program ("Aufnehmen"): creates a program rule and schedules it — or
+         *     starts at once when the program is running.
+         */
+        post: operations["createRecording"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/recordings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One recording. */
+        get: operations["getRecording"];
+        put?: never;
+        post?: never;
+        /**
+         * Cancels a scheduled recording (one of a series is skipped) or deletes a finished
+         *     one with its files. Running recordings are stopped first (`stopRecording`).
+         */
+        delete: operations["deleteRecording"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/recordings/{id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stops a running recording; what was recorded is kept and added to the library. */
+        post: operations["stopRecording"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/schedules-direct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The Schedules Direct account (administrators). */
+        get: operations["getSchedulesDirect"];
+        /** Stores the Schedules Direct account after signing in with it. */
+        put: operations["updateSchedulesDirect"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/schedules-direct/lineups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lineups of the Schedules Direct account, to add as guide sources. */
+        get: operations["listSchedulesDirectLineups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/livetv/sessions/{session}": {
         parameters: {
             query?: never;
@@ -1407,7 +1594,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The live HLS playlist of a viewer session (rolling window). */
+        /**
+         * The live HLS playlist of a viewer session: the whole timeshift buffer as a live
+         *     (DVR window) playlist with `EXT-X-PROGRAM-DATE-TIME`.
+         */
         get: operations["getLivePlaylist"];
         put?: never;
         post?: never;
@@ -1427,6 +1617,24 @@ export interface paths {
         /** One MPEG-TS segment (`seg{n}.ts`) of a viewer session. */
         get: operations["getLiveSegment"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/livetv/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live TV settings (administrators). */
+        get: operations["getLiveTvSettings"];
+        /** Changes Live TV settings; a new timeshift buffer applies to running streams at once. */
+        put: operations["updateLiveTvSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3289,8 +3497,12 @@ export interface components {
             overview?: string | null;
         };
         CreateEpgSourceRequest: {
+            kind?: components["schemas"]["EpgSourceKind"] | null;
             name: string;
-            /** @description XMLTV URL (http/https) or absolute file path; `.gz` files are unpacked. */
+            /**
+             * @description XMLTV: URL (http/https) or absolute file path (`.gz` files are unpacked);
+             *     Schedules Direct: the lineup id, e.g. `DEU-1000097-DEFAULT`.
+             */
             url: string;
         };
         CreateInvitationRequest: {
@@ -3320,6 +3532,64 @@ export interface components {
             shared?: boolean;
             smart_filter?: components["schemas"]["SmartFilterDto"] | null;
         };
+        CreateRecordingRequest: {
+            /** Format: int64 */
+            padding_after_s?: number | null;
+            /**
+             * Format: int64
+             * @description Default: from the Live TV settings.
+             */
+            padding_before_s?: number | null;
+            /**
+             * Format: int64
+             * @description The program to record (from the guide).
+             */
+            program_id: number;
+            /**
+             * Format: int64
+             * @description The client's offset from UTC in minutes (air dates in file names).
+             */
+            utc_offset_min?: number | null;
+        };
+        CreateRuleRequest: {
+            /**
+             * Format: int64
+             * @description Only on this channel (`null` = any channel).
+             */
+            channel_id?: number | null;
+            /**
+             * Format: int64
+             * @description Keep only the newest N recordings.
+             */
+            keep_last?: number | null;
+            /** @description "Nur neue Folgen": skip episodes recorded before and repeats. */
+            new_only?: boolean;
+            /** Format: int64 */
+            padding_after_s?: number | null;
+            /** Format: int64 */
+            padding_before_s?: number | null;
+            /** Format: int64 */
+            priority?: number | null;
+            /**
+             * Format: int64
+             * @description Record the series of this program (title and guide series id come from it).
+             */
+            program_id?: number | null;
+            /** @description Or: record everything with this title. */
+            title?: string | null;
+            /**
+             * Format: int64
+             * @description The client's offset from UTC in minutes (the window's local time).
+             */
+            utc_offset_min?: number | null;
+            /** Format: int64 */
+            window_end_min?: number | null;
+            /**
+             * Format: int64
+             * @description Only broadcasts starting within this window (minutes after local midnight).
+             */
+            window_start_min?: number | null;
+        };
         CreateSyncPlayGroup: {
             /**
              * Format: int64
@@ -3337,7 +3607,7 @@ export interface components {
         CreateTunerRequest: {
             kind: components["schemas"]["TunerKindDto"];
             name: string;
-            /** @description Xtream Codes only. */
+            /** @description Xtream Codes and tvheadend. */
             password?: string | null;
             /**
              * Format: int64
@@ -3346,12 +3616,12 @@ export interface components {
             tuner_count?: number | null;
             /**
              * @description M3U: playlist URL or absolute file path; Xtream: server URL; HDHomeRun: IP
-             *     address or URL of the device.
+             *     address or URL of the device; tvheadend: `http://host:9981`.
              */
             url: string;
             /** @description Sent when fetching the playlist and streams (some providers require one). */
             user_agent?: string | null;
-            /** @description Xtream Codes only. */
+            /** @description Xtream Codes and tvheadend. */
             username?: string | null;
         };
         CreateUserRequest: {
@@ -3618,15 +3888,26 @@ export interface components {
             enabled: boolean;
             /** Format: int64 */
             id: number;
+            kind: components["schemas"]["EpgSourceKind"];
             last_error?: string | null;
             /** Format: int64 */
             last_refresh_at?: number | null;
             name: string;
             /** Format: int64 */
             program_count: number;
-            /** @description XMLTV URL or file path (gzip allowed). */
+            /**
+             * Format: int64
+             * @description The tvheadend tuner this guide belongs to.
+             */
+            tuner_id?: number | null;
+            /**
+             * @description XMLTV URL or file path (gzip allowed); Schedules Direct: the lineup id;
+             *     tvheadend: the server.
+             */
             url: string;
         };
+        /** @enum {string} */
+        EpgSourceKind: "xmltv" | "schedules_direct" | "tvheadend";
         /** @description Error body returned by every failing API call. */
         ErrorBody: {
             /**
@@ -3980,6 +4261,12 @@ export interface components {
         /** @enum {string} */
         LibraryKind: "movies" | "shows" | "music" | "photos" | "audiobooks";
         LiveSessionDto: {
+            /**
+             * Format: int64
+             * @description Timeshift: seconds the server keeps for pausing and rewinding (the playlist
+             *     lists all of them; the player starts at the live edge).
+             */
+            buffer_secs: number;
             /** Format: int64 */
             channel_id: number;
             /** @description Copy or transcode, with the reasons. */
@@ -3993,10 +4280,27 @@ export interface components {
         };
         LiveStreamDto: {
             audio_copied: boolean;
+            /**
+             * Format: double
+             * @description Seconds of timeshift buffer on disk.
+             */
+            buffered_secs: number;
             /** Format: int64 */
             channel_id: number;
             channel_name?: string | null;
+            /** @description Video encoder of the current run (`software` also for copied video). */
+            encoder: components["schemas"]["EncoderKind"];
             id: string;
+            /**
+             * Format: int64
+             * @description Recordings fed by this stream.
+             */
+            recordings: number;
+            /**
+             * Format: int64
+             * @description Times the upstream was restarted after a failure.
+             */
+            restarts: number;
             /** Format: int64 */
             started_at: number;
             /** Format: int64 */
@@ -4004,6 +4308,35 @@ export interface components {
             video_copied: boolean;
             /** @description User ids of the viewers (one entry per player). */
             viewers: number[];
+        };
+        LiveTvProfileDto: {
+            is_admin: boolean;
+            /** @description The profile may watch Live TV and use the DVR. */
+            live_tv_allowed: boolean;
+            name: string;
+            /** Format: int64 */
+            user_id: number;
+        };
+        LiveTvSettingsDto: {
+            /** @description The folder used when none is set. */
+            default_recordings_path: string;
+            /** Format: int64 */
+            padding_after_minutes: number;
+            /**
+             * Format: int64
+             * @description Default padding of new recordings (minutes).
+             */
+            padding_before_minutes: number;
+            /**
+             * @description Folder recordings are written to (`Serien/…`, `Filme/…`; each becomes a
+             *     library). `null` = the default below.
+             */
+            recordings_path?: string | null;
+            /**
+             * Format: int64
+             * @description Timeshift buffer per running channel in minutes (0 = live window only).
+             */
+            timeshift_minutes: number;
         };
         LlmSettingsDto: {
             /** @description OpenAI-compatible API root, e.g. `http://localhost:11434/v1`. */
@@ -4597,6 +4930,12 @@ export interface components {
             id: number;
             is_new: boolean;
             rating?: string | null;
+            recording?: components["schemas"]["ProgramRecordingDto"] | null;
+            /**
+             * @description The parental controls of this profile hide the program (title and texts are
+             *     replaced).
+             */
+            restricted: boolean;
             /** Format: int64 */
             season?: number | null;
             /** Format: int64 */
@@ -4605,6 +4944,14 @@ export interface components {
             title: string;
             /** Format: int64 */
             year?: number | null;
+        };
+        ProgramRecordingDto: {
+            conflict: boolean;
+            /** Format: int64 */
+            id: number;
+            /** @description Recorded by a series rule. */
+            series: boolean;
+            status: components["schemas"]["RecordingStatus"];
         };
         QueuedJobDto: {
             /**
@@ -4659,6 +5006,127 @@ export interface components {
             /** @description Rule-based explanation, e.g. „Weil du „Alien“ gesehen hast“. */
             reason: string;
         };
+        RecordingDto: {
+            /**
+             * Format: int64
+             * @description Bytes recorded so far.
+             */
+            bytes: number;
+            categories: string[];
+            /** Format: int64 */
+            channel_id?: number | null;
+            channel_name: string;
+            /** @description Scheduled, but no tuner is left for it (raise the rule's priority). */
+            conflict: boolean;
+            description?: string | null;
+            /** Format: int64 */
+            end_ms: number;
+            /** Format: int64 */
+            episode?: number | null;
+            error?: string | null;
+            /** Format: int64 */
+            finished_at?: number | null;
+            /** Format: int64 */
+            id: number;
+            is_new: boolean;
+            /**
+             * Format: int64
+             * @description The library item the recording became (once scanned).
+             */
+            item_id?: number | null;
+            /** Format: int64 */
+            padding_after_s: number;
+            /** Format: int64 */
+            padding_before_s: number;
+            /**
+             * Format: int64
+             * @description Files: more than one when a server restart interrupted the recording.
+             */
+            parts: number;
+            /** Format: int64 */
+            priority: number;
+            rating?: string | null;
+            /** Format: int64 */
+            rule_id?: number | null;
+            rule_kind?: components["schemas"]["RecordingRuleKind"] | null;
+            /** Format: int64 */
+            season?: number | null;
+            /**
+             * Format: int64
+             * @description The broadcast (unix ms).
+             */
+            start_ms: number;
+            /** Format: int64 */
+            started_at?: number | null;
+            status: components["schemas"]["RecordingStatus"];
+            subtitle?: string | null;
+            title: string;
+            /** Format: int64 */
+            year?: number | null;
+        };
+        RecordingRuleDto: {
+            /** @description Created by the signed-in user (or the caller is an administrator). */
+            can_edit: boolean;
+            /**
+             * Format: int64
+             * @description Program rules: the channel; series rules: only this channel (`null` = all).
+             */
+            channel_id?: number | null;
+            channel_name?: string | null;
+            /**
+             * Format: int64
+             * @description Scheduled recordings without a tuner.
+             */
+            conflicts: number;
+            enabled: boolean;
+            /** Format: int64 */
+            id: number;
+            /**
+             * Format: int64
+             * @description Keep only the newest N recordings (`null` = all).
+             */
+            keep_last?: number | null;
+            kind: components["schemas"]["RecordingRuleKind"];
+            new_only: boolean;
+            /**
+             * Format: int64
+             * @description Next scheduled broadcast (unix ms).
+             */
+            next_start_ms?: number | null;
+            /** Format: int64 */
+            padding_after_s: number;
+            /** Format: int64 */
+            padding_before_s: number;
+            /**
+             * Format: int64
+             * @description Higher wins when tuners run short.
+             */
+            priority: number;
+            /**
+             * Format: int64
+             * @description Recordings scheduled by the rule.
+             */
+            scheduled: number;
+            /** @description Series rules match this guide series id instead of the title. */
+            series_id?: string | null;
+            title: string;
+            /**
+             * Format: int64
+             * @description Local time = UTC + this many minutes (time window, air dates).
+             */
+            utc_offset_min: number;
+            /** Format: int64 */
+            window_end_min?: number | null;
+            /**
+             * Format: int64
+             * @description Minutes after local midnight; both set = only broadcasts starting within.
+             */
+            window_start_min?: number | null;
+        };
+        /** @enum {string} */
+        RecordingRuleKind: "program" | "series";
+        /** @enum {string} */
+        RecordingStatus: "scheduled" | "recording" | "completed" | "failed" | "cancelled";
         RematchDto: {
             /**
              * Format: int64
@@ -4736,6 +5204,11 @@ export interface components {
             /** @description Path of the whisper.cpp CLI (`whisper-cli`); `null` = Whisper off. */
             whisper_path?: string | null;
         };
+        SchedulesDirectDto: {
+            /** @description Whether a password is stored (only its SHA-1, as the API wants it). */
+            has_password: boolean;
+            username?: string | null;
+        };
         ScrobbleDto: {
             /** @description The listen was long enough to count as a play. */
             counted: boolean;
@@ -4748,6 +5221,12 @@ export interface components {
              * @description How long the track was actually listened to (milliseconds, pauses excluded).
              */
             listened_ms: number;
+        };
+        SdLineupDto: {
+            /** @description Lineup id for a guide source, e.g. `DEU-1000097-DEFAULT`. */
+            lineup: string;
+            location?: string | null;
+            name?: string | null;
         };
         /** @enum {string} */
         SegmentKind: "intro" | "credits" | "recap";
@@ -4786,6 +5265,9 @@ export interface components {
              */
             epg_source_id?: number | null;
             mode: components["schemas"]["EpgAssignmentMode"];
+        };
+        SetLiveTvAccessRequest: {
+            live_tv_allowed: boolean;
         };
         SetPinRequest: {
             /** @description 4–8 digits, or `null` to remove the PIN. */
@@ -5386,7 +5868,7 @@ export interface components {
             username?: string | null;
         };
         /** @enum {string} */
-        TunerKindDto: "m3u" | "xtream" | "hdhomerun";
+        TunerKindDto: "m3u" | "xtream" | "hdhomerun" | "tvheadend";
         /**
          * @description What switching to a profile requires.
          * @enum {string}
@@ -5429,6 +5911,22 @@ export interface components {
             intro_detection?: boolean | null;
             name?: string | null;
             paths?: string[] | null;
+        };
+        UpdateLiveTvSettings: {
+            /** Format: int64 */
+            padding_after_minutes?: number | null;
+            /**
+             * Format: int64
+             * @description 0–120 minutes.
+             */
+            padding_before_minutes?: number | null;
+            /** @description Absolute folder; `null` returns to the default. */
+            recordings_path?: string | null;
+            /**
+             * Format: int64
+             * @description 0–360 minutes.
+             */
+            timeshift_minutes?: number | null;
         };
         UpdateLlmSettings: {
             /** @description `null` removes the stored key. */
@@ -5493,6 +5991,32 @@ export interface components {
         UpdatePreferencesRequest: {
             skip_intro_automatically?: boolean | null;
         };
+        UpdateRuleRequest: {
+            /**
+             * Format: int64
+             * @description `null` = any channel.
+             */
+            channel_id?: number | null;
+            enabled?: boolean | null;
+            /** Format: int64 */
+            keep_last?: number | null;
+            new_only?: boolean | null;
+            /** Format: int64 */
+            padding_after_s?: number | null;
+            /** Format: int64 */
+            padding_before_s?: number | null;
+            /** Format: int64 */
+            priority?: number | null;
+            /** Format: int64 */
+            utc_offset_min?: number | null;
+            /** Format: int64 */
+            window_end_min?: number | null;
+            /**
+             * Format: int64
+             * @description Set both, or `null` both to remove the window.
+             */
+            window_start_min?: number | null;
+        };
         UpdateSceneSettings: {
             language?: string | null;
             model?: string | null;
@@ -5505,6 +6029,11 @@ export interface components {
             transcribe_library_ids?: number[] | null;
             /** @description `null` switches Whisper off. */
             whisper_path?: string | null;
+        };
+        UpdateSchedulesDirect: {
+            /** @description Omit to keep the stored one. */
+            password?: string | null;
+            username: string;
         };
         /** @description SMTP settings. `password` omitted or `null` keeps the stored one; `""` removes it. */
         UpdateSmtpSettings: {
@@ -9569,6 +10098,54 @@ export interface operations {
             };
         };
     };
+    getChannelLogo: {
+        parameters: {
+            query?: {
+                /** @description Width in pixels (snapped to a few sizes). */
+                w?: number;
+                /** @description Expiry of a signed URL (unix seconds). */
+                exp?: number;
+                /** @description Signature of a signed URL. */
+                sig?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Channel id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The logo (PNG) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
+                };
+            };
+            /** @description Neither a valid signature nor a valid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No logo */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     watchChannel: {
         parameters: {
             query?: never;
@@ -9976,6 +10553,96 @@ export interface operations {
             };
         };
     };
+    listLiveTvProfiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Profiles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveTvProfileDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    setLiveTvAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetLiveTvAccessRequest"];
+            };
+        };
+        responses: {
+            /** @description Changed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     searchPrograms: {
         parameters: {
             query: {
@@ -10042,6 +10709,642 @@ export interface operations {
             };
             /** @description Unknown program */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listRecordingRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingRuleDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Live TV is barred for this profile */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createRecordingRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description The rule, with what it scheduled */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingRuleDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Live TV is barred for this profile */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown program or channel */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deleteRecordingRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Rule id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not yours, or Live TV is barred */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown rule */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateRecordingRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Rule id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description The updated rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingRuleDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not yours, or Live TV is barred */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown rule */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listRecordings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recordings in broadcast order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Live TV is barred for this profile */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createRecording: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRecordingRequest"];
+            };
+        };
+        responses: {
+            /** @description Scheduled (see `conflict`) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Live TV is barred for this profile */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown program */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The program is recorded already */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Over, or invalid padding */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getRecording: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Recording id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The recording */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Live TV is barred for this profile */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown recording */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deleteRecording: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Recording id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled or deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not yours, or Live TV is barred */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown recording */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The recording is running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    stopRecording: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Recording id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stopped recording */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordingDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not yours, or Live TV is barred */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown recording */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description The recording is not running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getSchedulesDirect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulesDirectDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateSchedulesDirect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSchedulesDirect"];
+            };
+        };
+        responses: {
+            /** @description Stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulesDirectDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Schedules Direct refused the account */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Schedules Direct unreachable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listSchedulesDirectLineups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lineups */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SdLineupDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No or refused account */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Schedules Direct unreachable */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10165,6 +11468,95 @@ export interface operations {
             };
             /** @description Segment no longer available */
             410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getLiveTvSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveTvSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateLiveTvSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateLiveTvSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveTvSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid value */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,5 +1,5 @@
 //! The tuner abstraction: every source of live channels (M3U playlist, Xtream Codes
-//! account, HDHomeRun device; later tvheadend) answers the same two questions — what
+//! account, HDHomeRun device, tvheadend server) answers the same two questions — what
 //! is it (device id, how many streams at once) and which channels does it offer.
 //! Playing a channel needs only its stream URL, which the lineup provides.
 
@@ -9,6 +9,7 @@ use std::future::Future;
 use flixnet_db::livetv::{NewChannel, TunerHost};
 
 use crate::http::{self, FetchError};
+use crate::tvheadend::{Tvheadend, TvheadendError};
 use crate::xtream::{self, XtreamError};
 use crate::{hdhomerun, m3u};
 
@@ -17,6 +18,7 @@ pub enum TunerKind {
     M3u,
     Xtream,
     HdHomeRun,
+    Tvheadend,
 }
 
 impl TunerKind {
@@ -25,6 +27,7 @@ impl TunerKind {
             TunerKind::M3u => "m3u",
             TunerKind::Xtream => "xtream",
             TunerKind::HdHomeRun => "hdhomerun",
+            TunerKind::Tvheadend => "tvheadend",
         }
     }
 
@@ -33,6 +36,7 @@ impl TunerKind {
             "m3u" => TunerKind::M3u,
             "xtream" => TunerKind::Xtream,
             "hdhomerun" => TunerKind::HdHomeRun,
+            "tvheadend" => TunerKind::Tvheadend,
             _ => return None,
         })
     }
@@ -44,6 +48,8 @@ pub enum TunerError {
     Fetch(#[from] FetchError),
     #[error("Xtream: {0}")]
     Xtream(#[from] XtreamError),
+    #[error("{0}")]
+    Tvheadend(#[from] TvheadendError),
     #[error("Zugangsdaten fehlen")]
     MissingCredentials,
     #[error("unbekannter Tuner-Typ {0}")]
@@ -294,6 +300,7 @@ pub enum AnyTuner {
     M3u(M3uTuner),
     Xtream(XtreamTuner),
     HdHomeRun(HdHomeRunTuner),
+    Tvheadend(Tvheadend),
 }
 
 impl AnyTuner {
@@ -317,6 +324,11 @@ impl AnyTuner {
             Some(TunerKind::HdHomeRun) => Ok(AnyTuner::HdHomeRun(HdHomeRunTuner {
                 address: host.url.clone(),
             })),
+            Some(TunerKind::Tvheadend) => Ok(AnyTuner::Tvheadend(Tvheadend {
+                url: host.url.clone(),
+                username: host.username.clone().filter(|u| !u.is_empty()),
+                password: host.password.clone(),
+            })),
             None => Err(TunerError::UnknownKind(host.kind.clone())),
         }
     }
@@ -328,6 +340,7 @@ impl Tuner for AnyTuner {
             AnyTuner::M3u(t) => t.kind(),
             AnyTuner::Xtream(t) => t.kind(),
             AnyTuner::HdHomeRun(t) => t.kind(),
+            AnyTuner::Tvheadend(t) => t.kind(),
         }
     }
 
@@ -336,6 +349,7 @@ impl Tuner for AnyTuner {
             AnyTuner::M3u(t) => t.lineup(client).await,
             AnyTuner::Xtream(t) => t.lineup(client).await,
             AnyTuner::HdHomeRun(t) => t.lineup(client).await,
+            AnyTuner::Tvheadend(t) => t.lineup(client).await,
         }
     }
 }

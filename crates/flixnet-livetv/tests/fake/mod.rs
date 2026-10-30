@@ -28,6 +28,8 @@ struct Shared {
     streams: Arc<AtomicUsize>,
     /// Stream connections opened so far.
     opened: Arc<AtomicUsize>,
+    /// Logo downloads.
+    logos: Arc<AtomicUsize>,
 }
 
 pub struct FakeSource {
@@ -36,9 +38,15 @@ pub struct FakeSource {
     pub discovery: SocketAddr,
     streams: Arc<AtomicUsize>,
     opened: Arc<AtomicUsize>,
+    logos: Arc<AtomicUsize>,
 }
 
 impl FakeSource {
+    /// Logo downloads so far.
+    pub fn logo_downloads(&self) -> usize {
+        self.logos.load(Ordering::SeqCst)
+    }
+
     /// Stream connections currently open.
     pub fn open_streams(&self) -> usize {
         self.streams.load(Ordering::SeqCst)
@@ -61,6 +69,7 @@ pub async fn start() -> FakeSource {
         base: base.clone(),
         streams: Arc::default(),
         opened: Arc::default(),
+        logos: Arc::default(),
     };
     let app = Router::new()
         .route("/playlist.m3u", get(playlist))
@@ -72,6 +81,7 @@ pub async fn start() -> FakeSource {
         .route("/player_api.php", get(xtream_api))
         .route("/live/{user}/{password}/{file}", get(xtream_stream))
         .route("/stream/{kind}/{file}", get(stream))
+        .route("/logo/{file}", get(logo))
         .with_state(shared.clone());
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
 
@@ -92,6 +102,7 @@ pub async fn start() -> FakeSource {
         discovery,
         streams: shared.streams,
         opened: shared.opened,
+        logos: shared.logos,
     }
 }
 
@@ -109,6 +120,20 @@ async fn playlist(State(s): State<Shared>) -> String {
 {base}/missing.ts
 "
     )
+}
+
+/// A 1×1 PNG for channel logos.
+pub const LOGO_PNG: &[u8] = &[
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+    0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+    0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+    0x42, 0x60, 0x82,
+];
+
+async fn logo(State(s): State<Shared>) -> Response {
+    s.logos.fetch_add(1, Ordering::SeqCst);
+    ([(header::CONTENT_TYPE, "image/png")], LOGO_PNG).into_response()
 }
 
 // ---- Guide --------------------------------------------------------------------------

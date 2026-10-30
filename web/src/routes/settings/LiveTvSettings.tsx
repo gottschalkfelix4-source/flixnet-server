@@ -5,7 +5,9 @@ import {
   type Channel,
   type DiscoveredTuner,
   type EpgChannel,
+  EPG_KIND_LABELS,
   type EpgSource,
+  type EpgSourceKind,
   TUNER_KIND_LABELS,
   type Tuner,
   type TunerKind,
@@ -19,6 +21,13 @@ import {
   useEpgSources,
   useImportTuner,
   useLiveStreams,
+  useLiveTvProfiles,
+  useLiveTvSettings,
+  useSchedulesDirect,
+  useSchedulesDirectLineups,
+  useUpdateSchedulesDirect,
+  useSetLiveTvAccess,
+  useUpdateLiveTvSettings,
   useRefreshEpgSource,
   useRematchChannels,
   useSetChannelEpg,
@@ -39,7 +48,10 @@ export function LiveTvSettings() {
     <div className="flex flex-col gap-6">
       <TunersSection />
       <EpgSourcesSection />
+      <SchedulesDirectSection />
       <ChannelsSection />
+      <RecordingSettingsSection />
+      <ProfilesSection />
       <StreamsSection />
     </div>
   )
@@ -130,6 +142,12 @@ const URL_LABELS: Record<TunerKind, { label: string; placeholder: string }> = {
   m3u: { label: 'Playlist (URL oder Datei)', placeholder: 'http://anbieter.example/playlist.m3u' },
   xtream: { label: 'Server-Adresse', placeholder: 'http://anbieter.example:8080' },
   hdhomerun: { label: 'IP-Adresse des Geräts', placeholder: '192.168.1.50' },
+  tvheadend: { label: 'Server-Adresse', placeholder: 'http://tvheadend.local:9981' },
+}
+
+/** Tuner kinds with an account. */
+function hasAccount(kind: TunerKind): boolean {
+  return kind === 'xtream' || kind === 'tvheadend'
 }
 
 function TunerDialog({ tuner, onClose }: { tuner: Tuner | null; onClose: () => void }) {
@@ -157,8 +175,8 @@ function TunerDialog({ tuner, onClose }: { tuner: Tuner | null; onClose: () => v
           id: tuner.id,
           name: name.trim(),
           url: url.trim(),
-          username: kind === 'xtream' ? username.trim() || null : undefined,
-          password: kind === 'xtream' && password ? password : undefined,
+          username: hasAccount(kind) ? username.trim() || null : undefined,
+          password: hasAccount(kind) && password ? password : undefined,
           user_agent: userAgent.trim() || null,
           tuner_count: tunerCount,
           enabled,
@@ -171,8 +189,8 @@ function TunerDialog({ tuner, onClose }: { tuner: Tuner | null; onClose: () => v
           kind,
           name: name.trim(),
           url: url.trim(),
-          username: kind === 'xtream' ? username.trim() : null,
-          password: kind === 'xtream' ? password : null,
+          username: hasAccount(kind) ? username.trim() || null : null,
+          password: hasAccount(kind) ? password || null : null,
           user_agent: userAgent.trim() || null,
           tuner_count: tunerCount,
         },
@@ -240,7 +258,13 @@ function TunerDialog({ tuner, onClose }: { tuner: Tuner | null; onClose: () => v
             ))}
           </div>
         )}
-        {kind === 'xtream' && (
+        {kind === 'tvheadend' && (
+          <p className="text-xs text-subtle">
+            Benutzer mit Streaming-Recht; in tvheadend „Plain und Digest“ als Anmeldeart. Das EPG wird als Programmquelle
+            mit angelegt.
+          </p>
+        )}
+        {hasAccount(kind) && (
           <div className="grid gap-4 md:grid-cols-2">
             <TextField label="Benutzername" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
             <TextField
@@ -323,6 +347,7 @@ function EpgSourcesSection() {
               <p className="text-sm font-bold">
                 {source.name}
                 {!source.enabled && <span className="ml-2 text-xs font-semibold text-subtle">deaktiviert</span>}
+                {source.kind !== 'xmltv' && <span className="ml-2 text-xs font-semibold text-subtle">{EPG_KIND_LABELS[source.kind]}</span>}
               </p>
               <p className="text-xs text-subtle" data-testid="epg-source-summary">
                 {source.last_refresh_at == null
@@ -364,14 +389,21 @@ function EpgSourceDialog({ source, onClose }: { source: EpgSource | null; onClos
   const remove = useDeleteEpgSource()
   const [name, setName] = useState(source?.name ?? '')
   const [url, setUrl] = useState(source?.url ?? '')
+  const [kind, setKind] = useState<EpgSourceKind>(source?.kind ?? 'xmltv')
   const [enabled, setEnabled] = useState(source?.enabled ?? true)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const account = useSchedulesDirect()
+  const lineups = useSchedulesDirectLineups(kind === 'schedules_direct' && !source && !!account.data?.has_password)
   const error = create.error ?? update.error ?? remove.error
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (source) update.mutate({ id: source.id, name: name.trim(), url: url.trim(), enabled }, { onSuccess: onClose })
-    else create.mutate({ name: name.trim(), url: url.trim() }, { onSuccess: onClose })
+    if (source) {
+      update.mutate(
+        { id: source.id, name: name.trim(), url: source.kind === 'tvheadend' ? undefined : url.trim(), enabled },
+        { onSuccess: onClose },
+      )
+    } else create.mutate({ name: name.trim(), url: url.trim(), kind }, { onSuccess: onClose })
   }
 
   return (
@@ -381,13 +413,52 @@ function EpgSourceDialog({ source, onClose }: { source: EpgSource | null; onClos
       title={source ? `${source.name} bearbeiten` : 'Programmquelle hinzufügen'}
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
+        {!source && (
+          <SelectField
+            label="Art"
+            value={kind}
+            onChange={(v) => setKind(v as EpgSourceKind)}
+            options={[
+              { value: 'xmltv', label: EPG_KIND_LABELS.xmltv },
+              { value: 'schedules_direct', label: EPG_KIND_LABELS.schedules_direct },
+            ]}
+          />
+        )}
         <TextField label="Name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} />
-        <TextField
-          label="XMLTV-Adresse oder Datei"
-          placeholder="http://epg.example/guide.xml.gz"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
+        {kind === 'tvheadend' ? (
+          <p className="text-sm text-muted">Programmdaten des tvheadend-Tuners {source?.url}.</p>
+        ) : kind === 'schedules_direct' ? (
+          <>
+            <TextField
+              label="Lineup"
+              placeholder="DEU-1000097-DEFAULT"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              hint={account.data?.has_password ? undefined : 'Zuerst unten das Schedules-Direct-Konto eintragen.'}
+            />
+            {lineups.data?.map((l) => (
+              <button
+                key={l.lineup}
+                type="button"
+                onClick={() => {
+                  setUrl(l.lineup)
+                  if (!name.trim()) setName(l.name ?? l.lineup)
+                }}
+                className="flex items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2 text-left text-sm hover:bg-surface-3"
+              >
+                <span className="font-semibold">{l.name ?? l.lineup}</span>
+                <span className="text-xs text-muted">{[l.location, l.lineup].filter(Boolean).join(' · ')}</span>
+              </button>
+            ))}
+          </>
+        ) : (
+          <TextField
+            label="XMLTV-Adresse oder Datei"
+            placeholder="http://epg.example/guide.xml.gz"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        )}
         {source && <Checkbox label="Aktiv" checked={enabled} onChange={setEnabled} />}
         <FormError error={error} />
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
@@ -410,12 +481,67 @@ function EpgSourceDialog({ source, onClose }: { source: EpgSource | null; onClos
           ) : (
             <span />
           )}
-          <Button type="submit" variant="accent" loading={create.isPending || update.isPending} disabled={!name.trim() || !url.trim()}>
+          <Button
+            type="submit"
+            variant="accent"
+            loading={create.isPending || update.isPending}
+            disabled={!name.trim() || (kind !== 'tvheadend' && !url.trim())}
+          >
             Speichern
           </Button>
         </div>
       </form>
     </Dialog>
+  )
+}
+
+// ---- Schedules Direct account -------------------------------------------------------
+
+function SchedulesDirectSection() {
+  const account = useSchedulesDirect()
+  if (!account.data) return null
+  return <SchedulesDirectForm username={account.data.username ?? ''} hasPassword={account.data.has_password} />
+}
+
+function SchedulesDirectForm({ username: initial, hasPassword }: { username: string; hasPassword: boolean }) {
+  const save = useUpdateSchedulesDirect()
+  const [username, setUsername] = useState(initial)
+  const [password, setPassword] = useState('')
+  return (
+    <Section
+      title="Schedules Direct"
+      description="Kostenpflichtiger Programmdienst (schedulesdirect.org). Mit Konto lassen sich Lineups als Programmquelle hinzufügen."
+    >
+      <form
+        className="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end"
+        onSubmit={(event) => {
+          event.preventDefault()
+          save.mutate({ username: username.trim(), password: password || null }, { onSuccess: () => setPassword('') })
+        }}
+        data-testid="schedules-direct"
+      >
+        <TextField label="Benutzername" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <TextField
+          label={hasPassword ? 'Neues Passwort (gespeichert)' : 'Passwort'}
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <Button type="submit" variant="accent" loading={save.isPending} disabled={!username.trim() || (!hasPassword && !password)}>
+          Anmelden
+        </Button>
+        <div className="md:col-span-3">
+          {save.isSuccess && (
+            <span className="inline-flex items-center gap-1 text-sm text-muted">
+              <CheckCircle2 className="size-4 text-accent" aria-hidden="true" />
+              Angemeldet
+            </span>
+          )}
+          <FormError error={save.error} />
+        </div>
+      </form>
+    </Section>
   )
 }
 
@@ -591,6 +717,112 @@ function StreamsSection() {
             <span className="text-muted">
               {stream.video_copied && stream.audio_copied ? 'Kopie' : 'Transcode'} · seit {relativeTime(stream.started_at, now)}
             </span>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  )
+}
+
+// ---- Timeshift and recordings -------------------------------------------------------
+
+function RecordingSettingsSection() {
+  const settings = useLiveTvSettings()
+  if (!settings.data) return null
+  return <RecordingSettingsForm data={settings.data} />
+}
+
+function RecordingSettingsForm({ data }: { data: NonNullable<ReturnType<typeof useLiveTvSettings>['data']> }) {
+  const update = useUpdateLiveTvSettings()
+  const [timeshift, setTimeshift] = useState(String(data.timeshift_minutes))
+  const [path, setPath] = useState(data.recordings_path ?? '')
+  const [before, setBefore] = useState(String(data.padding_before_minutes))
+  const [after, setAfter] = useState(String(data.padding_after_minutes))
+
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    update.mutate({
+      timeshift_minutes: Number(timeshift),
+      recordings_path: path.trim() ? path.trim() : null,
+      padding_before_minutes: Number(before),
+      padding_after_minutes: Number(after),
+    })
+  }
+
+  return (
+    <Section
+      title="Zeitversatz und Aufnahmen"
+      description="Laufende Sender halten einen Puffer zum Pausieren und Zurückspulen. Aufnahmen landen als Serien und Filme in eigenen Bibliotheken."
+    >
+      <form onSubmit={submit} className="grid gap-4 md:grid-cols-2" data-testid="recording-settings">
+        <TextField
+          label="Zeitversatz-Puffer (Minuten)"
+          type="number"
+          min={0}
+          max={360}
+          value={timeshift}
+          onChange={(e) => setTimeshift(e.target.value)}
+          hint="0 schaltet den Zeitversatz ab; der Puffer liegt im Transcode-Ordner."
+        />
+        <TextField
+          label="Aufnahme-Ordner"
+          placeholder={data.default_recordings_path}
+          value={path}
+          onChange={(e) => setPath(e.target.value)}
+          hint="Leer lassen für den Standardordner."
+        />
+        <TextField
+          label="Vorlauf (Minuten)"
+          type="number"
+          min={0}
+          max={120}
+          value={before}
+          onChange={(e) => setBefore(e.target.value)}
+        />
+        <TextField
+          label="Nachlauf (Minuten)"
+          type="number"
+          min={0}
+          max={120}
+          value={after}
+          onChange={(e) => setAfter(e.target.value)}
+        />
+        <div className="flex items-center gap-3 md:col-span-2">
+          <Button type="submit" variant="accent" loading={update.isPending}>
+            Speichern
+          </Button>
+          {update.isSuccess && (
+            <span className="inline-flex items-center gap-1 text-sm text-muted">
+              <CheckCircle2 className="size-4 text-accent" aria-hidden="true" />
+              Gespeichert
+            </span>
+          )}
+          <FormError error={update.error} />
+        </div>
+      </form>
+    </Section>
+  )
+}
+
+// ---- Live TV per profile -------------------------------------------------------------
+
+function ProfilesSection() {
+  const profiles = useLiveTvProfiles()
+  const access = useSetLiveTvAccess()
+  if (!profiles.data?.length) return null
+  return (
+    <Section
+      title="Live TV erlaubt"
+      description="Profile ohne Freigabe sehen weder Sender noch Programm noch Aufnahmen. Altersfreigaben der Sendungen gelten zusätzlich."
+    >
+      <ul className="divide-y divide-line/60" data-testid="livetv-profiles">
+        {profiles.data.map((profile) => (
+          <li key={profile.user_id} className="py-2.5">
+            <Checkbox
+              label={profile.name}
+              checked={profile.live_tv_allowed}
+              onChange={(allowed) => access.mutate({ id: profile.user_id, allowed })}
+            />
           </li>
         ))}
       </ul>

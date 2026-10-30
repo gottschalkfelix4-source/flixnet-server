@@ -313,6 +313,8 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         config.paths.transcode_dir().join("live"),
         flixnet_livetv::LiveSettings::default(),
     );
+    // Live transcodes use the encoder hardware detection picks.
+    livetv.use_encoders_of(transcoder.clone());
 
     // AI jobs pause while anyone transcodes; new metadata gets embedded shortly after.
     ai.set_busy_probe(flixnet_api::playback_busy_probe(&transcoder, &livetv));
@@ -338,6 +340,8 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     };
     let jellyfin = config.jellyfin.clone();
     let state = AppState::new(config, db.clone(), services).with_ai(ai.clone());
+    flixnet_api::start_services(&state).await?;
+    let dvr = state.dvr.clone();
     // Load the model and the vectors in the background, so the first search is quick.
     tokio::spawn(async move {
         if let Err(err) = ai.ensure_index().await {
@@ -396,6 +400,8 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     dlna.stop().await;
     ai_listener.abort();
     transcoder.stop_all().await;
+    // Running recordings resume into a new part after the next start.
+    dvr.shutdown().await;
     livetv.stop_all().await;
     stop_scheduler.cancel();
     let _ = scheduler.await;

@@ -34,6 +34,9 @@ pub struct XmltvChannel {
     pub icon: Option<String>,
 }
 
+// Items are handed over one at a time (never stored as a collection), so the size
+// difference costs nothing; boxing would allocate per program instead.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum XmltvItem {
     Channel(XmltvChannel),
@@ -443,6 +446,16 @@ pub fn parse<R: BufRead>(
                                             p.episode = episode;
                                         }
                                         Some("onscreen") | None => d.onscreen = Some(value),
+                                        // `EP01234567.0003`: the part before the dot
+                                        // names the series.
+                                        Some("dd_progid") => {
+                                            p.series_id = value
+                                                .split('.')
+                                                .next()
+                                                .map(str::trim)
+                                                .filter(|s| !s.is_empty())
+                                                .map(str::to_owned);
+                                        }
                                         _ => {}
                                     },
                                     Field::Date => {
@@ -543,6 +556,7 @@ mod tests {
   <programme start="20261029201500 +0100" channel="daserste.de">
     <title>Tatort</title>
     <episode-num system="xmltv_ns">54.1199.</episode-num>
+    <episode-num system="dd_progid">EP00012345.1200</episode-num>
     <date>2026</date>
     <rating system="FSK"><value>12</value></rating>
   </programme>
@@ -597,6 +611,7 @@ mod tests {
         assert_eq!(tatort.episode_label.as_deref(), Some("S55E1200"));
         assert_eq!(tatort.year, Some(2026));
         assert_eq!(tatort.rating.as_deref(), Some("FSK 12"));
+        assert_eq!(tatort.series_id.as_deref(), Some("EP00012345"));
         assert!(!tatort.is_new);
 
         let talk = &programs[2];

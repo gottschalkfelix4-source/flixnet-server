@@ -16,6 +16,9 @@ function xmltvTime(ms: number): string {
   return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())} +0100`
 }
 
+/** Set by the DVR test: channel two then shows 30-second films ("Kurzfilm n"). */
+let shortsFrom: number | null = null
+
 function guide(): string {
   const now = Date.now()
   const first = now - (now % SLOT) - 2 * SLOT
@@ -26,6 +29,15 @@ function guide(): string {
     ['testeins.de', 'Eins'],
     ['testzwei.de', 'Zwei'],
   ]) {
+    if (id === 'testzwei.de' && shortsFrom !== null) {
+      for (let n = 0; n < 40; n++) {
+        const start = shortsFrom + n * 30_000
+        xml += `<programme start="${xmltvTime(start)}" stop="${xmltvTime(start + 30_000)}" channel="${id}">`
+        xml += `<title lang="de">Kurzfilm ${n}</title><desc lang="de">Ein sehr kurzer Film.</desc>`
+        xml += '<category lang="de">Spielfilm</category></programme>\n'
+      }
+      continue
+    }
     for (let n = 0; n < 12; n++) {
       const start = first + n * SLOT
       const running = start <= now && now < start + SLOT
@@ -99,12 +111,15 @@ test.afterAll(async () => {
 test.describe.configure({ mode: 'serial' })
 
 /** Admin API call with the stored session token. */
-async function api(page: Page, path: string): Promise<unknown> {
-  return page.evaluate(async (url) => {
-    const token = JSON.parse(localStorage.getItem('flixnet.session') ?? '{}').token
-    const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-    return response.json()
-  }, path)
+async function api(page: Page, path: string, method = 'GET'): Promise<unknown> {
+  return page.evaluate(
+    async ([url, verb]) => {
+      const token = JSON.parse(localStorage.getItem('flixnet.session') ?? '{}').token
+      const response = await fetch(url, { method: verb, headers: { Authorization: `Bearer ${token}` } })
+      return response.status === 204 ? null : response.json()
+    },
+    [path, method] as const,
+  )
 }
 
 test('admin adds an M3U tuner and an XMLTV guide; channels get matched', async ({ page }) => {
@@ -211,4 +226,95 @@ test('watching a channel plays the live stream and stops it on close', async ({ 
   await page.getByRole('button', { name: 'Zurück' }).first().click()
   await expect(page.getByTestId('guide-grid')).toBeVisible()
   await expect.poll(() => api(page, '/api/v1/livetv/streams'), { timeout: 10_000 }).toEqual([])
+})
+
+test('timeshift: the live player pauses, rewinds within the buffer and jumps back to live', async ({ page }) => {
+  await page.goto('/live')
+  await page.getByTestId('guide-grid').getByTestId('guide-program').filter({ hasText: 'Die Testschau' }).click()
+  await page.getByRole('dialog').getByRole('link', { name: 'Jetzt ansehen' }).click()
+  const video = page.getByTestId('live-video')
+  const time = () => video.evaluate((v: HTMLVideoElement) => v.currentTime)
+  await video.evaluate((v: HTMLVideoElement) => {
+    v.muted = true
+    return v.play().catch(() => {})
+  })
+  // Let the buffer grow a little beyond the live distance.
+  await expect.poll(time, { timeout: 40_000 }).toBeGreaterThan(10)
+  const offset = page.getByTestId('timeshift-offset')
+  await expect(offset).toHaveText('Live')
+
+  // Pause: the picture stands still while the live edge moves on.
+  await page.getByRole('button', { name: 'Pause' }).click()
+  const paused = await time()
+  await page.waitForTimeout(6000)
+  expect(Math.abs((await time()) - paused)).toBeLessThan(0.5)
+  await expect(offset).toHaveText(/^−\d+:\d\d$/)
+
+  // Rewind to the start of the buffer and play from there.
+  await page.getByRole('button', { name: '30 Sekunden zurück' }).click()
+  await expect.poll(time, { timeout: 10_000 }).toBeLessThan(paused - 2)
+  await page.getByRole('button', { name: 'Abspielen' }).click()
+  const rewound = await time()
+  await expect.poll(time, { timeout: 15_000 }).toBeGreaterThan(rewound + 1)
+  await expect(offset).toHaveText(/^−/)
+
+  // "Live" returns to the edge.
+  await page.getByTestId('live-edge').click()
+  await expect(offset).toHaveText('Live', { timeout: 15_000 })
+  expect(await time()).toBeGreaterThan(rewound + 4)
+
+  await page.getByRole('button', { name: 'Zurück' }).first().click()
+  await expect.poll(() => api(page, '/api/v1/livetv/streams'), { timeout: 10_000 }).toEqual([])
+})
+
+test('a program starting in a few seconds is recorded and appears in the library', async ({ page }) => {
+  test.setTimeout(300_000)
+  // No padding, so the recording is exactly the 30-second film.
+  await page.goto('/settings?tab=livetv')
+  const settings = page.getByTestId('recording-settings')
+  await settings.getByLabel('Vorlauf (Minuten)').fill('0')
+  await settings.getByLabel('Nachlauf (Minuten)').fill('0')
+  await settings.getByRole('button', { name: 'Speichern' }).click()
+  await expect(settings.getByText('Gespeichert')).toBeVisible()
+
+  // The guide now has short films on channel two.
+  shortsFrom = Date.now() - 60_000
+  const sources = (await api(page, '/api/v1/livetv/epg-sources')) as { id: number }[]
+  await api(page, `/api/v1/livetv/epg-sources/${sources[0].id}/refresh`, 'POST')
+  type Found = { title: string; start_ms: number }
+  let next: Found | undefined
+  await expect
+    .poll(
+      async () => {
+        const found = (await api(page, '/api/v1/livetv/programs?q=Kurzfilm&limit=50')) as Found[]
+        next = found.find((p) => p.start_ms > Date.now() + 15_000)
+        return next?.title ?? ''
+      },
+      { timeout: 30_000 },
+    )
+    .toMatch(/^Kurzfilm \d+$/)
+  const title = next!.title
+
+  // Find it and record it.
+  await page.goto('/live')
+  await page.getByLabel('Sendungen suchen').fill(title)
+  await page.getByTestId('program-results').getByRole('button', { name: new RegExp(`${title}\\b`) }).first().click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', { name: title })).toBeVisible()
+  await dialog.getByRole('button', { name: 'Aufnehmen', exact: true }).click()
+  await expect(dialog.getByTestId('recording-state')).toHaveText('Aufnahme geplant')
+  await page.keyboard.press('Escape')
+
+  // Scheduled → running → done, then it is a library item.
+  await page.getByRole('link', { name: 'Aufnahmen' }).click()
+  await expect(page).toHaveURL(/\/live\/recordings$/)
+  const row = page.getByTestId('recording-row').filter({ hasText: title })
+  await expect(row).toBeVisible()
+  await page.getByRole('tab', { name: /Läuft/ }).click()
+  await expect(row.getByTestId('recording-status')).toContainText('Läuft', { timeout: 60_000 })
+  await page.getByRole('tab', { name: /Fertig/ }).click()
+  await expect(row.getByTestId('recording-status')).toContainText('Fertig', { timeout: 90_000 })
+  await row.getByTestId('recording-item').click({ timeout: 60_000 })
+  await expect(page).toHaveURL(/\/item\/\d+$/)
+  await expect(page.getByRole('heading', { name: new RegExp(title) })).toBeVisible()
 })

@@ -4,12 +4,14 @@ import { useRef } from 'react'
 import { ApiError } from '@/api/client'
 import { formatSlot, progress, useChannels, useWatchChannel } from '@/api/queries/livetv'
 import { REASON_LABELS } from '@/api/queries/playback'
+import { TimeshiftControls } from '@/components/livetv/TimeshiftControls'
 import { useLiveSource } from '@/lib/useLiveSource'
 import { useNow } from '@/lib/useNow'
 
 /**
  * Full-screen live player: asks the server for a viewer session of the channel (it
- * joins or starts the shared stream) and plays its rolling HLS window.
+ * joins or starts the shared stream) and plays it from the live edge, with timeshift
+ * controls over the server's buffer (pause, rewind, back to live).
  */
 export function LivePlayerPage() {
   const { channelId } = useParams({ from: '/live/$channelId' })
@@ -19,14 +21,14 @@ export function LivePlayerPage() {
   const channels = useChannels()
   const channel = channels.data?.find((c) => c.id === id)
   const session = useWatchChannel(id)
-  const streamError = useLiveSource(video, session.data)
+  const live = useLiveSource(video, session.data)
   const now = useNow(15_000)
 
   const error = session.isError
     ? session.error instanceof ApiError
       ? session.error.message
       : 'Der Sender lässt sich gerade nicht abspielen.'
-    : streamError
+    : live.error
   const plan = session.data?.plan
   const method = plan
     ? plan.video?.action === 'transcode' || plan.audio?.action === 'transcode'
@@ -34,6 +36,26 @@ export function LivePlayerPage() {
       : 'Kopie'
     : null
   const current = channel?.now
+  const seek = (seconds: number) => {
+    const element = video.current
+    if (element) element.currentTime = seconds
+  }
+  const togglePlay = () => {
+    const element = video.current
+    if (element?.paused) void element.play().catch(() => {})
+    else element?.pause()
+  }
+  const toggleMute = () => {
+    const element = video.current
+    if (element) element.muted = !element.muted
+  }
+  const goLive = () => {
+    const element = video.current
+    if (!element) return
+    const edge = live.liveEdge(element)
+    if (edge !== null) element.currentTime = edge
+    void element.play().catch(() => {})
+  }
   const back = () => (router.history.length > 1 ? router.history.back() : void router.navigate({ to: '/live' }))
 
   return (
@@ -80,11 +102,21 @@ export function LivePlayerPage() {
       <video
         ref={video}
         className="h-full w-full bg-black"
-        controls
         autoPlay
         playsInline
         data-testid="live-video"
       />
+
+      {session.data && !error && (
+        <TimeshiftControls
+          video={video}
+          onSeek={seek}
+          onTogglePlay={togglePlay}
+          onToggleMute={toggleMute}
+          onLive={goLive}
+          playingDate={live.playingDate}
+        />
+      )}
 
       {session.isPending && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/80">

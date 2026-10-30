@@ -5253,6 +5253,89 @@
         }
       }
     },
+    "/api/v1/livetv/channels/{id}/logo": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "A channel's logo from the image cache (fetched from the provider once).",
+        "description": "Use the signed URL from `listChannels`; alternatively authenticate normally.",
+        "operationId": "getChannelLogo",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Channel id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "w",
+            "in": "query",
+            "description": "Width in pixels (snapped to a few sizes).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "description": "Expiry of a signed URL (unix seconds).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "description": "Signature of a signed URL.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The logo (PNG)",
+            "content": {
+              "image/png": {}
+            }
+          },
+          "401": {
+            "description": "Neither a valid signature nor a valid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No logo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {}
+        ]
+      }
+    },
     "/api/v1/livetv/channels/{id}/watch": {
       "post": {
         "tags": [
@@ -5776,6 +5859,116 @@
         }
       }
     },
+    "/api/v1/livetv/profiles": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Profiles and whether they may use Live TV (administrators).",
+        "operationId": "listLiveTvProfiles",
+        "responses": {
+          "200": {
+            "description": "Profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LiveTvProfileDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/profiles/{id}": {
+      "put": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Allows or bars Live TV for a profile (\"Live TV erlaubt\"; administrators).",
+        "operationId": "setLiveTvAccess",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "User id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetLiveTvAccessRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Changed"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/livetv/programs": {
       "get": {
         "tags": [
@@ -5884,6 +6077,753 @@
         }
       }
     },
+    "/api/v1/livetv/recording-rules": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Recording rules (one-off programs and series).",
+        "operationId": "listRecordingRules",
+        "responses": {
+          "200": {
+            "description": "Rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecordingRuleDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Live TV is barred for this profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Records a series (\"Serie aufnehmen\") and schedules its upcoming broadcasts.",
+        "operationId": "createRecordingRule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The rule, with what it scheduled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingRuleDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Live TV is barred for this profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown program or channel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/recording-rules/{id}": {
+      "delete": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Deletes a rule with its scheduled recordings (finished ones stay).",
+        "operationId": "deleteRecordingRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Rule id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not yours, or Live TV is barred",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown rule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Changes a rule (priority, filters, padding, retention); its schedule follows.",
+        "operationId": "updateRecordingRule",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Rule id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The updated rule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingRuleDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not yours, or Live TV is barred",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown rule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/recordings": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "All recordings the profile may see: scheduled, running, done, failed (with\nconflicts flagged).",
+        "operationId": "listRecordings",
+        "responses": {
+          "200": {
+            "description": "Recordings in broadcast order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecordingDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Live TV is barred for this profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Records one program (\"Aufnehmen\"): creates a program rule and schedules it — or\nstarts at once when the program is running.",
+        "operationId": "createRecording",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRecordingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Scheduled (see `conflict`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Live TV is barred for this profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown program",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The program is recorded already",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Over, or invalid padding",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/recordings/{id}": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "One recording.",
+        "operationId": "getRecording",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Recording id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The recording",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Live TV is barred for this profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown recording",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Cancels a scheduled recording (one of a series is skipped) or deletes a finished\none with its files. Running recordings are stopped first (`stopRecording`).",
+        "operationId": "deleteRecording",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Recording id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Cancelled or deleted"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not yours, or Live TV is barred",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown recording",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The recording is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/recordings/{id}/stop": {
+      "post": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Stops a running recording; what was recorded is kept and added to the library.",
+        "operationId": "stopRecording",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Recording id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stopped recording",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordingDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not yours, or Live TV is barred",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown recording",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The recording is not running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/schedules-direct": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "The Schedules Direct account (administrators).",
+        "operationId": "getSchedulesDirect",
+        "responses": {
+          "200": {
+            "description": "The account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulesDirectDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Stores the Schedules Direct account after signing in with it.",
+        "operationId": "updateSchedulesDirect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSchedulesDirect"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulesDirectDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Schedules Direct refused the account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Schedules Direct unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/livetv/schedules-direct/lineups": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Lineups of the Schedules Direct account, to add as guide sources.",
+        "operationId": "listSchedulesDirectLineups",
+        "responses": {
+          "200": {
+            "description": "Lineups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SdLineupDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No or refused account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Schedules Direct unreachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/livetv/sessions/{session}": {
       "delete": {
         "tags": [
@@ -5934,7 +6874,7 @@
         "tags": [
           "livetv"
         ],
-        "summary": "The live HLS playlist of a viewer session (rolling window).",
+        "summary": "The live HLS playlist of a viewer session: the whole timeshift buffer as a live\n(DVR window) playlist with `EXT-X-PROGRAM-DATE-TIME`.",
         "operationId": "getLivePlaylist",
         "parameters": [
           {
@@ -6042,6 +6982,106 @@
         "security": [
           {}
         ]
+      }
+    },
+    "/api/v1/livetv/settings": {
+      "get": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Live TV settings (administrators).",
+        "operationId": "getLiveTvSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveTvSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "livetv"
+        ],
+        "summary": "Changes Live TV settings; a new timeshift buffer applies to running streams at once.",
+        "operationId": "updateLiveTvSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLiveTvSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveTvSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/livetv/streams": {
@@ -13278,12 +14318,23 @@
           "url"
         ],
         "properties": {
+          "kind": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/EpgSourceKind",
+                "description": "Default `xmltv`; tvheadend guides come with their tuner."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "type": "string"
           },
           "url": {
             "type": "string",
-            "description": "XMLTV URL (http/https) or absolute file path; `.gz` files are unpacked."
+            "description": "XMLTV: URL (http/https) or absolute file path (`.gz` files are unpacked);\nSchedules Direct: the lineup id, e.g. `DEU-1000097-DEFAULT`."
           }
         }
       },
@@ -13370,6 +14421,126 @@
           }
         }
       },
+      "CreateRecordingRequest": {
+        "type": "object",
+        "required": [
+          "program_id"
+        ],
+        "properties": {
+          "padding_after_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "padding_before_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Default: from the Live TV settings."
+          },
+          "program_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The program to record (from the guide)."
+          },
+          "utc_offset_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The client's offset from UTC in minutes (air dates in file names)."
+          }
+        }
+      },
+      "CreateRuleRequest": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Only on this channel (`null` = any channel)."
+          },
+          "keep_last": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Keep only the newest N recordings."
+          },
+          "new_only": {
+            "type": "boolean",
+            "description": "\"Nur neue Folgen\": skip episodes recorded before and repeats."
+          },
+          "padding_after_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "padding_before_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "program_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Record the series of this program (title and guide series id come from it)."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Or: record everything with this title."
+          },
+          "utc_offset_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The client's offset from UTC in minutes (the window's local time)."
+          },
+          "window_end_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "window_start_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Only broadcasts starting within this window (minutes after local midnight)."
+          }
+        }
+      },
       "CreateSyncPlayGroup": {
         "type": "object",
         "required": [
@@ -13417,7 +14588,7 @@
               "string",
               "null"
             ],
-            "description": "Xtream Codes only."
+            "description": "Xtream Codes and tvheadend."
           },
           "tuner_count": {
             "type": [
@@ -13429,7 +14600,7 @@
           },
           "url": {
             "type": "string",
-            "description": "M3U: playlist URL or absolute file path; Xtream: server URL; HDHomeRun: IP\naddress or URL of the device."
+            "description": "M3U: playlist URL or absolute file path; Xtream: server URL; HDHomeRun: IP\naddress or URL of the device; tvheadend: `http://host:9981`."
           },
           "user_agent": {
             "type": [
@@ -13443,7 +14614,7 @@
               "string",
               "null"
             ],
-            "description": "Xtream Codes only."
+            "description": "Xtream Codes and tvheadend."
           }
         }
       },
@@ -14101,6 +15272,7 @@
         "type": "object",
         "required": [
           "id",
+          "kind",
           "name",
           "url",
           "enabled",
@@ -14118,6 +15290,9 @@
           "id": {
             "type": "integer",
             "format": "int64"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/EpgSourceKind"
           },
           "last_error": {
             "type": [
@@ -14139,11 +15314,27 @@
             "type": "integer",
             "format": "int64"
           },
+          "tuner_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The tvheadend tuner this guide belongs to."
+          },
           "url": {
             "type": "string",
-            "description": "XMLTV URL or file path (gzip allowed)."
+            "description": "XMLTV URL or file path (gzip allowed); Schedules Direct: the lineup id;\ntvheadend: the server."
           }
         }
+      },
+      "EpgSourceKind": {
+        "type": "string",
+        "enum": [
+          "xmltv",
+          "schedules_direct",
+          "tvheadend"
+        ]
       },
       "ErrorBody": {
         "type": "object",
@@ -15218,9 +16409,15 @@
           "playlist_url",
           "channel_id",
           "plan",
-          "shared"
+          "shared",
+          "buffer_secs"
         ],
         "properties": {
+          "buffer_secs": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Timeshift: seconds the server keeps for pausing and rewinding (the playlist\nlists all of them; the player starts at the live edge)."
+          },
           "channel_id": {
             "type": "integer",
             "format": "int64"
@@ -15252,11 +16449,20 @@
           "started_at",
           "video_copied",
           "audio_copied",
-          "viewers"
+          "viewers",
+          "recordings",
+          "buffered_secs",
+          "restarts",
+          "encoder"
         ],
         "properties": {
           "audio_copied": {
             "type": "boolean"
+          },
+          "buffered_secs": {
+            "type": "number",
+            "format": "double",
+            "description": "Seconds of timeshift buffer on disk."
           },
           "channel_id": {
             "type": "integer",
@@ -15268,8 +16474,22 @@
               "null"
             ]
           },
+          "encoder": {
+            "$ref": "#/components/schemas/EncoderKind",
+            "description": "Video encoder of the current run (`software` also for copied video)."
+          },
           "id": {
             "type": "string"
+          },
+          "recordings": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Recordings fed by this stream."
+          },
+          "restarts": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Times the upstream was restarted after a failure."
           },
           "started_at": {
             "type": "integer",
@@ -15289,6 +16509,67 @@
               "format": "int64"
             },
             "description": "User ids of the viewers (one entry per player)."
+          }
+        }
+      },
+      "LiveTvProfileDto": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "is_admin",
+          "live_tv_allowed"
+        ],
+        "properties": {
+          "is_admin": {
+            "type": "boolean"
+          },
+          "live_tv_allowed": {
+            "type": "boolean",
+            "description": "The profile may watch Live TV and use the DVR."
+          },
+          "name": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "LiveTvSettingsDto": {
+        "type": "object",
+        "required": [
+          "timeshift_minutes",
+          "default_recordings_path",
+          "padding_before_minutes",
+          "padding_after_minutes"
+        ],
+        "properties": {
+          "default_recordings_path": {
+            "type": "string",
+            "description": "The folder used when none is set."
+          },
+          "padding_after_minutes": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "padding_before_minutes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Default padding of new recordings (minutes)."
+          },
+          "recordings_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Folder recordings are written to (`Serien/…`, `Filme/…`; each becomes a\nlibrary). `null` = the default below."
+          },
+          "timeshift_minutes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Timeshift buffer per running channel in minutes (0 = live window only)."
           }
         }
       },
@@ -17022,7 +18303,8 @@
           "end_ms",
           "title",
           "categories",
-          "is_new"
+          "is_new",
+          "restricted"
         ],
         "properties": {
           "categories": {
@@ -17078,6 +18360,21 @@
               "null"
             ]
           },
+          "recording": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProgramRecordingDto",
+                "description": "Scheduled, running or done recording of this broadcast."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "restricted": {
+            "type": "boolean",
+            "description": "The parental controls of this profile hide the program (title and texts are\nreplaced)."
+          },
           "season": {
             "type": [
               "integer",
@@ -17104,6 +18401,31 @@
               "null"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "ProgramRecordingDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "series",
+          "conflict"
+        ],
+        "properties": {
+          "conflict": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "series": {
+            "type": "boolean",
+            "description": "Recorded by a series rule."
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecordingStatus"
           }
         }
       },
@@ -17247,6 +18569,311 @@
             "description": "Rule-based explanation, e.g. „Weil du „Alien“ gesehen hast“."
           }
         }
+      },
+      "RecordingDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "channel_name",
+          "status",
+          "conflict",
+          "title",
+          "categories",
+          "is_new",
+          "start_ms",
+          "end_ms",
+          "padding_before_s",
+          "padding_after_s",
+          "priority",
+          "bytes",
+          "parts"
+        ],
+        "properties": {
+          "bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes recorded so far."
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "channel_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "channel_name": {
+            "type": "string"
+          },
+          "conflict": {
+            "type": "boolean",
+            "description": "Scheduled, but no tuner is left for it (raise the rule's priority)."
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "episode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "is_new": {
+            "type": "boolean"
+          },
+          "item_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The library item the recording became (once scanned)."
+          },
+          "padding_after_s": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "padding_before_s": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "parts": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Files: more than one when a server restart interrupted the recording."
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "rating": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "rule_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "rule_kind": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RecordingRuleKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "season": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The broadcast (unix ms)."
+          },
+          "started_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecordingStatus"
+          },
+          "subtitle": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "RecordingRuleDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "new_only",
+          "utc_offset_min",
+          "padding_before_s",
+          "padding_after_s",
+          "priority",
+          "enabled",
+          "scheduled",
+          "conflicts",
+          "can_edit"
+        ],
+        "properties": {
+          "can_edit": {
+            "type": "boolean",
+            "description": "Created by the signed-in user (or the caller is an administrator)."
+          },
+          "channel_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Program rules: the channel; series rules: only this channel (`null` = all)."
+          },
+          "channel_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "conflicts": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Scheduled recordings without a tuner."
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "keep_last": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Keep only the newest N recordings (`null` = all)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RecordingRuleKind"
+          },
+          "new_only": {
+            "type": "boolean"
+          },
+          "next_start_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Next scheduled broadcast (unix ms)."
+          },
+          "padding_after_s": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "padding_before_s": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "priority": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Higher wins when tuners run short."
+          },
+          "scheduled": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Recordings scheduled by the rule."
+          },
+          "series_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Series rules match this guide series id instead of the title."
+          },
+          "title": {
+            "type": "string"
+          },
+          "utc_offset_min": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Local time = UTC + this many minutes (time window, air dates)."
+          },
+          "window_end_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "window_start_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Minutes after local midnight; both set = only broadcasts starting within."
+          }
+        }
+      },
+      "RecordingRuleKind": {
+        "type": "string",
+        "enum": [
+          "program",
+          "series"
+        ]
+      },
+      "RecordingStatus": {
+        "type": "string",
+        "enum": [
+          "scheduled",
+          "recording",
+          "completed",
+          "failed",
+          "cancelled"
+        ]
       },
       "RematchDto": {
         "type": "object",
@@ -17452,6 +19079,24 @@
           }
         }
       },
+      "SchedulesDirectDto": {
+        "type": "object",
+        "required": [
+          "has_password"
+        ],
+        "properties": {
+          "has_password": {
+            "type": "boolean",
+            "description": "Whether a password is stored (only its SHA-1, as the API wants it)."
+          },
+          "username": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "ScrobbleDto": {
         "type": "object",
         "required": [
@@ -17479,6 +19124,30 @@
             "type": "integer",
             "format": "int64",
             "description": "How long the track was actually listened to (milliseconds, pauses excluded)."
+          }
+        }
+      },
+      "SdLineupDto": {
+        "type": "object",
+        "required": [
+          "lineup"
+        ],
+        "properties": {
+          "lineup": {
+            "type": "string",
+            "description": "Lineup id for a guide source, e.g. `DEU-1000097-DEFAULT`."
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -17580,6 +19249,17 @@
           },
           "mode": {
             "$ref": "#/components/schemas/EpgAssignmentMode"
+          }
+        }
+      },
+      "SetLiveTvAccessRequest": {
+        "type": "object",
+        "required": [
+          "live_tv_allowed"
+        ],
+        "properties": {
+          "live_tv_allowed": {
+            "type": "boolean"
           }
         }
       },
@@ -19298,7 +20978,8 @@
         "enum": [
           "m3u",
           "xtream",
-          "hdhomerun"
+          "hdhomerun",
+          "tvheadend"
         ]
       },
       "Unlock": {
@@ -19455,6 +21136,41 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "UpdateLiveTvSettings": {
+        "type": "object",
+        "properties": {
+          "padding_after_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "padding_before_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "0–120 minutes."
+          },
+          "recordings_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Absolute folder; `null` returns to the default."
+          },
+          "timeshift_minutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "0–360 minutes."
           }
         }
       },
@@ -19677,6 +21393,81 @@
           }
         }
       },
+      "UpdateRuleRequest": {
+        "type": "object",
+        "properties": {
+          "channel_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`null` = any channel."
+          },
+          "enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "keep_last": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "new_only": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "padding_after_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "padding_before_s": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "priority": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "utc_offset_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "window_end_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "window_start_min": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Set both, or `null` both to remove the window."
+          }
+        }
+      },
       "UpdateSceneSettings": {
         "type": "object",
         "properties": {
@@ -19718,6 +21509,24 @@
               "null"
             ],
             "description": "`null` switches Whisper off."
+          }
+        }
+      },
+      "UpdateSchedulesDirect": {
+        "type": "object",
+        "required": [
+          "username"
+        ],
+        "properties": {
+          "password": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Omit to keep the stored one."
+          },
+          "username": {
+            "type": "string"
           }
         }
       },
@@ -20296,7 +22105,7 @@
     },
     {
       "name": "livetv",
-      "description": "Live TV: tuners, channels, guide and live playback"
+      "description": "Live TV: tuners, channels, guide, live playback and recordings"
     },
     {
       "name": "notifications",

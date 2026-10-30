@@ -30,6 +30,7 @@ pub mod auth;
 pub mod browse;
 mod collections;
 pub mod dlna;
+mod dvr;
 pub mod error;
 pub mod images;
 mod invitations;
@@ -93,6 +94,9 @@ pub struct AppState {
     pub dlna: dlna::DlnaService,
     /// Embeddings, semantic search and recommendations.
     pub ai: flixnet_ai::Ai,
+    /// Recordings (started with the state; recordings land in
+    /// `<config_dir>/recordings` unless configured otherwise).
+    pub dvr: flixnet_livetv::dvr::Dvr,
 }
 
 /// Long-lived services the API talks to.
@@ -121,6 +125,12 @@ impl AppState {
         syncplay.spawn_ticker();
         let ai = flixnet_ai::Ai::new(db.clone(), &config);
         ai.set_busy_probe(playback_busy_probe(&services.transcoder, &services.livetv));
+        let dvr = flixnet_livetv::dvr::Dvr::start(
+            db.clone(),
+            services.livetv.clone(),
+            config.paths.config_dir.join("recordings"),
+            flixnet_livetv::dvr::DvrSettings::default(),
+        );
         let state = Self {
             config: Arc::new(config),
             db,
@@ -135,6 +145,7 @@ impl AppState {
             ffprobe: services.ffprobe,
             subtitles: services.subtitles,
             livetv: services.livetv,
+            dvr,
             playback,
             ops: ops::Ops::default(),
             // Local embeddings back natural-language search whenever they exist.
@@ -144,6 +155,7 @@ impl AppState {
             ai,
         };
         ops::spawn_listeners(&state);
+        state.dvr.set_hook(dvr::library_hook(state.clone()));
         state
     }
 
@@ -155,6 +167,8 @@ impl AppState {
 
     /// Uses `ai` (shared with the job handlers) instead of the default instance.
     pub fn with_ai(mut self, ai: flixnet_ai::Ai) -> Self {
+        // The assistant's semantic search must use the same instance.
+        self.semantic = Some(Arc::new(semantic_bridge::AiSemantic(ai.clone())));
         self.ai = ai;
         self
     }
@@ -198,7 +212,7 @@ pub fn playback_busy_probe(
         (name = "collections", description = "Movie collections (automatic from TMDB and manual)"),
         (name = "playlists", description = "Personal and smart playlists"),
         (name = "settings", description = "Server settings (administrators)"),
-        (name = "livetv", description = "Live TV: tuners, channels, guide and live playback"),
+        (name = "livetv", description = "Live TV: tuners, channels, guide, live playback and recordings"),
         (name = "notifications", description = "Webhooks, ntfy, Discord and e-mail notifications (administrators)"),
         (name = "trakt", description = "Trakt.tv connection, scrobbling and history sync"),
         (name = "backups", description = "Database backups (administrators)"),
@@ -234,6 +248,12 @@ impl Modify for SecuritySchemes {
     }
 }
 
+/// Starts what runs next to the routes once the server is up: applies the stored Live
+/// TV settings (timeshift buffer).
+pub async fn start_services(state: &AppState) -> Result<(), flixnet_db::DbError> {
+    livetv::start(state).await
+}
+
 /// Documented API routes plus the spec generated from them.
 fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
     let mut doc = ApiDoc::openapi();
@@ -261,6 +281,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, settings::router())
         .nest(API_PREFIX, livetv::router())
         .nest(API_PREFIX, music::router())
+        .nest(API_PREFIX, dvr::router())
         .nest(API_PREFIX, segments::router())
         .nest(API_PREFIX, subtitle_search::router())
         .nest(API_PREFIX, ops::router())

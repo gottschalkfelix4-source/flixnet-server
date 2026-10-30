@@ -22,6 +22,7 @@ import { HomePage } from '@/routes/HomePage'
 import { ItemPage } from '@/routes/ItemPage'
 import { LivePlayerPage } from '@/routes/LivePlayerPage'
 import { LiveTvPage } from '@/routes/LiveTvPage'
+import { RecordingsPage } from '@/routes/RecordingsPage'
 import { PersonPage } from '@/routes/PersonPage'
 import { PhotosPage } from '@/routes/PhotosPage'
 import { PlaylistPage } from '@/routes/PlaylistPage'
@@ -192,6 +193,12 @@ const audiobookRoute = createRoute({
   component: AudiobookPage,
 })
 
+const recordingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/live/recordings',
+  component: RecordingsPage,
+})
+
 /** Public invitation landing page. */
 const inviteRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -334,6 +341,7 @@ const routeTree = rootRoute.addChildren([
     audiobookRoute,
     createRoute({ getParentRoute: () => appRoute, path: '/for-you', component: ForYouPage }),
     createRoute({ getParentRoute: () => appRoute, path: '/group', component: GroupPage }),
+    recordingsRoute,
   ]),
 ])
 
