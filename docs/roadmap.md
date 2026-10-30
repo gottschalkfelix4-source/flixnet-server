@@ -44,13 +44,13 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [ ] 4.5 QSV/VAAPI/NVENC + HDR→SDR-Tonemapping — gebaut: Erkennung beim Start (Testencode + GPU-Tonemapping-Test), GPU-Pipelines, Software-Fallback, Einstellungs-Tab „Transcoding“; NVENC und QSV (Windows) lokal verifiziert. *Offen:* Abnahme auf Unraid (QSV/VAAPI mit jellyfin-ffmpeg 7, 4K HDR > 2× Echtzeit)
 - [x] 4.6 Untertitel (WebVTT, PGS-Burn-in), Spurwechsel — WebVTT-Endpunkt mit signierten URLs und Cache (eingebettet + Sidecar, Windows-1252), PGS/VobSub-Burn-in (Software-Encoder, synchron nach Neustarts), Ton-/Untertitel-Menü im Player
 - [x] 4.7 Fortschritt, Weiterschauen, Nächste Folge, Sessions — Playstate-API mit Schwellen (90 % gesehen, < 2 min kein Resume), `watch_events`, Fortsetzen (auch HLS ab Resume-Segment), Reihen „Weiterschauen“/„Nächste Folge“, Tab „Wiedergaben“
-- [ ] 4.8 Eigener Player, Trickplay, Kapitelbilder, Autoplay
+- [x] 4.8 Eigener Player, Trickplay, Kapitelbilder, Autoplay — eigene Steuerung (Tastatur, Touch, PiP, Tempo, Qualität), Vorschaubilder beim Spulen, Kapitel mit Bildern, „Nächste Folge“ ab Abspann; MP3 in HLS wird jetzt nach AAC gewandelt
 
 ## Phase 5 – Analyse und Organisation
-- [ ] 5.1 Intro/Credits-Erkennung + Skip
-- [ ] 5.2 OpenSubtitles
+- [x] 5.1 Intro/Credits-Erkennung + Skip — Chromaprint-Fingerprints über eine Staffel + Black/Silence-Kanten, ±0,54 s auf der Test-Staffel; Skip-Buttons, Auto-Skip pro Profil, manuelle Korrektur
+- [x] 5.2 OpenSubtitles — Suche (Hash + Release-Abgleich), Download als Sidecar oder in den Store, optional automatisch; gegen Stubs getestet, gegen die echte API noch nicht
 - [x] 5.3 Collections, Playlists, Smart Playlists — automatische Sammlungen aus TMDB, manuelle Sammlungen, Playlists (privat/für alle Profile sichtbar), Smart Playlists über die Browse-Filter; Einträge per Identität (überleben Umbenennen)
-- [ ] 5.4 Jugendschutz
+- [x] 5.4 Jugendschutz — Altersfreigaben aus 20+ Ländern, pro Profil Altersgrenze/Ungeprüft/gesperrte Genres, durchgesetzt in allen Endpunkten (Test läuft alle GET-Routen ab), PIN-Pflicht beim Wechsel auf weniger beschränkte Profile
 
 ## Phase 6 – KI
 - [ ] 6.1 Model-Manager + Item-Embeddings (sqlite-vec)
@@ -62,17 +62,17 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [ ] 6.7 Chat-Assistent, spoilerfreie Recaps, Themen-Collections
 
 ## Phase 7 – Live TV und DVR
-- [ ] 7.1 Tuner-Trait, M3U/Xtream → HLS
-- [ ] 7.2 HDHomeRun
-- [ ] 7.3 XMLTV, Sender-Matching, Guide-Grid
+- [x] 7.1 Tuner-Trait, M3U/Xtream → HLS — geteilter Upstream pro Sender, Tuner-Zählung, Reaper
+- [x] 7.2 HDHomeRun — Discovery per UDP oder IP, Lineup, Tuner-Anzahl
+- [x] 7.3 XMLTV, Sender-Matching, Guide-Grid — Streaming-Parser (gzip, Zeitzonen), Fuzzy-Matching + manuelle Zuordnung, Programm-Suche, Guide in beide Richtungen virtualisiert
 - [ ] 7.4 Shared Upstream, Timeshift
 - [ ] 7.5 DVR (Regeln, Konflikte, Aufnahmen als Items)
 - [ ] 7.6 Schedules Direct, tvheadend
 
 ## Phase 8 – Jellyfin-Kompatibilität
-- [ ] 8.1 Auth, Views, Items
-- [ ] 8.2 PlaybackInfo, Streams
-- [ ] 8.3 Sessions, Resume, NextUp, Bilder – *fertig wenn* Infuse, Swiftfin, Findroid, Streamyfin funktionieren
+- [x] 8.1 Auth, Views, Items — eigener Listener auf 8098 (`jellyfin.enabled`), Anleitung in `docs/jellyfin-compat.md`
+- [x] 8.2 PlaybackInfo, Streams — DeviceProfile → Decision-Engine, Direct Play mit Range, HLS über Flixnet-Transcode-Sessions, Untertitel als VTT/SRT
+- [ ] 8.3 Sessions, Resume, NextUp, Bilder – *fertig wenn* Infuse, Swiftfin, Findroid, Streamyfin funktionieren — gebaut und gegen das Jellyfin-OpenAPI-Schema getestet; *offen:* Test mit den echten Apps durch Felix
 
 ## Phase 9 – Breite und Feinschliff
 - [ ] Musik · SyncPlay · Chromecast · Trakt · Webhooks/Benachrichtigungen · Dashboard · Backups · History-Import · OIDC · Unraid-CA-Template · Hörbücher/Fotos/DLNA
