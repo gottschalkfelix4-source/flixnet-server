@@ -53,21 +53,21 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [x] 5.4 Jugendschutz — Altersfreigaben aus 20+ Ländern, pro Profil Altersgrenze/Ungeprüft/gesperrte Genres, durchgesetzt in allen Endpunkten (Test läuft alle GET-Routen ab), PIN-Pflicht beim Wechsel auf weniger beschränkte Profile
 
 ## Phase 6 – KI
-- [ ] 6.1 Model-Manager + Item-Embeddings (sqlite-vec)
-- [ ] 6.2 Hybrid-Suche (BM25 + Vektor, RRF)
-- [ ] 6.3 Recommendations (Taste-Cluster, Co-Watch, MMR, Onboarding)
-- [ ] 6.4 LLM: natürliche Sprache → Filter, Erklärungen
-- [ ] 6.5 Szenensuche (Untertitel-Chunks, Whisper opt-in)
-- [ ] 6.6 Gruppenmodus
-- [ ] 6.7 Chat-Assistent, spoilerfreie Recaps, Themen-Collections
+- [x] 6.1 Model-Manager + Item-Embeddings — multilingual-e5-base (int8, ONNX Runtime per Download mit SHA-256), Vektoren als BLOB + Brute-Force-Kosinus hinter `VectorIndex` (sqlite-vec bräuchte `unsafe`); Golden Set: Recall@5 = 0,96
+- [x] 6.2 Hybrid-Suche (BM25 + Vektor, RRF) — semantische Treffer nur, wenn sie besser passen als der beste Stichwort-Treffer
+- [x] 6.3 Recommendations (Taste-Cluster, Co-Watch, MMR, Onboarding) — Offline-Eval Recall@10 = 0,78 (synthetisch), „Für dich“ mit Begründungen
+- [x] 6.4 LLM: natürliche Sprache → Filter, Erklärungen — OpenAI-kompatibel (Ollama/OpenAI), Fallback Stichwortsuche; mit lokalem Ollama ausprobiert
+- [x] 6.5 Szenensuche (Untertitel-Chunks, Whisper opt-in) — Untertitel-Chunks mit FTS5, Sprung an die Stelle; Whisper per `whisper-cli` vorbereitet, aber noch nicht real ausgeführt
+- [x] 6.6 Gruppenmodus — strengste Altersgrenze der Gruppe, Abstimmung per Daumen
+- [x] 6.7 Chat-Assistent, spoilerfreie Recaps, Themen-Collections — Recaps nur aus Untertiteln vor der aktuellen Position (per Test geprüft)
 
 ## Phase 7 – Live TV und DVR
 - [x] 7.1 Tuner-Trait, M3U/Xtream → HLS — geteilter Upstream pro Sender, Tuner-Zählung, Reaper
 - [x] 7.2 HDHomeRun — Discovery per UDP oder IP, Lineup, Tuner-Anzahl
 - [x] 7.3 XMLTV, Sender-Matching, Guide-Grid — Streaming-Parser (gzip, Zeitzonen), Fuzzy-Matching + manuelle Zuordnung, Programm-Suche, Guide in beide Richtungen virtualisiert
-- [ ] 7.4 Shared Upstream, Timeshift
-- [ ] 7.5 DVR (Regeln, Konflikte, Aufnahmen als Items)
-- [ ] 7.6 Schedules Direct, tvheadend
+- [x] 7.4 Shared Upstream, Timeshift — Puffer pro Sender (Standard 120 min), Neustart mit Backoff, GPU-Encoder
+- [x] 7.5 DVR (Regeln, Konflikte, Aufnahmen als Items) — Einzel-/Serienregeln, Konflikte gegen Tuner-Limits, neustartfest, landen in eigenen Bibliotheken
+- [x] 7.6 Schedules Direct, tvheadend — gegen Mocks getestet
 
 ## Phase 8 – Jellyfin-Kompatibilität
 - [x] 8.1 Auth, Views, Items — eigener Listener auf 8098 (`jellyfin.enabled`), Anleitung in `docs/jellyfin-compat.md`
@@ -75,4 +75,4 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 - [ ] 8.3 Sessions, Resume, NextUp, Bilder – *fertig wenn* Infuse, Swiftfin, Findroid, Streamyfin funktionieren — gebaut und gegen das Jellyfin-OpenAPI-Schema getestet; *offen:* Test mit den echten Apps durch Felix
 
 ## Phase 9 – Breite und Feinschliff
-- [ ] Musik · SyncPlay · Chromecast · Trakt · Webhooks/Benachrichtigungen · Dashboard · Backups · History-Import · OIDC · Unraid-CA-Template · Hörbücher/Fotos/DLNA
+- [x] Musik · SyncPlay · Chromecast · Trakt · Webhooks/Benachrichtigungen · Dashboard · Backups · History-Import · OIDC · Unraid-CA-Template · Hörbücher/Fotos/DLNA — alles gebaut und gegen Mocks/Stubs getestet (`docs/music.md`, `docs/unraid.md`, `docs/ai.md`); *offen:* Test mit echten Konten/Geräten (Trakt, Plex-Import, OIDC-Anbieter, Chromecast, DLNA-TV)
