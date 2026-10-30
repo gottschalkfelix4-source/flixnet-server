@@ -196,6 +196,8 @@ impl JobHandler for ProbeFile {
         // Heavier analysis follows in the background (trickplay, chapter images).
         crate::trickplay::queue_thumbnails(ctx.queue(), payload.file_id, priority::BACKFILL)
             .await?;
+        // Subtitle text for scene search (ai pool, waits for transcodes to end).
+        crate::scenes::queue_after_probe(ctx.queue(), payload.file_id).await?;
         Ok(())
     }
 }

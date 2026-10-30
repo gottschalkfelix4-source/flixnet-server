@@ -148,6 +148,7 @@ test('movie grid filters by genre', async ({ page }) => {
 
 test('home shows the hero and rows', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByTestId('hero')).toBeVisible()
+  // Many specs share the server; the home page can take a moment under load.
+  await expect(page.getByTestId('hero')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByRole('region', { name: 'Neu: Filme' })).toContainText(MOVIE)
 })

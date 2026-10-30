@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useSession } from '@/lib/session'
 import { AccountSettings } from './AccountSettings'
+import { AiSettings } from './AiSettings'
 import { BackupSettings } from './BackupSettings'
 import { DashboardSettings } from './DashboardSettings'
 import { ImportSettings } from './ImportSettings'
@@ -52,6 +53,7 @@ export function SettingsPage() {
         {active === 'metadata' && <MetadataSettings />}
         {active === 'subtitles' && <SubtitleSettings />}
         {active === 'transcoding' && <TranscodingSettings />}
+        {active === 'ai' && <AiSettings />}
         {active === 'livetv' && <LiveTvSettings />}
         {active === 'users' && <UsersSettings />}
         {active === 'invitations' && <InvitationsSettings />}

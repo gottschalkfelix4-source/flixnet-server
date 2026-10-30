@@ -22,6 +22,8 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
 pub mod active_sessions;
+mod ai_settings;
+mod assistant;
 pub mod auth;
 pub mod browse;
 mod collections;
@@ -37,6 +39,7 @@ pub mod ops;
 pub mod playback;
 mod playlists;
 pub mod playstate;
+mod scenes;
 mod segments;
 pub mod session;
 mod settings;
@@ -73,6 +76,9 @@ pub struct AppState {
     pub livetv: flixnet_livetv::LiveTvManager,
     /// Notifications, Trakt, backups, import, dashboard, single sign-on.
     pub ops: ops::Ops,
+    /// Local embeddings for semantic search (flixnet-ai), if available; without it
+    /// natural-language and scene search use FTS5 only.
+    pub semantic: Option<Arc<dyn flixnet_llm::semantic::SemanticIndex>>,
 }
 
 /// Long-lived services the API talks to.
@@ -113,9 +119,16 @@ impl AppState {
             livetv: services.livetv,
             playback,
             ops: ops::Ops::default(),
+            semantic: None,
         };
         ops::spawn_listeners(&state);
         state
+    }
+
+    /// Plugs in a semantic index (local embeddings).
+    pub fn with_semantic(mut self, index: Arc<dyn flixnet_llm::semantic::SemanticIndex>) -> Self {
+        self.semantic = Some(index);
+        self
     }
 }
 
@@ -147,6 +160,7 @@ impl AppState {
         (name = "backups", description = "Database backups (administrators)"),
         (name = "import", description = "Watch history import from Plex and Jellyfin (administrators)"),
         (name = "dashboard", description = "Server overview and logs (administrators)"),
+        (name = "assistant", description = "Scene search and the optional LLM assistant: natural-language search, explanations, chat, recaps"),
     )
 )]
 struct ApiDoc;
@@ -199,6 +213,9 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, segments::router())
         .nest(API_PREFIX, subtitle_search::router())
         .nest(API_PREFIX, ops::router())
+        .nest(API_PREFIX, assistant::router())
+        .nest(API_PREFIX, scenes::router())
+        .nest(API_PREFIX, ai_settings::router())
         .split_for_parts()
 }
 

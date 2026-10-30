@@ -15,6 +15,7 @@ flixnet-db.workspace = true
 flixnet-jellyfin.workspace = true
 flixnet-library.workspace = true
 flixnet-livetv.workspace = true
+flixnet-llm.workspace = true
 flixnet-media.workspace = true
 
 anyhow.workspace = true

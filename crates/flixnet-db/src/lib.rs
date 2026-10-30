@@ -33,9 +33,11 @@ pub mod segments;
 pub mod sessions;
 pub mod settings;
 pub mod subtitles;
+pub mod transcripts;
 pub mod trickplay;
 pub mod userdata;
 pub mod users;
+pub mod viewing;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 

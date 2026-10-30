@@ -10,6 +10,7 @@ pub mod providers;
 pub mod ratings;
 pub mod refresh;
 pub mod scan;
+pub mod scenes;
 pub mod segments;
 pub mod subtitles;
 pub mod trickplay;

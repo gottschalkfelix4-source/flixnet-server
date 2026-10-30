@@ -922,6 +922,7 @@ dependencies = [
  "flixnet-db",
  "flixnet-library",
  "flixnet-livetv",
+ "flixnet-llm",
  "flixnet-media",
  "hex",
  "hmac",
@@ -1026,6 +1027,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tokio-util",
  "tracing",
  "walkdir",
  "wiremock",
@@ -1058,6 +1060,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "flixnet-llm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "flixnet-core",
+ "flixnet-db",
+ "reqwest",
+ "rustls",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "wiremock",
+]
+
+[[package]]
 name = "flixnet-media"
 version = "0.1.0"
 dependencies = [
@@ -1086,6 +1106,7 @@ dependencies = [
  "flixnet-jellyfin",
  "flixnet-library",
  "flixnet-livetv",
+ "flixnet-llm",
  "flixnet-media",
  "hex",
  "rust-embed",

@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { Captions, Check, ChevronLeft, Heart, Layers, RefreshCw, Search, Star } from 'lucide-react'
 import { useState } from 'react'
 import { type ItemCard, type ItemDetail, useItem, useItems, useRefreshItem, useSetFavorite, useSetPlayed } from '@/api/queries/items'
+import { AssistantInsights } from '@/components/assistant/AssistantInsights'
 import { AddToCollectionDialog } from '@/components/media/AddToCollectionDialog'
 import { AddToPlaylistButton } from '@/components/media/AddToPlaylistDialog'
 import { BlurImage } from '@/components/media/BlurImage'
@@ -37,6 +38,7 @@ export function ItemPage() {
     // Keyed so local state (season tab, dialogs) resets when navigating between items.
     <div key={d.id} className="pb-16">
       <Header item={d} />
+      <AssistantInsights item={d} />
       {d.kind === 'series' && <Seasons series={d} initial={season} />}
       <CastRow people={d.people} />
       {(d.kind === 'movie' || d.kind === 'series') && <CollectionRows itemId={d.id} />}
