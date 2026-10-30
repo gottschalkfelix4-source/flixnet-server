@@ -122,6 +122,31 @@ async fn seeking_restarts_on_the_absolute_timeline() {
     assert!(manager.segment(&id, 0).await.is_err());
 }
 
+/// A transcode directory spelled with '/' (as in `FLIXNET_PATHS__CONFIG_DIR=D:/flixnet`):
+/// on Windows the session paths then mix '/' and '\', and ffmpeg used to write the
+/// init segment next to the last '/' instead of into the session directory, so
+/// `init.mp4` was never found.
+#[tokio::test]
+async fn init_segment_lands_in_the_session_directory_with_mixed_separators() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = clip(dir.path());
+    let root = PathBuf::from(format!(
+        "{}/mixed/transcode",
+        dir.path().to_string_lossy().replace('\\', "/")
+    ));
+    let manager = TranscodeManager::new("ffmpeg", root.clone(), TranscodeSettings::default());
+    let id = manager.create(spec(input));
+
+    let segment = manager.segment(&id, 0).await.unwrap();
+    let init = manager.init(&id).await.unwrap();
+    assert_eq!(init.parent(), segment.parent());
+    assert!(init.starts_with(&root), "{}", init.display());
+    assert!(segment_start(&init, &segment, dir.path()).abs() < 0.1);
+    // Nothing was written next to the session directory.
+    assert!(!dir.path().join("mixed").join("init.mp4").exists());
+    manager.stop(&id).await;
+}
+
 #[tokio::test]
 async fn idle_sessions_are_reaped() {
     let dir = tempfile::tempdir().unwrap();

@@ -444,11 +444,21 @@ async fn next_up(
             return Ok(page(Vec::new(), 0, start));
         };
         let since = flixnet_db::now_ms() - playstate::NEXT_UP_MAX_AGE_MS;
-        playstate::next_up(db, jf.user.user_id, &visibility, since, limit + start)
-            .await?
-            .into_iter()
-            .skip(start as usize)
-            .collect()
+        // Jellyfin's default (`EnableResumable=true`): a started next episode stays in
+        // Next Up; Flixnet's own row leaves it to "Weiterschauen".
+        let resumable = params.bool("enableresumable").unwrap_or(true);
+        playstate::next_up_with(
+            db,
+            jf.user.user_id,
+            &visibility,
+            since,
+            limit + start,
+            resumable,
+        )
+        .await?
+        .into_iter()
+        .skip(start as usize)
+        .collect()
     };
     let total = ids.len() as i64 + start;
     let dtos = dtos_for(&state, &jf.user, &ids, &params).await?;

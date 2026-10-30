@@ -46,6 +46,53 @@ pub(crate) fn router() -> Router<JfState> {
             get(subtitle_with_ticks),
         )
         .route("/audio/{id}/{file}", get(audio_file))
+        .route("/mediasegments/{id}", get(media_segments))
+}
+
+// ---- Media segments ----------------------------------------------------------------
+
+/// Jellyfin's `MediaSegmentType` for a Flixnet segment kind.
+fn segment_type(kind: &str) -> &'static str {
+    match kind {
+        "intro" => "Intro",
+        "credits" => "Outro",
+        "recap" => "Recap",
+        _ => "Unknown",
+    }
+}
+
+/// Intro, credits and recap of the item's first media file (clients use them for
+/// "Intro überspringen"); `IncludeSegmentTypes` narrows the list.
+async fn media_segments(
+    jf: JfUser,
+    State(state): State<JfState>,
+    Path(id): Path<String>,
+    params: Params,
+) -> ApiResult<Jf<crate::dto::QueryResult<crate::dto::MediaSegmentDto>>> {
+    let item_id = item_id(&id)?;
+    ensure_visible(&state.app, &jf.user, item_id).await?;
+    let wanted = params.set("includesegmenttypes");
+    let rows = flixnet_db::segments::for_item(&state.app.db, item_id).await?;
+    let first_file = rows.first().map(|s| s.file_id);
+    let item_guid = ids::guid(Kind::Item, item_id);
+    let items: Vec<_> = rows
+        .into_iter()
+        .filter(|s| Some(s.file_id) == first_file)
+        .map(|s| crate::dto::MediaSegmentDto {
+            id: crate::util::derived_id(&format!("segment:{}:{}", s.file_id, s.kind)),
+            item_id: item_guid.clone(),
+            kind: segment_type(&s.kind),
+            start_ticks: crate::util::ticks(s.start_ms),
+            end_ticks: crate::util::ticks(s.end_ms),
+        })
+        .filter(|s| wanted.is_empty() || wanted.contains(&s.kind.to_ascii_lowercase()))
+        .collect();
+    let total = items.len() as i64;
+    Ok(Jf(crate::dto::QueryResult {
+        items,
+        total_record_count: total,
+        start_index: 0,
+    }))
 }
 
 // ---- Device profiles ---------------------------------------------------------------
@@ -55,7 +102,38 @@ pub(crate) fn router() -> Router<JfState> {
 pub(crate) struct JfDeviceProfile {
     max_streaming_bitrate: Option<i64>,
     direct_play_profiles: Option<Vec<DirectPlayProfile>>,
+    transcoding_profiles: Option<Vec<TranscodingProfile>>,
     codec_profiles: Option<Vec<CodecProfile>>,
+}
+
+impl JfDeviceProfile {
+    /// Neither direct-play nor transcoding profiles: Findroid's "Direct play all"
+    /// profile, sent by a player (ExoPlayer/mpv) that takes the file as it is.
+    fn plays_anything(&self) -> bool {
+        self.direct_play_profiles.as_ref().is_none_or(Vec::is_empty)
+            && self.transcoding_profiles.as_ref().is_none_or(Vec::is_empty)
+    }
+
+    /// Whether the client accepts a video transcode at all. A profile without any
+    /// video transcoding profile gets none, as from Jellyfin (no ffmpeg is started
+    /// for a stream the client would never request).
+    fn accepts_transcode(&self) -> bool {
+        match &self.transcoding_profiles {
+            None => true,
+            Some(list) => list.iter().any(|p| {
+                p.kind
+                    .as_deref()
+                    .is_none_or(|k| k.eq_ignore_ascii_case("video"))
+            }),
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct TranscodingProfile {
+    #[serde(rename = "type")]
+    kind: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -444,9 +522,13 @@ async fn playback_info(
         let streams = media::streams(&state.app.db, file.id).await?;
         let source = source_media(&file, &streams);
         let mut profile = match &body.device_profile {
-            Some(p) => device_profile(p, max_audio_channels),
-            None => permissive_profile(&source),
+            Some(p) if !p.plays_anything() => device_profile(p, max_audio_channels),
+            _ => permissive_profile(&source),
         };
+        let accepts_transcode = body
+            .device_profile
+            .as_ref()
+            .is_none_or(JfDeviceProfile::accepts_transcode);
         if !enable_direct_play {
             profile.containers.clear();
         }
@@ -460,7 +542,8 @@ async fn playback_info(
         let plan = decide(&source, &profile, choice);
         let mut info = media_source(&file, &streams, file.duration_ms);
         let item_guid = ids::guid(Kind::Item, item_id);
-        if plan.method != PlayMethod::DirectPlay {
+        info.supports_transcoding = accepts_transcode;
+        if plan.method != PlayMethod::DirectPlay && accepts_transcode {
             let session = start_transcode(&state.app, user, item_id, &file, &source, &plan).await?;
             if let Some(ms) = start_ms {
                 state.app.transcoder.hint_start(&session, ms);

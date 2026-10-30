@@ -31,6 +31,8 @@ pub(crate) fn router() -> Router<JfState> {
         .route("/sessions/capabilities", post(no_content))
         .route("/sessions/capabilities/full", post(no_content))
         .route("/sessions/logout", post(logout))
+        // Findroid renames its device here (without catching errors).
+        .route("/devices/options", post(no_content))
 }
 
 #[derive(Debug, Deserialize)]

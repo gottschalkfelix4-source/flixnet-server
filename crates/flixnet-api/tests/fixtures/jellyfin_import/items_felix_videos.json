@@ -1,0 +1,191 @@
+{
+  "Items": [
+    {
+      "Name": "Geheimnisse",
+      "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+      "Id": "53d6f3e54052487ef9990bfda47eea30",
+      "Container": "mkv",
+      "RunTimeTicks": 1200230000,
+      "IndexNumber": 1,
+      "ParentIndexNumber": 1,
+      "ProviderIds": {},
+      "IsFolder": false,
+      "Type": "Episode",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 1,
+        "IsFavorite": false,
+        "LastPlayedDate": "2026-03-02T21:00:00.0000000Z",
+        "Played": true,
+        "Key": "53d6f3e5-4052-487e-f999-0bfda47eea30",
+        "ItemId": "53d6f3e54052487ef9990bfda47eea30"
+      },
+      "SeriesName": "Dark",
+      "SeriesId": "782306d859dbd7627786bb3713ed21d3",
+      "SeasonId": "9d2c17ef2a66a9f3a47c5e3463635793",
+      "SeasonName": "Staffel 1",
+      "VideoType": "VideoFile",
+      "LocationType": "FileSystem",
+      "MediaType": "Video"
+    },
+    {
+      "Name": "Lügen",
+      "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+      "Id": "f485ffab067c998cc88e4a3d58f47faa",
+      "Container": "mkv",
+      "RunTimeTicks": 1200230000,
+      "IndexNumber": 2,
+      "ParentIndexNumber": 1,
+      "ProviderIds": {},
+      "IsFolder": false,
+      "Type": "Episode",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 1,
+        "IsFavorite": false,
+        "LastPlayedDate": "2026-10-30T05:05:31.7355578Z",
+        "Played": true,
+        "Key": "f485ffab-067c-998c-c88e-4a3d58f47faa",
+        "ItemId": "f485ffab067c998cc88e4a3d58f47faa"
+      },
+      "SeriesName": "Dark",
+      "SeriesId": "782306d859dbd7627786bb3713ed21d3",
+      "SeasonId": "9d2c17ef2a66a9f3a47c5e3463635793",
+      "SeasonName": "Staffel 1",
+      "VideoType": "VideoFile",
+      "LocationType": "FileSystem",
+      "MediaType": "Video"
+    },
+    {
+      "Name": "Gestern und heute",
+      "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+      "Id": "4913248e45a9af8acbceecc18adb3cbb",
+      "Container": "mkv",
+      "RunTimeTicks": 1200230000,
+      "IndexNumber": 3,
+      "ParentIndexNumber": 1,
+      "ProviderIds": {},
+      "IsFolder": false,
+      "Type": "Episode",
+      "UserData": {
+        "PlayedPercentage": 37.492813877340176,
+        "PlaybackPositionTicks": 450000000,
+        "PlayCount": 0,
+        "IsFavorite": false,
+        "LastPlayedDate": "2026-03-06T20:00:00.0000000Z",
+        "Played": false,
+        "Key": "4913248e-45a9-af8a-cbce-ecc18adb3cbb",
+        "ItemId": "4913248e45a9af8acbceecc18adb3cbb"
+      },
+      "SeriesName": "Dark",
+      "SeriesId": "782306d859dbd7627786bb3713ed21d3",
+      "SeasonId": "9d2c17ef2a66a9f3a47c5e3463635793",
+      "SeasonName": "Staffel 1",
+      "VideoType": "VideoFile",
+      "LocationType": "FileSystem",
+      "MediaType": "Video"
+    },
+    {
+      "Name": "Alien",
+      "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+      "Id": "28d43d1a96536b4c842745d23a86ca49",
+      "Container": "mkv",
+      "RunTimeTicks": 1200230000,
+      "ProductionYear": 1979,
+      "ProviderIds": {
+        "Imdb": "tt0078748"
+      },
+      "IsFolder": false,
+      "Type": "Movie",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 0,
+        "IsFavorite": true,
+        "Played": false,
+        "Key": "28d43d1a-9653-6b4c-8427-45d23a86ca49",
+        "ItemId": "28d43d1a96536b4c842745d23a86ca49"
+      },
+      "VideoType": "VideoFile",
+      "LocationType": "FileSystem",
+      "MediaType": "Video"
+    },
+    {
+      "Name": "Ein Film ohne IDs (2015)",
+      "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+      "Id": "6f318c5d3f403044dbe60fa8300be94c",
+      "Container": "mkv",
+      "RunTimeTicks": 1200230000,
+      "ProductionYear": 2015,
+      "ProviderIds": {},
+      "IsFolder": false,
+      "Type": "Movie",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 1,
+        "IsFavorite": false,
+        "LastPlayedDate": "2026-10-30T05:05:30.3477484Z",
+        "Played": true,
+        "Key": "6f318c5d-3f40-3044-dbe6-0fa8300be94c",
+        "ItemId": "6f318c5d3f403044dbe60fa8300be94c"
+      },
+      "VideoType": "VideoFile",
+      "LocationType": "FileSystem",
+      "MediaType": "Video"
+    },
+    {
+      "Name": "Inception",
+      "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+      "Id": "1a27aba7d8639d762d762bf9f64218fa",
+      "Container": "mkv",
+      "RunTimeTicks": 1200230000,
+      "ProductionYear": 2010,
+      "ProviderIds": {
+        "Imdb": "tt1375666",
+        "Tmdb": "27205"
+      },
+      "IsFolder": false,
+      "Type": "Movie",
+      "UserData": {
+        "PlayedPercentage": 49.99041850312024,
+        "PlaybackPositionTicks": 600000000,
+        "PlayCount": 0,
+        "IsFavorite": false,
+        "LastPlayedDate": "2026-03-05T20:00:00.0000000Z",
+        "Played": false,
+        "Key": "1a27aba7-d863-9d76-2d76-2bf9f64218fa",
+        "ItemId": "1a27aba7d8639d762d762bf9f64218fa"
+      },
+      "VideoType": "VideoFile",
+      "LocationType": "FileSystem",
+      "MediaType": "Video"
+    },
+    {
+      "Name": "The Matrix",
+      "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+      "Id": "27657e067b46664f6b18c7606bf935e7",
+      "Container": "mkv",
+      "RunTimeTicks": 1200230000,
+      "ProductionYear": 1999,
+      "ProviderIds": {
+        "Imdb": "tt0133093",
+        "Tmdb": "603"
+      },
+      "IsFolder": false,
+      "Type": "Movie",
+      "UserData": {
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 3,
+        "IsFavorite": true,
+        "LastPlayedDate": "2026-03-01T19:00:00.0000000Z",
+        "Played": true,
+        "Key": "27657e06-7b46-664f-6b18-c7606bf935e7",
+        "ItemId": "27657e067b46664f6b18c7606bf935e7"
+      },
+      "VideoType": "VideoFile",
+      "LocationType": "FileSystem",
+      "MediaType": "Video"
+    }
+  ],
+  "TotalRecordCount": 7,
+  "StartIndex": 0
+}

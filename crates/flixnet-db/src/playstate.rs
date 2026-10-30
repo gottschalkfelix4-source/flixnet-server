@@ -341,6 +341,19 @@ pub async fn next_up(
     since_ms: i64,
     limit: i64,
 ) -> Result<Vec<i64>> {
+    next_up_with(db, user_id, visibility, since_ms, limit, false).await
+}
+
+/// [`next_up`], optionally keeping next episodes that have a resume point (Jellyfin's
+/// `Shows/NextUp` lists them by default).
+pub async fn next_up_with(
+    db: &Db,
+    user_id: i64,
+    visibility: &Visibility,
+    since_ms: i64,
+    limit: i64,
+    include_resumable: bool,
+) -> Result<Vec<i64>> {
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(
         "SELECT i.series_id, MAX(ud.last_played_at) AS last_at FROM items i
          JOIN user_item_data ud ON ud.identity_key = i.identity_key AND ud.user_id = ",
@@ -362,7 +375,7 @@ pub async fn next_up(
         }
         if let Some(next) = series_next(db, user_id, series_id).await?
             && next.after_watched
-            && next.position_ms == 0
+            && (include_resumable || next.position_ms == 0)
             && crate::browse::is_visible(
                 db,
                 next.episode_id,

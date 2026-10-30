@@ -1,0 +1,31 @@
+{
+  "Items": [
+    {
+      "Name": "Dark",
+      "ServerId": "fb72345946214a6dbbf8bff7c87d2f01",
+      "Id": "782306d859dbd7627786bb3713ed21d3",
+      "ProductionYear": 2017,
+      "ProviderIds": {
+        "Imdb": "tt5753856",
+        "Tmdb": "70523",
+        "Tvdb": "334824"
+      },
+      "IsFolder": true,
+      "Type": "Series",
+      "UserData": {
+        "PlayedPercentage": 66.66666666666666,
+        "UnplayedItemCount": 1,
+        "PlaybackPositionTicks": 0,
+        "PlayCount": 0,
+        "IsFavorite": true,
+        "Played": false,
+        "Key": "782306d8-59db-d762-7786-bb3713ed21d3",
+        "ItemId": "782306d859dbd7627786bb3713ed21d3"
+      },
+      "LocationType": "FileSystem",
+      "MediaType": "Unknown"
+    }
+  ],
+  "TotalRecordCount": 1,
+  "StartIndex": 0
+}
