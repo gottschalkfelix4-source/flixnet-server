@@ -116,6 +116,50 @@ struct Discovery {
     jwks_uri: String,
     #[serde(default)]
     userinfo_endpoint: Option<String>,
+    /// Absent means `client_secret_basic` (OpenID Connect Discovery 1.0).
+    #[serde(default)]
+    token_endpoint_auth_methods_supported: Option<Vec<String>>,
+}
+
+/// How the client secret goes to the token endpoint. Exactly one method per request
+/// (RFC 6749 §2.3: "MUST NOT use more than one").
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClientAuth {
+    /// HTTP Basic with form-urlencoded id and secret (RFC 6749 §2.3.1).
+    Basic,
+    /// `client_id` and `client_secret` in the form body.
+    Post,
+}
+
+/// `application/x-www-form-urlencoded` encoding of one value (RFC 6749 Appendix B),
+/// required for the Basic credentials: providers decode them (Dex does), so a secret
+/// with `+`, `/` or `=` would otherwise not match.
+fn form_encode(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'*' | b'-' | b'.' | b'_' => {
+                out.push(byte as char);
+            }
+            b' ' => out.push('+'),
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// Basic unless the provider does not offer it. A secret that changes under form
+/// encoding goes in the body where the provider allows that, since not every provider
+/// decodes Basic credentials as the RFC asks.
+fn client_auth(supported: Option<&[String]>, client_id: &str, secret: &str) -> ClientAuth {
+    let offers = |method: &str| supported.is_none_or(|list| list.iter().any(|m| m == method));
+    let offers_post = supported.is_some_and(|list| list.iter().any(|m| m == "client_secret_post"));
+    let plain = form_encode(client_id) == client_id && form_encode(secret) == secret;
+    if offers_post && (!offers("client_secret_basic") || !plain) {
+        ClientAuth::Post
+    } else {
+        ClientAuth::Basic
+    }
 }
 
 fn sso_error(message: impl Into<String>) -> ApiError {
@@ -493,8 +537,16 @@ async fn complete_oidc_login(
     ];
     let mut request = http.post(&discovery.token_endpoint);
     if let Some(secret) = &s.client_secret {
-        request = request.basic_auth(&s.client_id, Some(secret));
-        form.push(("client_secret", secret.clone()));
+        match client_auth(
+            discovery.token_endpoint_auth_methods_supported.as_deref(),
+            &s.client_id,
+            secret,
+        ) {
+            ClientAuth::Basic => {
+                request = request.basic_auth(form_encode(&s.client_id), Some(form_encode(secret)));
+            }
+            ClientAuth::Post => form.push(("client_secret", secret.clone())),
+        }
     }
     let response = request.form(&form).send().await.map_err(|e| {
         sso_error(format!(
@@ -849,6 +901,41 @@ mod tests {
                 now + 3_600_000
             ),
             Err("expired")
+        );
+    }
+
+    /// Observed against Dex v2.46: it url-decodes Basic credentials and ignores a
+    /// body secret when a Basic header is present, so the raw secret `a+b/c=` sent as
+    /// Basic (and in the body, as before) was rejected with `invalid_client`.
+    #[test]
+    fn client_secret_is_sent_one_way_and_encoded() {
+        assert_eq!(form_encode("fx+W0X/x= ü"), "fx%2BW0X%2Fx%3D+%C3%BC");
+        assert_eq!(form_encode("Abc-1.2_3*"), "Abc-1.2_3*");
+        let both = [
+            "client_secret_basic".to_owned(),
+            "client_secret_post".to_owned(),
+        ];
+        let basic_only = ["client_secret_basic".to_owned()];
+        let post_only = ["client_secret_post".to_owned()];
+        // Default (no discovery entry) and plain secrets: Basic.
+        assert_eq!(client_auth(None, "flixnet", "geheim"), ClientAuth::Basic);
+        assert_eq!(client_auth(None, "flixnet", "a+b/c="), ClientAuth::Basic);
+        assert_eq!(
+            client_auth(Some(&both), "flixnet", "geheim"),
+            ClientAuth::Basic
+        );
+        // Secrets that change under encoding go in the body where allowed.
+        assert_eq!(
+            client_auth(Some(&both), "flixnet", "a+b/c="),
+            ClientAuth::Post
+        );
+        assert_eq!(
+            client_auth(Some(&basic_only), "flixnet", "a+b/c="),
+            ClientAuth::Basic
+        );
+        assert_eq!(
+            client_auth(Some(&post_only), "flixnet", "geheim"),
+            ClientAuth::Post
         );
     }
 

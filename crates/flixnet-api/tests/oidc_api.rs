@@ -54,6 +54,11 @@ enum Key {
 
 impl Provider {
     async fn start() -> Self {
+        Self::start_with(json!({})).await
+    }
+
+    /// With extra discovery fields (e.g. `token_endpoint_auth_methods_supported`).
+    async fn start_with(discovery: Value) -> Self {
         let server = MockServer::start().await;
         let rng = SystemRandom::new();
         let alg = &signature::ECDSA_P256_SHA256_FIXED_SIGNING;
@@ -71,18 +76,23 @@ impl Provider {
               "e": URL_SAFE_NO_PAD.encode(&public.e) }
         ]});
         let uri = server.uri();
+        let mut config = json!({
+            "issuer": uri,
+            "authorization_endpoint": format!("{uri}/authorize"),
+            "token_endpoint": format!("{uri}/token"),
+            "jwks_uri": format!("{uri}/jwks"),
+            "userinfo_endpoint": format!("{uri}/userinfo"),
+            "response_types_supported": ["code"],
+            "id_token_signing_alg_values_supported": ["RS256", "ES256"],
+            "code_challenge_methods_supported": ["S256"]
+        });
+        config
+            .as_object_mut()
+            .unwrap()
+            .extend(discovery.as_object().unwrap().clone());
         Mock::given(method("GET"))
             .and(path("/.well-known/openid-configuration"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
-                "issuer": uri,
-                "authorization_endpoint": format!("{uri}/authorize"),
-                "token_endpoint": format!("{uri}/token"),
-                "jwks_uri": format!("{uri}/jwks"),
-                "userinfo_endpoint": format!("{uri}/userinfo"),
-                "response_types_supported": ["code"],
-                "id_token_signing_alg_values_supported": ["RS256", "ES256"],
-                "code_challenge_methods_supported": ["S256"]
-            })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(config))
             .mount(&server)
             .await;
         Mock::given(method("GET"))
@@ -462,4 +472,88 @@ async fn invalid_tokens_and_missing_accounts_are_rejected() {
         )
         .await;
     assert_eq!(unreachable.status, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+/// Claims and client authentication as a real Dex v2.46 sends and expects them: an
+/// opaque base64 `sub`, groups in the ID token (scope `groups`), no
+/// `preferred_username` for static users without one, and a client secret with
+/// `+`, `/` and `=` (as `openssl rand -base64` makes). Dex url-decodes Basic
+/// credentials and ignores a body secret when Basic is present, so the old request
+/// (raw secret as Basic *and* in the body) failed with `invalid_client`.
+#[tokio::test]
+async fn dex_shaped_provider_with_a_base64_secret() {
+    const SECRET: &str = "fx+W0XKEUU/x=";
+    const ENCODED: &str = "fx%2BW0XKEUU%2Fx%3D";
+    let app = app().await;
+    let admin = app.setup_admin().await;
+    for (n, methods) in [
+        json!(["client_secret_basic", "client_secret_post"]),
+        json!(["client_secret_basic"]),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let provider = Provider::start_with(json!({
+            "token_endpoint_auth_methods_supported": methods,
+            "scopes_supported": ["openid", "email", "groups", "profile", "offline_access"]
+        }))
+        .await;
+        configure(
+            &app,
+            &admin,
+            &provider,
+            json!({ "client_secret": SECRET, "scopes": "openid profile email groups" }),
+        )
+        .await;
+        let started = start(&app).await;
+        let sub = "CiQ0MTMzMTMyMy02ZjQ0LTQ1ZTYtYjNiOS0yYzRiNjBjMDJiZTUSBWxvY2Fs";
+        let id_token = provider.id_token(
+            Key::Rsa,
+            &claims(
+                &provider.issuer(),
+                &started.nonce,
+                sub,
+                json!({
+                    "at_hash": "x", "email": "bernd@example.org", "email_verified": true,
+                    "groups": ["flixnet-admins", "family"], "name": "Bernd Benutzer"
+                }),
+            ),
+        );
+        // Both methods offered: the body (no encoding ambiguity); Basic only: encoded.
+        let token_mock = Mock::given(method("POST")).and(path("/token"));
+        let token_mock = if n == 0 {
+            token_mock.and(body_string_contains(format!("client_secret={ENCODED}")))
+        } else {
+            token_mock.and(header(
+                "authorization",
+                format!("Basic {}", STANDARD.encode(format!("flixnet:{ENCODED}"))).as_str(),
+            ))
+        };
+        token_mock
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "access_token": "at", "token_type": "bearer", "expires_in": 86399,
+                "id_token": id_token
+            })))
+            .mount(&provider.server)
+            .await;
+        let session = complete(&app, "dex-code", &started.state).await;
+        assert_eq!(session.status, StatusCode::OK, "case {n}: {}", session.json);
+        assert_eq!(session.json["user"]["name"], "Bernd Benutzer");
+        assert_eq!(session.json["user"]["is_admin"], true);
+
+        let requests = provider.server.received_requests().await.unwrap();
+        let token = requests.iter().find(|r| r.url.path() == "/token").unwrap();
+        let body = String::from_utf8_lossy(&token.body);
+        if n == 0 {
+            assert!(
+                !token.headers.contains_key("authorization"),
+                "one authentication method only"
+            );
+        } else {
+            assert!(
+                !body.contains("client_secret="),
+                "one authentication method only: {body}"
+            );
+        }
+    }
 }
