@@ -16,6 +16,9 @@ const KIND_LABELS: Record<string, string> = {
   'media.chapter_images': 'Kapitelbilder erzeugen',
   'media.thumbnails_backfill': 'Fehlende Vorschau- und Kapitelbilder suchen',
   'metadata.refresh': 'Metadaten aktualisieren',
+  'notify.deliver': 'Benachrichtigung zustellen',
+  'maintenance.backup': 'Datenbank sichern',
+  'trakt.sync_all': 'Mit Trakt abgleichen',
 }
 
 const STATE_STYLES: Record<string, { label: string; className: string }> = {

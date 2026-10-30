@@ -3,6 +3,13 @@ import clsx from 'clsx'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useSession } from '@/lib/session'
 import { AccountSettings } from './AccountSettings'
+import { BackupSettings } from './BackupSettings'
+import { DashboardSettings } from './DashboardSettings'
+import { ImportSettings } from './ImportSettings'
+import { LogsSettings } from './LogsSettings'
+import { NotificationsSettings } from './NotificationsSettings'
+import { SsoSettings } from './SsoSettings'
+import { TraktSettings } from './TraktSettings'
 import { InvitationsSettings } from './InvitationsSettings'
 import { JobsSettings } from './JobsSettings'
 import { LibrariesSettings } from './LibrariesSettings'
@@ -50,6 +57,13 @@ export function SettingsPage() {
         {active === 'invitations' && <InvitationsSettings />}
         {active === 'jobs' && <JobsSettings />}
         {active === 'sessions' && <SessionsSettings />}
+        {active === 'trakt' && <TraktSettings />}
+        {active === 'dashboard' && <DashboardSettings />}
+        {active === 'sso' && <SsoSettings />}
+        {active === 'notifications' && <NotificationsSettings />}
+        {active === 'import' && <ImportSettings />}
+        {active === 'backup' && <BackupSettings />}
+        {active === 'logs' && <LogsSettings />}
       </div>
     </div>
   )

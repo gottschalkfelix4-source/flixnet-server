@@ -8,6 +8,7 @@ import { defineConfig, devices } from '@playwright/test'
 // FLIXNET_E2E_PORT lets several checkouts run their E2E suites at the same time.
 const port = Number(process.env.FLIXNET_E2E_PORT ?? 18097)
 const stubPort = port + 1000
+const webhookPort = port + 1002
 const configDir = mkdtempSync(join(tmpdir(), 'flixnet-e2e-'))
 
 export default defineConfig({
@@ -42,6 +43,13 @@ export default defineConfig({
       url: `http://127.0.0.1:${stubPort}/health`,
       reuseExistingServer: false,
       env: { STUB_PORT: String(stubPort) },
+    },
+    {
+      // Receiver for webhook notifications (e2e/operations.spec.ts).
+      command: 'node e2e/webhook-stub.mjs',
+      url: `http://127.0.0.1:${webhookPort}/health`,
+      reuseExistingServer: false,
+      env: { STUB_PORT: String(webhookPort) },
     },
     {
       command: 'cargo run -q -p flixnet-server -- serve',

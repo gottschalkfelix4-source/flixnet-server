@@ -25,6 +25,7 @@ import { PlayerPage } from '@/routes/PlayerPage'
 import { SearchPage } from '@/routes/SearchPage'
 import { InvitePage } from '@/routes/InvitePage'
 import { LoginPage } from '@/routes/LoginPage'
+import { type OidcCallbackSearch, OidcCallbackPage } from '@/routes/OidcCallbackPage'
 import { NotFoundPage } from '@/routes/NotFoundPage'
 import { PlaceholderPage } from '@/routes/PlaceholderPage'
 import { ProfilesPage } from '@/routes/ProfilesPage'
@@ -62,6 +63,20 @@ const loginRoute = createRoute({
     const status = await context.queryClient.ensureQueryData(setupStatusQuery)
     if (status.setup_required) throw redirect({ to: '/setup' })
     if (getSession()) throw redirect({ to: '/' })
+  },
+})
+
+/** Return from the single sign-on provider (`?code&state`). */
+const oidcCallbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/login/oidc',
+  component: OidcCallbackPage,
+  validateSearch: (search: Record<string, unknown>): OidcCallbackSearch => {
+    const out: OidcCallbackSearch = {}
+    for (const key of ['code', 'state', 'error', 'error_description'] as const) {
+      if (typeof search[key] === 'string') out[key] = search[key]
+    }
+    return out
   },
 })
 
@@ -234,6 +249,7 @@ function placeholder(path: string, title: string, note: string) {
 const routeTree = rootRoute.addChildren([
   setupRoute,
   loginRoute,
+  oidcCallbackRoute,
   profilesRoute,
   playRoute,
   livePlayRoute,
