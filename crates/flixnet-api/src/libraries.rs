@@ -30,6 +30,10 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
 pub enum LibraryKind {
     Movies,
     Shows,
+    /// Pictures and short clips, albums by folder.
+    Photos,
+    /// One book per folder (or m4b file).
+    Audiobooks,
 }
 
 impl LibraryKind {
@@ -37,6 +41,8 @@ impl LibraryKind {
         match self {
             LibraryKind::Movies => "movies",
             LibraryKind::Shows => "shows",
+            LibraryKind::Photos => "photos",
+            LibraryKind::Audiobooks => "audiobooks",
         }
     }
 }

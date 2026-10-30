@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+    "/api/v1/audiobooks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Audiobooks, by author, series and title. */
+        get: operations["listAudiobooks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audiobooks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A book with its parts (signed URLs), chapters across all parts and the position. */
+        get: operations["getAudiobook"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audiobooks/{id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Saves the listening position (every few seconds while playing and on pause). */
+        put: operations["saveAudiobookProgress"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -70,6 +121,23 @@ export interface paths {
          *     Profiles with a PIN need the PIN; administrators without a PIN need their password.
          */
         post: operations["switchProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cast/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where cast devices load media from. */
+        get: operations["getCastConfig"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1179,6 +1247,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The photo timeline: pictures and clips, newest first. */
+        get: operations["listPhotos"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/albums": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Albums (folders) with visible pictures, most recent first. */
+        get: operations["listPhotoAlbums"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/months": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Months of the timeline with their number of pictures (for the jump bar). */
+        get: operations["listPhotoMonths"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One picture or clip with its EXIF details. */
+        get: operations["getPhoto"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/playback/sessions": {
         parameters: {
             query?: never;
@@ -1356,6 +1492,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/settings/network": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Network address and DLNA. */
+        get: operations["getNetworkSettings"];
+        /** Change the network address or the DLNA server (starts, restarts or stops it). */
+        put: operations["updateNetworkSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings/subtitles": {
         parameters: {
             query?: never;
@@ -1445,6 +1599,79 @@ export interface paths {
         get: operations["getSubtitleVtt"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/syncplay/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active groups of the household whose item the user may see. */
+        get: operations["listSyncPlayGroups"];
+        put?: never;
+        /** Start a group (the caller joins it over the WebSocket). */
+        post: operations["createSyncPlayGroup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/syncplay/groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One group. */
+        get: operations["getSyncPlayGroup"];
+        put?: never;
+        post?: never;
+        /** End a group for everybody (its creator or an administrator). */
+        delete: operations["endSyncPlayGroup"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/syncplay/groups/{id}/ws": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The group's WebSocket (see the module docs and the message schemas
+         *     `SyncPlayClientMessage` / `SyncPlayServerMessage`).
+         */
+        get: operations["connectSyncPlayGroup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/syncplay/join/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve an invitation code to its group. */
+        post: operations["joinSyncPlayGroup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1877,6 +2104,114 @@ export interface components {
             language?: string | null;
             title?: string | null;
         };
+        AudiobookCardDto: {
+            author?: string | null;
+            cover_blurhash?: string | null;
+            /** @description Signed cover URL (342 px wide). */
+            cover_url?: string | null;
+            /**
+             * Format: int64
+             * @description Total duration of all parts.
+             */
+            duration_ms?: number | null;
+            /** @description Listened to the end. */
+            finished: boolean;
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            last_played_at?: number | null;
+            /** Format: int64 */
+            library_id: number;
+            narrator?: string | null;
+            /**
+             * Format: int64
+             * @description Listening position of the signed-in user (0 = not started or finished).
+             */
+            position_ms: number;
+            /** Format: double */
+            series_index?: number | null;
+            series_name?: string | null;
+            title: string;
+            /** Format: int64 */
+            year?: number | null;
+        };
+        AudiobookChapterDto: {
+            /** Format: int64 */
+            end_ms: number;
+            /** @description Index of the part (in `parts`) the chapter starts in. */
+            part: number;
+            /**
+             * Format: int64
+             * @description Position in the whole book (ms).
+             */
+            start_ms: number;
+            title: string;
+        };
+        AudiobookDetailDto: components["schemas"]["AudiobookCardDto"] & {
+            chapters: components["schemas"]["AudiobookChapterDto"][];
+            /** @description Signed cover URL (780 px wide). */
+            large_cover_url?: string | null;
+            overview?: string | null;
+            /** @description The audio files in playback order. */
+            parts: components["schemas"]["AudiobookPartDto"][];
+        };
+        AudiobookPage: {
+            items: components["schemas"]["AudiobookCardDto"][];
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            offset: number;
+            /** Format: int64 */
+            total: number;
+        };
+        AudiobookPartDto: {
+            container?: string | null;
+            /** Format: int64 */
+            duration_ms: number;
+            /** Format: int64 */
+            file_id: number;
+            /**
+             * Format: int64
+             * @description Where the part starts in the book (ms).
+             */
+            start_ms: number;
+            /** @description File name without extension. */
+            title: string;
+            /** @description Signed URL of the audio file (supports range requests). */
+            url: string;
+        };
+        AudiobookProgressDto: {
+            /** @description Listened to the end. */
+            finished: boolean;
+            /**
+             * Format: int64
+             * @description Where the book resumes now (0 = from the start).
+             */
+            position_ms: number;
+        };
+        AudiobookProgressRequest: {
+            /**
+             * Format: int64
+             * @description Position in the whole book (ms).
+             */
+            position_ms: number;
+        };
+        CameraDto: {
+            /** @description e.g. `1/250`. */
+            exposure?: string | null;
+            /** Format: double */
+            f_number?: number | null;
+            /**
+             * Format: double
+             * @description Millimetres.
+             */
+            focal_length?: number | null;
+            /** Format: int64 */
+            iso?: number | null;
+            lens?: string | null;
+            make?: string | null;
+            model?: string | null;
+        };
         CandidateDto: {
             /** Format: int64 */
             id: number;
@@ -1892,6 +2227,13 @@ export interface components {
             title: string;
             /** Format: int64 */
             year?: number | null;
+        };
+        CastConfigDto: {
+            /**
+             * @description Address a Chromecast reaches the server at (`null`: not configured, use the
+             *     browser's address).
+             */
+            base_url?: string | null;
         };
         ChangePasswordRequest: {
             current_password: string;
@@ -2006,6 +2348,20 @@ export interface components {
             name: string;
             shared?: boolean;
             smart_filter?: components["schemas"]["SmartFilterDto"] | null;
+        };
+        CreateSyncPlayGroup: {
+            /**
+             * Format: int64
+             * @description Film or episode to watch.
+             */
+            item_id: number;
+            /** @description Shown in the group list (default: "Gruppe von <Name>"). */
+            name?: string | null;
+            /**
+             * Format: int64
+             * @description Where to start (ms, default 0).
+             */
+            position_ms?: number | null;
         };
         CreateTunerRequest: {
             kind: components["schemas"]["TunerKindDto"];
@@ -2127,6 +2483,19 @@ export interface components {
             tuner_count?: number | null;
             /** @description Address to add the device with. */
             url: string;
+        };
+        /** @description Whether the DLNA server runs, and why not. */
+        DlnaStatus: {
+            /** @description Discovery (SSDP multicast) works; without it clients need the address. */
+            discovery: boolean;
+            /** @description What went wrong (German). */
+            error?: string | null;
+            /**
+             * Format: int32
+             * @description The port it listens on.
+             */
+            port?: number | null;
+            running: boolean;
         };
         DownloadSubtitleRequest: {
             /**
@@ -2447,7 +2816,7 @@ export interface components {
             paths?: string[] | null;
         };
         /** @enum {string} */
-        LibraryKind: "movies" | "shows";
+        LibraryKind: "movies" | "shows" | "photos" | "audiobooks";
         LiveSessionDto: {
             /** Format: int64 */
             channel_id: number;
@@ -2473,6 +2842,12 @@ export interface components {
             video_copied: boolean;
             /** @description User ids of the viewers (one entry per player). */
             viewers: number[];
+        };
+        LocationDto: {
+            /** Format: double */
+            latitude: number;
+            /** Format: double */
+            longitude: number;
         };
         MediaFileDto: {
             audio: components["schemas"]["AudioStreamDto"][];
@@ -2547,6 +2922,15 @@ export interface components {
              */
             subtitle_tracks: components["schemas"]["SubtitleTrackDto"][];
         };
+        MemberState: {
+            id: components["schemas"]["u64"];
+            /** @description Profile name. */
+            name: string;
+            /** @description Loaded and able to play at the group position. */
+            ready: boolean;
+            /** Format: int64 */
+            user_id: number;
+        };
         MetadataSettingsDto: {
             /** @description Country for age ratings, e.g. `DE`. */
             country: string;
@@ -2556,6 +2940,23 @@ export interface components {
             has_tmdb_api_key: boolean;
             /** @description Metadata language, e.g. `de-DE`. */
             language: string;
+        };
+        NetworkSettingsDto: {
+            /** @description Name DLNA clients show. */
+            dlna_name: string;
+            /** Format: int32 */
+            dlna_port: number;
+            dlna_status: components["schemas"]["DlnaStatus"];
+            /**
+             * Format: int64
+             * @description User whose libraries and parental controls DLNA uses; `null` = DLNA off.
+             */
+            dlna_user_id?: number | null;
+            /**
+             * @description Public or LAN address of the server (e.g. `http://192.168.1.10:8097`), used for
+             *     absolute URLs (Chromecast); `null` = the address the browser uses.
+             */
+            public_url?: string | null;
         };
         PersonCreditDto: {
             character?: string | null;
@@ -2581,6 +2982,78 @@ export interface components {
             person_id: number;
             /** @description actor | director | writer | creator | producer */
             role: string;
+        };
+        PhotoAlbumDto: {
+            cover_blurhash?: string | null;
+            /** @description Signed URL of the newest picture. */
+            cover_url?: string | null;
+            /**
+             * Format: int64
+             * @description Oldest and newest picture (unix ms).
+             */
+            first_taken_at?: number | null;
+            /** Format: int64 */
+            id: number;
+            /** Format: int64 */
+            last_taken_at?: number | null;
+            /** Format: int64 */
+            library_id: number;
+            /** Format: int64 */
+            photo_count: number;
+            title: string;
+        };
+        PhotoDto: {
+            /**
+             * Format: int64
+             * @description The album (folder) it is in.
+             */
+            album_id?: number | null;
+            blurhash?: string | null;
+            camera?: components["schemas"]["CameraDto"] | null;
+            /**
+             * Format: int64
+             * @description Clips: duration in milliseconds.
+             */
+            duration_ms?: number | null;
+            /** Format: int64 */
+            height?: number | null;
+            /** Format: int64 */
+            id: number;
+            /** @description `photo` or `video` (a short clip). */
+            kind: string;
+            /** @description Signed URL of the large view (1920 px wide). */
+            large_url?: string | null;
+            /** Format: int64 */
+            library_id: number;
+            location?: components["schemas"]["LocationDto"] | null;
+            /** @description Signed URL of the original file (clips play from it). */
+            original_url?: string | null;
+            /**
+             * Format: int64
+             * @description When it was taken (unix ms; the file time without EXIF).
+             */
+            taken_at: number;
+            /** @description Signed thumbnail URL (500 px wide). */
+            thumb_url?: string | null;
+            /** @description File name without extension. */
+            title: string;
+            /** Format: int64 */
+            width?: number | null;
+        };
+        PhotoMonthDto: {
+            /** Format: int64 */
+            count: number;
+            /** @description `YYYY-MM`. */
+            month: string;
+        };
+        PhotoPage: {
+            items: components["schemas"]["PhotoDto"][];
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            offset: number;
+            /** Format: int64 */
+            total: number;
         };
         /** @enum {string} */
         PlayMethod: "direct_play" | "remux" | "transcode";
@@ -2992,6 +3465,131 @@ export interface components {
             /** Format: int64 */
             user_id: number;
         };
+        /** @description What a member sends over the group WebSocket (JSON text frames). */
+        SyncPlayClientMessage: {
+            /** @enum {string} */
+            type: "play";
+        } | {
+            /** Format: int64 */
+            position_ms?: number | null;
+            /** @enum {string} */
+            type: "pause";
+        } | {
+            /** Format: int64 */
+            position_ms: number;
+            /** @enum {string} */
+            type: "seek";
+        } | {
+            /** @enum {string} */
+            type: "buffering";
+        } | {
+            /** @enum {string} */
+            type: "ready";
+        } | {
+            /** Format: int64 */
+            item_id: number;
+            /** @enum {string} */
+            type: "set_item";
+        } | {
+            /** Format: int64 */
+            position_ms: number;
+            /** Format: int64 */
+            server_ms: number;
+            /** @enum {string} */
+            type: "report";
+        } | {
+            /** Format: double */
+            client_ms: number;
+            /** @enum {string} */
+            type: "ping";
+        } | {
+            emoji: string;
+            /** @enum {string} */
+            type: "reaction";
+        };
+        SyncPlayGroupDto: {
+            /** @description Invitation code (`/watch/{code}`). */
+            code: string;
+            /** Format: int64 */
+            created_at: number;
+            id: string;
+            /** Format: int64 */
+            item_id: number;
+            item_title?: string | null;
+            /** @description Profile names of the connected members. */
+            members: string[];
+            name: string;
+            owner_name: string;
+            /** Format: int64 */
+            owner_user_id: number;
+            playing: boolean;
+        };
+        /** @description What the server sends over the group WebSocket (JSON text frames). */
+        SyncPlayServerMessage: {
+            member_id: components["schemas"]["u64"];
+            /** @enum {string} */
+            type: "welcome";
+        } | {
+            state: components["schemas"]["SyncPlayStateDto"];
+            /** @enum {string} */
+            type: "state";
+        } | {
+            /** Format: double */
+            client_ms: number;
+            /** Format: int64 */
+            server_ms: number;
+            /** @enum {string} */
+            type: "pong";
+        } | {
+            /** Format: double */
+            rate: number;
+            /** Format: int64 */
+            seek_to_ms?: number | null;
+            /** @enum {string} */
+            type: "correction";
+        } | {
+            emoji: string;
+            member_id: components["schemas"]["u64"];
+            name: string;
+            /** @enum {string} */
+            type: "reaction";
+        } | {
+            message: string;
+            /** @enum {string} */
+            type: "error";
+        } | {
+            reason: string;
+            /** @enum {string} */
+            type: "closed";
+        };
+        /** @description The shared playback as every member should show it. */
+        SyncPlayStateDto: {
+            /** Format: int64 */
+            anchor_ms: number;
+            group_id: string;
+            /** Format: int64 */
+            item_id: number;
+            members: components["schemas"]["MemberState"][];
+            playing: boolean;
+            /**
+             * Format: int64
+             * @description Group position at server time `anchor_ms`; while playing it advances in real
+             *     time from there (`anchor_ms` may lie slightly in the future: start then).
+             */
+            position_ms: number;
+            /**
+             * Format: int64
+             * @description Increases with every change; older states are stale.
+             */
+            revision: number;
+            /**
+             * Format: int64
+             * @description Server time when this state was sent.
+             */
+            server_ms: number;
+            /** @description Waiting for members to load or buffer; paused until everybody is ready. */
+            waiting: boolean;
+        };
         /** @description Public server information used by clients to discover and identify the server. */
         SystemInfo: {
             /**
@@ -3170,6 +3768,21 @@ export interface components {
             /** @description TMDB v3 API key or v4 read access token; `null` removes it. */
             tmdb_api_key?: string | null;
         };
+        UpdateNetworkSettings: {
+            dlna_name?: string | null;
+            /**
+             * Format: int32
+             * @description 1024–65535 (0: any free port).
+             */
+            dlna_port?: number | null;
+            /**
+             * Format: int64
+             * @description `null` switches DLNA off.
+             */
+            dlna_user_id?: number | null;
+            /** @description `null` removes the address. */
+            public_url?: string | null;
+        };
         UpdatePlaylistRequest: {
             name?: string | null;
             shared?: boolean | null;
@@ -3298,6 +3911,8 @@ export interface components {
             /** @description What the client plays; copied streams need its support for the codecs. */
             device_profile: components["schemas"]["DeviceProfile"];
         };
+        /** Format: int64 */
+        u64: number;
     };
     responses: never;
     parameters: never;
@@ -3307,6 +3922,137 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listAudiobooks: {
+        parameters: {
+            query?: {
+                library_id?: number;
+                /** @description Title, author or narrator contains this. */
+                search?: string;
+                /** @description 1–200, default 100. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of books */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudiobookPage"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getAudiobook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id of the book */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The book */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudiobookDetailDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) book */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    saveAudiobookProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id of the book */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudiobookProgressRequest"];
+            };
+        };
+        responses: {
+            /** @description Stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudiobookProgressDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) book */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Negative position */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     login: {
         parameters: {
             query?: never;
@@ -3465,6 +4211,35 @@ export interface operations {
             };
             /** @description Too many failed attempts */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getCastConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cast settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CastConfigDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4429,7 +5204,10 @@ export interface operations {
         parameters: {
             query?: {
                 library_id?: number;
-                /** @description Comma-separated: `movie`, `series`, `season`, `episode`. */
+                /**
+                 * @description Comma-separated: `movie`, `series`, `season`, `episode`, `photo`, `video`,
+                 *     `photo_album`, `audiobook`.
+                 */
                 kind?: string;
                 parent_id?: number;
                 series_id?: number;
@@ -4489,7 +5267,10 @@ export interface operations {
         parameters: {
             query?: {
                 library_id?: number;
-                /** @description Comma-separated: `movie`, `series`, `season`, `episode`. */
+                /**
+                 * @description Comma-separated: `movie`, `series`, `season`, `episode`, `photo`, `video`,
+                 *     `photo_album`, `audiobook`.
+                 */
                 kind?: string;
                 parent_id?: number;
                 series_id?: number;
@@ -7238,6 +8019,154 @@ export interface operations {
             };
         };
     };
+    listPhotos: {
+        parameters: {
+            query?: {
+                library_id?: number;
+                /** @description Only the pictures of this album. */
+                album_id?: number;
+                /** @description `asc`: oldest first (default: newest first). */
+                order?: string;
+                /** @description 1–500, default 200. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the timeline */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoPage"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listPhotoAlbums: {
+        parameters: {
+            query?: {
+                library_id?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Albums */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoAlbumDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listPhotoMonths: {
+        parameters: {
+            query?: {
+                library_id?: number;
+                /** @description Only the pictures of this album. */
+                album_id?: number;
+                /** @description `asc`: oldest first (default: newest first). */
+                order?: string;
+                /** @description 1–500, default 200. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Months, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoMonthDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item id of the picture or clip */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The picture */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) picture */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     startPlayback: {
         parameters: {
             query?: never;
@@ -7928,6 +8857,95 @@ export interface operations {
             };
         };
     };
+    getNetworkSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateNetworkSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNetworkSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings with the DLNA status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid address, user, name or port */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     getSubtitleSettings: {
         parameters: {
             query?: never;
@@ -8193,6 +9211,266 @@ export interface operations {
             };
             /** @description The conversion took too long */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listSyncPlayGroups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Groups, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlayGroupDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    createSyncPlayGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSyncPlayGroup"];
+            };
+        };
+        responses: {
+            /** @description Group created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlayGroupDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not a film or episode, or invalid name */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getSyncPlayGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Group id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlayGroupDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) group */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    endSyncPlayGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Group id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Group ended */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Someone else's group */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) group */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    connectSyncPlayGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Group id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WebSocket with subprotocol `flixnet`; JSON text frames: `SyncPlayClientMessage` from the client, `SyncPlayServerMessage` from the server */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlayServerMessage"];
+                };
+            };
+            /** @description Not a WebSocket upgrade */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) group */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    joinSyncPlayGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Invitation code of the group */
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The group to connect to */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlayGroupDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown code, or the item is not visible to the caller */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

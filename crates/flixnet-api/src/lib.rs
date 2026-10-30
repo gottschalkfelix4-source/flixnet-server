@@ -22,9 +22,11 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
 pub mod active_sessions;
+mod audiobooks;
 pub mod auth;
 pub mod browse;
 mod collections;
+pub mod dlna;
 pub mod error;
 pub mod images;
 mod invitations;
@@ -33,6 +35,8 @@ mod jobs;
 mod libraries;
 pub mod limiter;
 mod livetv;
+mod network;
+mod photos;
 pub mod playback;
 mod playlists;
 pub mod playstate;
@@ -41,6 +45,7 @@ pub mod session;
 mod settings;
 pub mod signing;
 mod subtitle_search;
+pub mod syncplay;
 mod system;
 pub mod tracks;
 mod transcode;
@@ -70,6 +75,10 @@ pub struct AppState {
     pub playback: active_sessions::ActiveSessions,
     /// Live TV streams (shared per channel).
     pub livetv: flixnet_livetv::LiveTvManager,
+    /// "Gemeinsam schauen" groups.
+    pub syncplay: syncplay::SyncPlay,
+    /// The DLNA server (started by [`dlna::DlnaService::apply`]).
+    pub dlna: dlna::DlnaService,
 }
 
 /// Long-lived services the API talks to.
@@ -94,6 +103,8 @@ impl AppState {
     pub fn new(config: Config, db: Db, services: Services) -> Self {
         let playback = active_sessions::ActiveSessions::default();
         playback.spawn_reaper(db.clone());
+        let syncplay = syncplay::SyncPlay::default();
+        syncplay.spawn_ticker();
         Self {
             config: Arc::new(config),
             db,
@@ -109,6 +120,8 @@ impl AppState {
             subtitles: services.subtitles,
             livetv: services.livetv,
             playback,
+            syncplay,
+            dlna: dlna::DlnaService::default(),
         }
     }
 }
@@ -136,7 +149,11 @@ impl AppState {
         (name = "playlists", description = "Personal and smart playlists"),
         (name = "settings", description = "Server settings (administrators)"),
         (name = "livetv", description = "Live TV: tuners, channels, guide and live playback"),
-    )
+        (name = "syncplay", description = "Watch together: synchronized playback groups"),
+        (name = "photos", description = "Photo libraries: timeline, albums and pictures"),
+        (name = "audiobooks", description = "Audiobook libraries: books, chapters and listening progress"),
+    ),
+    components(schemas(syncplay::SyncPlayClientMessage))
 )]
 struct ApiDoc;
 
@@ -187,6 +204,10 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, livetv::router())
         .nest(API_PREFIX, segments::router())
         .nest(API_PREFIX, subtitle_search::router())
+        .nest(API_PREFIX, syncplay::router())
+        .nest(API_PREFIX, photos::router())
+        .nest(API_PREFIX, audiobooks::router())
+        .nest(API_PREFIX, network::router())
         .split_for_parts()
 }
 

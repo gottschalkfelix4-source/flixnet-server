@@ -109,7 +109,7 @@ impl ImageCache {
         let bytes = self.original(image, &folder).await?;
         let wants_blurhash = image.blurhash.is_none();
         let (encoded, blurhash) = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-            let decoded = image::load_from_memory(&bytes).context("not a decodable image")?;
+            let decoded = decode_oriented(&bytes).context("not a decodable image")?;
             let blurhash = wants_blurhash.then(|| blurhash_of(&decoded)).flatten();
             let resized = match width {
                 Some(w) if w < decoded.width() => decoded.resize(w, u32::MAX, FilterType::Triangle),
@@ -133,6 +133,20 @@ impl ImageCache {
             blurhash,
         })
     }
+}
+
+/// Decodes a picture upright: camera photos store their rotation as EXIF orientation.
+fn decode_oriented(bytes: &[u8]) -> image::ImageResult<DynamicImage> {
+    use image::ImageDecoder;
+    let mut decoder = image::ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()?
+        .into_decoder()?;
+    let orientation = decoder.orientation().ok();
+    let mut decoded = DynamicImage::from_decoder(decoder)?;
+    if let Some(orientation) = orientation {
+        decoded.apply_orientation(orientation);
+    }
+    Ok(decoded)
 }
 
 /// 4x3 component blurhash of a small thumbnail, plus the original size.

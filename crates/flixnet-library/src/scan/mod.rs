@@ -53,6 +53,11 @@ pub async fn scan_library(
     let library = libraries::get(db, library_id)
         .await?
         .with_context(|| format!("library {library_id} does not exist"))?;
+    match library.kind.as_str() {
+        "photos" => return crate::photos::scan_photos(db, queue, library_id).await,
+        "audiobooks" => return crate::audiobooks::scan_audiobooks(db, queue, library_id).await,
+        _ => {}
+    }
     let roots = libraries::paths(db, library_id).await?;
     let mut report = ScanReport::default();
 

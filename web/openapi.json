@@ -12,6 +12,202 @@
     }
   ],
   "paths": {
+    "/api/v1/audiobooks": {
+      "get": {
+        "tags": [
+          "audiobooks"
+        ],
+        "summary": "Audiobooks, by author, series and title.",
+        "operationId": "listAudiobooks",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Title, author or narrator contains this.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–200, default 100.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of books",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudiobookPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audiobooks/{id}": {
+      "get": {
+        "tags": [
+          "audiobooks"
+        ],
+        "summary": "A book with its parts (signed URLs), chapters across all parts and the position.",
+        "operationId": "getAudiobook",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id of the book",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The book",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudiobookDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) book",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/audiobooks/{id}/progress": {
+      "put": {
+        "tags": [
+          "audiobooks"
+        ],
+        "summary": "Saves the listening position (every few seconds while playing and on pause).",
+        "operationId": "saveAudiobookProgress",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id of the book",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AudiobookProgressRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AudiobookProgressDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) book",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Negative position",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "tags": [
@@ -195,6 +391,37 @@
           },
           "429": {
             "description": "Too many failed attempts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cast/config": {
+      "get": {
+        "tags": [
+          "playback"
+        ],
+        "summary": "Where cast devices load media from.",
+        "operationId": "getCastConfig",
+        "responses": {
+          "200": {
+            "description": "Cast settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CastConfigDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
             "content": {
               "application/json": {
                 "schema": {
@@ -1546,7 +1773,7 @@
           {
             "name": "kind",
             "in": "query",
-            "description": "Comma-separated: `movie`, `series`, `season`, `episode`.",
+            "description": "Comma-separated: `movie`, `series`, `season`, `episode`, `photo`, `video`,\n`photo_album`, `audiobook`.",
             "required": false,
             "schema": {
               "type": "string"
@@ -1735,7 +1962,7 @@
           {
             "name": "kind",
             "in": "query",
-            "description": "Comma-separated: `movie`, `series`, `season`, `episode`.",
+            "description": "Comma-separated: `movie`, `series`, `season`, `episode`, `photo`, `video`,\n`photo_album`, `audiobook`.",
             "required": false,
             "schema": {
               "type": "string"
@@ -5345,6 +5572,267 @@
         }
       }
     },
+    "/api/v1/photos": {
+      "get": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "The photo timeline: pictures and clips, newest first.",
+        "operationId": "listPhotos",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "album_id",
+            "in": "query",
+            "description": "Only the pictures of this album.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`asc`: oldest first (default: newest first).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–500, default 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of the timeline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/albums": {
+      "get": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Albums (folders) with visible pictures, most recent first.",
+        "operationId": "listPhotoAlbums",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Albums",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PhotoAlbumDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/months": {
+      "get": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "Months of the timeline with their number of pictures (for the jump bar).",
+        "operationId": "listPhotoMonths",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "album_id",
+            "in": "query",
+            "description": "Only the pictures of this album.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "description": "`asc`: oldest first (default: newest first).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–500, default 200.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Months, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PhotoMonthDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/photos/{id}": {
+      "get": {
+        "tags": [
+          "photos"
+        ],
+        "summary": "One picture or clip with its EXIF details.",
+        "operationId": "getPhoto",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id of the picture or clip",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The picture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) picture",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/playback/sessions": {
       "post": {
         "tags": [
@@ -6193,6 +6681,106 @@
         }
       }
     },
+    "/api/v1/settings/network": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Network address and DLNA.",
+        "operationId": "getNetworkSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Change the network address or the DLNA server (starts, restarts or stops it).",
+        "operationId": "updateNetworkSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNetworkSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings with the DLNA status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid address, user, name or port",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/subtitles": {
       "get": {
         "tags": [
@@ -6566,6 +7154,318 @@
         "security": [
           {}
         ]
+      }
+    },
+    "/api/v1/syncplay/groups": {
+      "get": {
+        "tags": [
+          "syncplay"
+        ],
+        "summary": "Active groups of the household whose item the user may see.",
+        "operationId": "listSyncPlayGroups",
+        "responses": {
+          "200": {
+            "description": "Groups, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyncPlayGroupDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "syncplay"
+        ],
+        "summary": "Start a group (the caller joins it over the WebSocket).",
+        "operationId": "createSyncPlayGroup",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSyncPlayGroup"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Group created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPlayGroupDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Not a film or episode, or invalid name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/syncplay/groups/{id}": {
+      "get": {
+        "tags": [
+          "syncplay"
+        ],
+        "summary": "One group.",
+        "operationId": "getSyncPlayGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Group id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPlayGroupDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "syncplay"
+        ],
+        "summary": "End a group for everybody (its creator or an administrator).",
+        "operationId": "endSyncPlayGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Group id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Group ended"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Someone else's group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/syncplay/groups/{id}/ws": {
+      "get": {
+        "tags": [
+          "syncplay"
+        ],
+        "summary": "The group's WebSocket (see the module docs and the message schemas\n`SyncPlayClientMessage` / `SyncPlayServerMessage`).",
+        "operationId": "connectSyncPlayGroup",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Group id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "WebSocket with subprotocol `flixnet`; JSON text frames: `SyncPlayClientMessage` from the client, `SyncPlayServerMessage` from the server",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPlayServerMessage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a WebSocket upgrade",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/syncplay/join/{code}": {
+      "post": {
+        "tags": [
+          "syncplay"
+        ],
+        "summary": "Resolve an invitation code to its group.",
+        "operationId": "joinSyncPlayGroup",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "description": "Invitation code of the group",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The group to connect to",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPlayGroupDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown code, or the item is not visible to the caller",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/system/info": {
@@ -8074,6 +8974,319 @@
           }
         }
       },
+      "AudiobookCardDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "library_id",
+          "title",
+          "position_ms",
+          "finished"
+        ],
+        "properties": {
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cover_blurhash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cover_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed cover URL (342 px wide)."
+          },
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Total duration of all parts."
+          },
+          "finished": {
+            "type": "boolean",
+            "description": "Listened to the end."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_played_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "library_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "narrator": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "position_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Listening position of the signed-in user (0 = not started or finished)."
+          },
+          "series_index": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "series_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "AudiobookChapterDto": {
+        "type": "object",
+        "required": [
+          "title",
+          "start_ms",
+          "end_ms",
+          "part"
+        ],
+        "properties": {
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "part": {
+            "type": "integer",
+            "description": "Index of the part (in `parts`) the chapter starts in.",
+            "minimum": 0
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Position in the whole book (ms)."
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "AudiobookDetailDto": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AudiobookCardDto"
+          },
+          {
+            "type": "object",
+            "required": [
+              "parts",
+              "chapters"
+            ],
+            "properties": {
+              "chapters": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AudiobookChapterDto"
+                }
+              },
+              "large_cover_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Signed cover URL (780 px wide)."
+              },
+              "overview": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "parts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/AudiobookPartDto"
+                },
+                "description": "The audio files in playback order."
+              }
+            }
+          }
+        ]
+      },
+      "AudiobookPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AudiobookCardDto"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AudiobookPartDto": {
+        "type": "object",
+        "required": [
+          "file_id",
+          "title",
+          "url",
+          "start_ms",
+          "duration_ms"
+        ],
+        "properties": {
+          "container": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "file_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Where the part starts in the book (ms)."
+          },
+          "title": {
+            "type": "string",
+            "description": "File name without extension."
+          },
+          "url": {
+            "type": "string",
+            "description": "Signed URL of the audio file (supports range requests)."
+          }
+        }
+      },
+      "AudiobookProgressDto": {
+        "type": "object",
+        "required": [
+          "position_ms",
+          "finished"
+        ],
+        "properties": {
+          "finished": {
+            "type": "boolean",
+            "description": "Listened to the end."
+          },
+          "position_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Where the book resumes now (0 = from the start)."
+          }
+        }
+      },
+      "AudiobookProgressRequest": {
+        "type": "object",
+        "required": [
+          "position_ms"
+        ],
+        "properties": {
+          "position_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Position in the whole book (ms)."
+          }
+        }
+      },
+      "CameraDto": {
+        "type": "object",
+        "properties": {
+          "exposure": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "e.g. `1/250`."
+          },
+          "f_number": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "focal_length": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Millimetres."
+          },
+          "iso": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "lens": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "make": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "CandidateDto": {
         "type": "object",
         "required": [
@@ -8120,6 +9333,18 @@
               "null"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "CastConfigDto": {
+        "type": "object",
+        "properties": {
+          "base_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Address a Chromecast reaches the server at (`null`: not configured, use the\nbrowser's address)."
           }
         }
       },
@@ -8507,6 +9732,34 @@
           }
         }
       },
+      "CreateSyncPlayGroup": {
+        "type": "object",
+        "required": [
+          "item_id"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Film or episode to watch."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Shown in the group list (default: \"Gruppe von <Name>\")."
+          },
+          "position_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Where to start (ms, default 0)."
+          }
+        }
+      },
       "CreateTunerRequest": {
         "type": "object",
         "required": [
@@ -8830,6 +10083,39 @@
           "url": {
             "type": "string",
             "description": "Address to add the device with."
+          }
+        }
+      },
+      "DlnaStatus": {
+        "type": "object",
+        "description": "Whether the DLNA server runs, and why not.",
+        "required": [
+          "running",
+          "discovery"
+        ],
+        "properties": {
+          "discovery": {
+            "type": "boolean",
+            "description": "Discovery (SSDP multicast) works; without it clients need the address."
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What went wrong (German)."
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The port it listens on.",
+            "minimum": 0
+          },
+          "running": {
+            "type": "boolean"
           }
         }
       },
@@ -9740,7 +11026,9 @@
         "type": "string",
         "enum": [
           "movies",
-          "shows"
+          "shows",
+          "photos",
+          "audiobooks"
         ]
       },
       "LiveSessionDto": {
@@ -9821,6 +11109,23 @@
               "format": "int64"
             },
             "description": "User ids of the viewers (one entry per player)."
+          }
+        }
+      },
+      "LocationDto": {
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -10043,6 +11348,32 @@
           }
         }
       },
+      "MemberState": {
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "name",
+          "ready"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/u64"
+          },
+          "name": {
+            "type": "string",
+            "description": "Profile name."
+          },
+          "ready": {
+            "type": "boolean",
+            "description": "Loaded and able to play at the group position."
+          },
+          "user_id": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "MetadataSettingsDto": {
         "type": "object",
         "required": [
@@ -10067,6 +11398,43 @@
           "language": {
             "type": "string",
             "description": "Metadata language, e.g. `de-DE`."
+          }
+        }
+      },
+      "NetworkSettingsDto": {
+        "type": "object",
+        "required": [
+          "dlna_name",
+          "dlna_port",
+          "dlna_status"
+        ],
+        "properties": {
+          "dlna_name": {
+            "type": "string",
+            "description": "Name DLNA clients show."
+          },
+          "dlna_port": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "dlna_status": {
+            "$ref": "#/components/schemas/DlnaStatus"
+          },
+          "dlna_user_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "User whose libraries and parental controls DLNA uses; `null` = DLNA off."
+          },
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Public or LAN address of the server (e.g. `http://192.168.1.10:8097`), used for\nabsolute URLs (Chromecast); `null` = the address the browser uses."
           }
         }
       },
@@ -10159,6 +11527,218 @@
           "role": {
             "type": "string",
             "description": "actor | director | writer | creator | producer"
+          }
+        }
+      },
+      "PhotoAlbumDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "library_id",
+          "title",
+          "photo_count"
+        ],
+        "properties": {
+          "cover_blurhash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cover_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed URL of the newest picture."
+          },
+          "first_taken_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Oldest and newest picture (unix ms)."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_taken_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "library_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "photo_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "PhotoDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "library_id",
+          "kind",
+          "title",
+          "taken_at"
+        ],
+        "properties": {
+          "album_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The album (folder) it is in."
+          },
+          "blurhash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "camera": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CameraDto",
+                "description": "Camera and exposure from EXIF (`null` without any)."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "duration_ms": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Clips: duration in milliseconds."
+          },
+          "height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "kind": {
+            "type": "string",
+            "description": "`photo` or `video` (a short clip)."
+          },
+          "large_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed URL of the large view (1920 px wide)."
+          },
+          "library_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "location": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LocationDto",
+                "description": "GPS position from EXIF."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "original_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed URL of the original file (clips play from it)."
+          },
+          "taken_at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "When it was taken (unix ms; the file time without EXIF)."
+          },
+          "thumb_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Signed thumbnail URL (500 px wide)."
+          },
+          "title": {
+            "type": "string",
+            "description": "File name without extension."
+          },
+          "width": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "PhotoMonthDto": {
+        "type": "object",
+        "required": [
+          "month",
+          "count"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "month": {
+            "type": "string",
+            "description": "`YYYY-MM`."
+          }
+        }
+      },
+      "PhotoPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PhotoDto"
+            }
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "offset": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -11285,6 +12865,449 @@
           }
         }
       },
+      "SyncPlayClientMessage": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "play"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "`position_ms`: where the member paused (the group position when omitted).",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "position_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "pause"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "position_ms",
+              "type"
+            ],
+            "properties": {
+              "position_ms": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "seek"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The member's player is waiting for data.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "buffering"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The member's player can play at the group position.",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "ready"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Everybody switches to this item (e.g. the next episode).",
+            "required": [
+              "item_id",
+              "type"
+            ],
+            "properties": {
+              "item_id": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "set_item"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "While playing (about every second): the member's position at its estimate of\nthe server clock.",
+            "required": [
+              "position_ms",
+              "server_ms",
+              "type"
+            ],
+            "properties": {
+              "position_ms": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "server_ms": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "report"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Clock sync; answered with `pong`.",
+            "required": [
+              "client_ms",
+              "type"
+            ],
+            "properties": {
+              "client_ms": {
+                "type": "number",
+                "format": "double"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "ping"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "emoji",
+              "type"
+            ],
+            "properties": {
+              "emoji": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "reaction"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What a member sends over the group WebSocket (JSON text frames)."
+      },
+      "SyncPlayGroupDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "owner_user_id",
+          "owner_name",
+          "item_id",
+          "members",
+          "playing",
+          "created_at"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Invitation code (`/watch/{code}`)."
+          },
+          "created_at": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "id": {
+            "type": "string"
+          },
+          "item_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "item_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Profile names of the connected members."
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner_name": {
+            "type": "string"
+          },
+          "owner_user_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "playing": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SyncPlayServerMessage": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "First message after connecting: the member's id in this group.",
+            "required": [
+              "member_id",
+              "type"
+            ],
+            "properties": {
+              "member_id": {
+                "$ref": "#/components/schemas/u64"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "welcome"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "state",
+              "type"
+            ],
+            "properties": {
+              "state": {
+                "$ref": "#/components/schemas/SyncPlayStateDto"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "state"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "client_ms",
+              "server_ms",
+              "type"
+            ],
+            "properties": {
+              "client_ms": {
+                "type": "number",
+                "format": "double"
+              },
+              "server_ms": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "pong"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Drift correction for this member: play at `rate`, or jump to `seek_to_ms`.",
+            "required": [
+              "rate",
+              "type"
+            ],
+            "properties": {
+              "rate": {
+                "type": "number",
+                "format": "double"
+              },
+              "seek_to_ms": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "int64"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "correction"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "member_id",
+              "name",
+              "emoji",
+              "type"
+            ],
+            "properties": {
+              "emoji": {
+                "type": "string"
+              },
+              "member_id": {
+                "$ref": "#/components/schemas/u64"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "reaction"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "message",
+              "type"
+            ],
+            "properties": {
+              "message": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "error"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The group ended (or the member may no longer see its item).",
+            "required": [
+              "reason",
+              "type"
+            ],
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "closed"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "What the server sends over the group WebSocket (JSON text frames)."
+      },
+      "SyncPlayStateDto": {
+        "type": "object",
+        "description": "The shared playback as every member should show it.",
+        "required": [
+          "group_id",
+          "item_id",
+          "playing",
+          "position_ms",
+          "anchor_ms",
+          "server_ms",
+          "waiting",
+          "members",
+          "revision"
+        ],
+        "properties": {
+          "anchor_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "group_id": {
+            "type": "string"
+          },
+          "item_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberState"
+            }
+          },
+          "playing": {
+            "type": "boolean"
+          },
+          "position_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Group position at server time `anchor_ms`; while playing it advances in real\ntime from there (`anchor_ms` may lie slightly in the future: start then)."
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Increases with every change; older states are stale.",
+            "minimum": 0
+          },
+          "server_ms": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Server time when this state was sent."
+          },
+          "waiting": {
+            "type": "boolean",
+            "description": "Waiting for members to load or buffer; paused until everybody is ready."
+          }
+        }
+      },
       "SystemInfo": {
         "type": "object",
         "description": "Public server information used by clients to discover and identify the server.",
@@ -11731,6 +13754,41 @@
           }
         }
       },
+      "UpdateNetworkSettings": {
+        "type": "object",
+        "properties": {
+          "dlna_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dlna_port": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "1024–65535 (0: any free port).",
+            "minimum": 0
+          },
+          "dlna_user_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`null` switches DLNA off."
+          },
+          "public_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` removes the address."
+          }
+        }
+      },
       "UpdatePlaylistRequest": {
         "type": "object",
         "properties": {
@@ -12146,6 +14204,11 @@
             "description": "What the client plays; copied streams need its support for the codecs."
           }
         }
+      },
+      "u64": {
+        "type": "integer",
+        "format": "int64",
+        "minimum": 0
       }
     },
     "securitySchemes": {
@@ -12217,6 +14280,18 @@
     {
       "name": "livetv",
       "description": "Live TV: tuners, channels, guide and live playback"
+    },
+    {
+      "name": "syncplay",
+      "description": "Watch together: synchronized playback groups"
+    },
+    {
+      "name": "photos",
+      "description": "Photo libraries: timeline, albums and pictures"
+    },
+    {
+      "name": "audiobooks",
+      "description": "Audiobook libraries: books, chapters and listening progress"
     }
   ]
 }

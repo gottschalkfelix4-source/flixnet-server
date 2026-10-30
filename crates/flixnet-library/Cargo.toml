@@ -12,6 +12,7 @@ flixnet-media.workspace = true
 anyhow.workspace = true
 blurhash.workspace = true
 image.workspace = true
+kamadak-exif.workspace = true
 notify.workspace = true
 quick-xml.workspace = true
 regex.workspace = true
@@ -24,6 +25,7 @@ hex.workspace = true
 strsim.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tokio-util.workspace = true
 tracing.workspace = true
 walkdir.workspace = true
 
