@@ -34,7 +34,8 @@
 //!   `Branding/Configuration`, `Branding/Css`, `QuickConnect/Enabled` (false),
 //!   `Plugins` (empty), `DisplayPreferences/{id}` (GET/POST, stored per user).
 //! * Users: `Users/AuthenticateByName`, `Users/Public`, `Users/Me`, `Users`,
-//!   `Users/{id}`, `Sessions`, `Sessions/Capabilities[/Full]`, `Sessions/Logout`.
+//!   `Users/{id}`, `Sessions`, `Sessions/Capabilities[/Full]`, `Sessions/Logout`,
+//!   `Devices/Options` (accepted, ignored).
 //! * Browsing: `UserViews` (+ `Users/{id}/Views`), `Items` (+ `Users/{id}/Items`) with
 //!   ParentId, IncludeItemTypes, ExcludeItemTypes, Recursive, SortBy, SortOrder,
 //!   StartIndex, Limit, Fields, Filters (IsPlayed, IsUnplayed, IsFavorite,
@@ -43,13 +44,14 @@
 //!   `Items/{id}` (+ `Users/{id}/Items/{id}`), `Items/{id}/Ancestors`,
 //!   `Shows/{id}/Seasons`, `Shows/{id}/Episodes`, `Items/Latest`
 //!   (+ `Users/{id}/Items/Latest`), `Genres`, `Persons`, `Items/{id}/Similar`,
-//!   `Search/Hints`, and empty `Intros`, `LocalTrailers`, `SpecialFeatures`.
+//!   `Search/Hints`, `Items/Filters[2]` (genres), and empty `Intros`, `LocalTrailers`,
+//!   `SpecialFeatures`, `ThemeMedia`.
 //! * Playback: `Items/{id}/PlaybackInfo` (GET/POST with the client's DeviceProfile),
 //!   `Videos/{id}/stream[.ext]` and `Items/{id}/Download` (ranges), `Audio/{id}/stream`
 //!   and `Audio/{id}/universal` (the original file), `Videos/{id}/master.m3u8` and
 //!   `main.m3u8` (Flixnet transcode sessions), subtitles as
 //!   `Videos/{id}/{mediaSourceId}/Subtitles/{index}[/{ticks}]/Stream.vtt|srt`,
-//!   `DELETE Videos/ActiveEncodings`.
+//!   `DELETE Videos/ActiveEncodings`, `MediaSegments/{id}` (intro, credits, recap).
 //! * Playstate: `Sessions/Playing`, `…/Progress`, `…/Stopped`, `…/Ping`, the legacy
 //!   `[Users/{id}/]PlayingItems/{id}`, `UserPlayedItems/{id}`, `UserFavoriteItems/{id}`
 //!   (+ `Users/{id}/PlayedItems|FavoriteItems/{id}`), `UserItems/{id}/UserData`,

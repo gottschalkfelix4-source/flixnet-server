@@ -537,6 +537,57 @@ pub async fn summaries(db: &Db, ids: &[i64], user_id: Option<i64>) -> Result<Vec
         .await?)
 }
 
+/// How often and when the viewer last watched each of `ids`:
+/// `(item, play_count, last_played_at)` for items with any user data.
+pub async fn play_stats(
+    db: &Db,
+    ids: &[i64],
+    user_id: i64,
+) -> Result<Vec<(i64, i64, Option<i64>)>> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(
+        "SELECT i.id, ud.play_count, ud.last_played_at FROM items i
+         JOIN user_item_data ud ON ud.identity_key = i.identity_key AND ud.user_id = ",
+    );
+    qb.push_bind(user_id).push(" WHERE i.id IN (");
+    {
+        let mut list = qb.separated(", ");
+        for id in ids {
+            list.push_bind(*id);
+        }
+    }
+    qb.push(")");
+    Ok(qb.build_query_as().fetch_all(db.reader()).await?)
+}
+
+/// Episodes below each series or season of `ids` and how many of them the viewer has
+/// not watched: `(item, episodes, unwatched)`.
+pub async fn episode_counts(db: &Db, ids: &[i64], user_id: i64) -> Result<Vec<(i64, i64, i64)>> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(
+        "SELECT p.id, COUNT(e.id),
+                COUNT(e.id) - COALESCE(SUM(COALESCE(ud.played, 0)), 0)
+         FROM items p
+         JOIN items e ON e.kind = 'episode'
+              AND ((p.kind = 'series' AND e.series_id = p.id)
+                   OR (p.kind = 'season' AND e.parent_id = p.id))
+         LEFT JOIN user_item_data ud ON ud.identity_key = e.identity_key AND ud.user_id = ",
+    );
+    qb.push_bind(user_id).push(" WHERE p.id IN (");
+    {
+        let mut list = qb.separated(", ");
+        for id in ids {
+            list.push_bind(*id);
+        }
+    }
+    qb.push(") GROUP BY p.id");
+    Ok(qb.build_query_as().fetch_all(db.reader()).await?)
+}
+
 /// Jump-bar buckets: how many items start with each letter, in title order.
 pub async fn letters(db: &Db, f: &ItemFilter) -> Result<Vec<(char, i64)>> {
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(

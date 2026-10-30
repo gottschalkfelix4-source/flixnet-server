@@ -395,6 +395,18 @@ pub struct MediaStream {
     pub level: Option<f64>,
 }
 
+/// An intro, outro or recap (`MediaSegments/{id}`, Jellyfin 10.10+).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct MediaSegmentDto {
+    pub id: String,
+    pub item_id: String,
+    #[serde(rename = "Type")]
+    pub kind: &'static str,
+    pub start_ticks: i64,
+    pub end_ticks: i64,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct PlaybackInfoResponse {

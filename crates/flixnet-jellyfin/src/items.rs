@@ -34,6 +34,9 @@ pub(crate) fn router() -> Router<JfState> {
         .route("/items", get(list_items))
         .route("/users/{user}/items", get(list_items))
         .route("/items/latest", get(latest))
+        .route("/items/filters", get(query_filters_legacy))
+        .route("/items/filters2", get(query_filters))
+        .route("/items/{id}/thememedia", get(theme_media))
         .route("/users/{user}/items/latest", get(latest))
         .route("/items/{id}", get(get_item))
         .route("/users/{user}/items/{id}", get(get_user_item))
@@ -419,6 +422,63 @@ async fn empty_result(_: JfUser) -> Jf<QueryResult<BaseItemDto>> {
 
 async fn empty_list(_: JfUser) -> Jf<Vec<BaseItemDto>> {
     Jf(Vec::new())
+}
+
+/// No theme songs or videos (Jellyfin for Android TV asks on every detail page).
+async fn theme_media(_: JfUser, Path(id): Path<String>) -> Jf<serde_json::Value> {
+    let empty =
+        serde_json::json!({ "Items": [], "TotalRecordCount": 0, "StartIndex": 0, "OwnerId": id });
+    Jf(serde_json::json!({
+        "ThemeVideosResult": empty,
+        "ThemeSongsResult": empty,
+        "SoundtrackSongsResult": empty,
+    }))
+}
+
+/// Filter choices of a library (Swiftfin's filter sheet): the genres in use; tags,
+/// age ratings and years are left empty.
+async fn query_filters(
+    jf: JfUser,
+    State(state): State<JfState>,
+    params: Params,
+) -> ApiResult<Jf<serde_json::Value>> {
+    let library_ids = libraries_of(&state, &jf.user, &params)
+        .await?
+        .unwrap_or_default();
+    let genres = if library_ids.is_empty() {
+        Vec::new()
+    } else {
+        browse::genres_with_ids(&state.app.db, &library_ids).await?
+    };
+    Ok(Jf(serde_json::json!({
+        "Genres": genres
+            .iter()
+            .map(|(id, name, _)| serde_json::json!({ "Name": name, "Id": ids::guid(Kind::Genre, *id) }))
+            .collect::<Vec<_>>(),
+        "Tags": [],
+    })))
+}
+
+/// The legacy form (`Items/Filters`): plain names.
+async fn query_filters_legacy(
+    jf: JfUser,
+    State(state): State<JfState>,
+    params: Params,
+) -> ApiResult<Jf<serde_json::Value>> {
+    let library_ids = libraries_of(&state, &jf.user, &params)
+        .await?
+        .unwrap_or_default();
+    let genres = if library_ids.is_empty() {
+        Vec::new()
+    } else {
+        browse::genres_with_ids(&state.app.db, &library_ids).await?
+    };
+    Ok(Jf(serde_json::json!({
+        "Genres": genres.into_iter().map(|(_, name, _)| name).collect::<Vec<_>>(),
+        "Tags": [],
+        "OfficialRatings": [],
+        "Years": [],
+    })))
 }
 
 async fn series_id(state: &JfState, user: &AuthUser, id: &str) -> ApiResult<i64> {

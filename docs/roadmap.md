@@ -72,7 +72,7 @@ Regel: ein Meilenstein pro Session. Abgehakt wird erst, wenn das „Fertig wenn�
 ## Phase 8 – Jellyfin-Kompatibilität
 - [x] 8.1 Auth, Views, Items — eigener Listener auf 8098 (`jellyfin.enabled`), Anleitung in `docs/jellyfin-compat.md`
 - [x] 8.2 PlaybackInfo, Streams — DeviceProfile → Decision-Engine, Direct Play mit Range, HLS über Flixnet-Transcode-Sessions, Untertitel als VTT/SRT
-- [ ] 8.3 Sessions, Resume, NextUp, Bilder – *fertig wenn* Infuse, Swiftfin, Findroid, Streamyfin funktionieren — gebaut und gegen das Jellyfin-OpenAPI-Schema getestet; *offen:* Test mit den echten Apps durch Felix
+- [ ] 8.3 Sessions, Resume, NextUp, Bilder – *fertig wenn* Infuse, Swiftfin, Findroid, Streamyfin funktionieren — gebaut, gegen ein echtes Jellyfin 12.4 und das offizielle TypeScript-SDK abgeglichen (Bericht in `docs/jellyfin-compat.md`); *offen:* Test mit den echten Apps durch Felix
 
 ## Phase 9 – Breite und Feinschliff
-- [x] Musik · SyncPlay · Chromecast · Trakt · Webhooks/Benachrichtigungen · Dashboard · Backups · History-Import · OIDC · Unraid-CA-Template · Hörbücher/Fotos/DLNA — alles gebaut und gegen Mocks/Stubs getestet (`docs/music.md`, `docs/unraid.md`, `docs/ai.md`); *offen:* Test mit echten Konten/Geräten (Trakt, Plex-Import, OIDC-Anbieter, Chromecast, DLNA-TV)
+- [x] Musik · SyncPlay · Chromecast · Trakt · Webhooks/Benachrichtigungen · Dashboard · Backups · History-Import · OIDC · Unraid-CA-Template · Hörbücher/Fotos/DLNA — alles gebaut und gegen Mocks/Stubs getestet (`docs/music.md`, `docs/unraid.md`, `docs/ai.md`); Jellyfin-History-Import gegen ein echtes Jellyfin 12.4 geprüft (API-Schlüssel und Anmeldung); *offen:* Test mit echten Konten/Geräten (Trakt, Plex-Import, OIDC-Anbieter, Chromecast, DLNA-TV)

@@ -1396,3 +1396,178 @@ async fn hls_segments_and_subtitles_through_ffmpeg() {
         StatusCode::NOT_FOUND
     );
 }
+
+/// Differences found against a real Jellyfin 12.4 with Findroid's and Swiftfin's
+/// requests (see `docs/jellyfin-compat.md`).
+#[tokio::test]
+async fn behaves_like_jellyfin_for_findroid_and_swiftfin() {
+    let app = app().await;
+    let root = tempfile::tempdir().unwrap();
+    create_user(&app, "Felix", true, None).await;
+    let token = app.token("Felix").await;
+    let t = Some(token.as_str());
+    let lib = library(&app, root.path(), &token).await;
+
+    // Findroid's "Direct play all" profile (no direct-play, no transcoding profiles):
+    // its player takes the file as it is, so no transcode is started for it.
+    let findroid = json!({
+        "DeviceProfile": {
+            "Name": "Direct play all", "MaxStaticBitrate": 1_000_000_000,
+            "MaxStreamingBitrate": 1_000_000_000, "CodecProfiles": [], "ContainerProfiles": [],
+            "DirectPlayProfiles": [], "TranscodingProfiles": [],
+            "SubtitleProfiles": [{ "Format": "srt", "Method": "External" }]
+        },
+        "MaxStreamingBitrate": 1_000_000_000
+    });
+    let info = app
+        .post(&format!("/Items/{}/PlaybackInfo", lib.movie), findroid, t)
+        .await;
+    assert_eq!(info.status, StatusCode::OK, "{}", info.json);
+    let source = &info.json["MediaSources"][0];
+    assert_eq!(source["SupportsDirectPlay"], true, "{source}");
+    assert!(source.get("TranscodingUrl").is_none(), "{source}");
+
+    // A client without a video transcoding profile gets no transcode either (as from
+    // Jellyfin: everything false, no TranscodingUrl).
+    let no_transcoding = json!({
+        "DeviceProfile": {
+            "DirectPlayProfiles": [{ "Container": "webm", "Type": "Video", "VideoCodec": "vp9" }],
+            "TranscodingProfiles": []
+        }
+    });
+    let info = app
+        .post(
+            &format!("/Items/{}/PlaybackInfo", lib.movie),
+            no_transcoding,
+            t,
+        )
+        .await;
+    let source = &info.json["MediaSources"][0];
+    assert_eq!(source["SupportsDirectPlay"], false);
+    assert_eq!(source["SupportsTranscoding"], false);
+    assert!(source.get("TranscodingUrl").is_none(), "{source}");
+
+    // Episode 1 watched, episode 2 started: Jellyfin keeps the started next episode in
+    // Next Up (EnableResumable defaults to true).
+    assert_eq!(
+        app.post(&format!("/UserPlayedItems/{}", lib.e1), json!({}), t)
+            .await
+            .status,
+        StatusCode::OK
+    );
+    app.post("/Sessions/Playing", report(&lib.e2, "nu", 0), t)
+        .await;
+    app.post(
+        "/Sessions/Playing/Stopped",
+        report(&lib.e2, "nu", 10 * MIN),
+        t,
+    )
+    .await;
+    let next_up = app.get("/Shows/NextUp", t).await;
+    assert_eq!(
+        next_up.json["Items"][0]["Id"],
+        lib.e2.as_str(),
+        "{}",
+        next_up.json
+    );
+    assert_eq!(
+        next_up.json["Items"][0]["UserData"]["PlaybackPositionTicks"],
+        10 * MIN * TICKS
+    );
+    let without = app.get("/Shows/NextUp?EnableResumable=false", t).await;
+    assert_eq!(without.json["Items"], json!([]));
+
+    // Play count and last played date of videos; episode counts of series and seasons.
+    let episodes = app.get(&format!("/Shows/{}/Episodes", lib.series), t).await;
+    let e1 = &episodes.json["Items"][0]["UserData"];
+    assert_eq!(e1["PlayCount"], 1);
+    assert!(
+        e1["LastPlayedDate"].as_str().unwrap().ends_with('Z'),
+        "{e1}"
+    );
+    let e2 = &episodes.json["Items"][1]["UserData"];
+    assert!(e2["LastPlayedDate"].is_string(), "{e2}");
+    for (uri, label) in [
+        (
+            format!("/Items/{}?Fields=RecursiveItemCount", lib.series),
+            "series",
+        ),
+        (
+            format!("/Items?ParentId={}&Fields=RecursiveItemCount", lib.shows),
+            "series list",
+        ),
+        (format!("/Shows/{}/Seasons", lib.series), "seasons"),
+    ] {
+        let reply = app.get(&uri, t).await;
+        let item = if reply.json["Items"].is_array() {
+            &reply.json["Items"][0]
+        } else {
+            &reply.json
+        };
+        let data = &item["UserData"];
+        assert_eq!(data["UnplayedItemCount"], 1, "{label}: {item}");
+        assert_eq!(data["PlayedPercentage"], 50.0, "{label}");
+        assert_eq!(data["Played"], false, "{label}");
+        if label != "seasons" {
+            assert_eq!(item["RecursiveItemCount"], 2, "{label}");
+        }
+    }
+
+    // Intro/credits as Jellyfin media segments (Findroid's and Swiftfin's skip button).
+    let e1_id = flixnet_jellyfin::ids::parse(&lib.e1).unwrap().1;
+    let e1_file = media::files_for_item(&app.db, e1_id).await.unwrap()[0].id;
+    flixnet_db::segments::set_manual(&app.db, e1_file, "intro", 5_000, 65_000)
+        .await
+        .unwrap();
+    flixnet_db::segments::set_manual(&app.db, e1_file, "credits", 38 * MIN, 40 * MIN)
+        .await
+        .unwrap();
+    let segments = app.get(&format!("/MediaSegments/{}", lib.e1), t).await;
+    assert_eq!(segments.status, StatusCode::OK);
+    assert_pascal_case(&segments.json, "MediaSegments");
+    let list = segments.json["Items"].as_array().unwrap();
+    assert_eq!(list.len(), 2, "{}", segments.json);
+    assert_eq!(list[0]["Type"], "Intro");
+    assert_eq!(list[0]["StartTicks"], 5_000 * TICKS);
+    assert_eq!(list[0]["EndTicks"], 65_000 * TICKS);
+    assert_eq!(list[0]["ItemId"], lib.e1.as_str());
+    assert_guid(&list[0]["Id"]);
+    assert_eq!(list[1]["Type"], "Outro");
+    let outro = app
+        .get(
+            &format!("/MediaSegments/{}?IncludeSegmentTypes=Outro", lib.e1),
+            t,
+        )
+        .await;
+    assert_eq!(outro.json["Items"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        app.get(&format!("/MediaSegments/{}", lib.movie), t)
+            .await
+            .json["Items"],
+        json!([])
+    );
+
+    // Smaller endpoints clients call without catching errors.
+    let options = app
+        .post(
+            "/Devices/Options?id=device-1",
+            json!({ "CustomName": "Pixel" }),
+            t,
+        )
+        .await;
+    assert_eq!(options.status, StatusCode::NO_CONTENT);
+    let theme = app
+        .get(&format!("/Items/{}/ThemeMedia", lib.movie), t)
+        .await;
+    assert_eq!(theme.status, StatusCode::OK);
+    assert_eq!(theme.json["ThemeSongsResult"]["TotalRecordCount"], 0);
+    let filters = app
+        .get(&format!("/Items/Filters2?ParentId={}", lib.movies), t)
+        .await;
+    assert_eq!(filters.status, StatusCode::OK);
+    assert!(filters.json["Genres"].is_array());
+    let legacy = app
+        .get(&format!("/Items/Filters?ParentId={}", lib.movies), t)
+        .await;
+    assert!(legacy.json["Years"].is_array());
+}

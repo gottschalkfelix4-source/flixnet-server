@@ -172,9 +172,49 @@ pub(crate) async fn item_dtos(
         HashMap::new()
     };
 
+    // Play counts and dates of the videos, episode counts of series and seasons.
+    let video_ids: Vec<i64> = summaries
+        .iter()
+        .filter(|s| s.kind == "movie" || s.kind == "episode")
+        .map(|s| s.id)
+        .collect();
+    let folder_ids: Vec<i64> = summaries
+        .iter()
+        .filter(|s| s.kind == "series" || s.kind == "season")
+        .map(|s| s.id)
+        .collect();
+    let plays: HashMap<i64, (i64, Option<i64>)> = browse::play_stats(db, &video_ids, user.user_id)
+        .await?
+        .into_iter()
+        .map(|(id, count, last)| (id, (count, last)))
+        .collect();
+    let episodes: HashMap<i64, (i64, i64)> = browse::episode_counts(db, &folder_ids, user.user_id)
+        .await?
+        .into_iter()
+        .map(|(id, total, unwatched)| (id, (total, unwatched)))
+        .collect();
+
     let mut out = Vec::with_capacity(summaries.len());
     for s in summaries {
         let mut dto = base_dto(state, &s);
+        if let Some(data) = dto.user_data.as_mut() {
+            if let Some((count, last)) = plays.get(&s.id) {
+                data.play_count = (*count).max(i64::from(s.played));
+                data.last_played_date = last.map(iso);
+            }
+            if let Some((total, unwatched)) = episodes.get(&s.id).copied()
+                && total > 0
+            {
+                // As Jellyfin: counts of the episodes below, watched when all are.
+                data.unplayed_item_count = Some(unwatched);
+                data.played_percentage =
+                    (unwatched < total).then(|| (total - unwatched) as f64 * 100.0 / total as f64);
+                data.played = unwatched == 0;
+                if fields.has("recursiveitemcount") {
+                    dto.recursive_item_count = Some(total);
+                }
+            }
+        }
         if let Some((series, art)) = s
             .series_id
             .and_then(|id| series_art.get(&id).map(|art| (id, art)))
