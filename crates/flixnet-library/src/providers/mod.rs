@@ -378,6 +378,7 @@ pub async fn apply_movie(db: &Db, tmdb: &Tmdb, item_id: i64, tmdb_id: i64) -> an
         metadata::set_provider_id(db, item_id, "imdb", &imdb).await?;
     }
     set_lists_if_unset(db, item_id, &d.genres, &d.production_companies).await?;
+    flixnet_db::ai::set_keywords(db, item_id, &d.keywords.names()).await?;
 
     let mut credits = cast_credits(&d.credits.cast);
     for (i, member) in d
@@ -449,6 +450,7 @@ pub async fn apply_series(
         metadata::set_provider_id(db, series_id, "tvdb", &tvdb.to_string()).await?;
     }
     set_lists_if_unset(db, series_id, &d.genres, &d.networks).await?;
+    flixnet_db::ai::set_keywords(db, series_id, &d.keywords.names()).await?;
 
     let mut credits = cast_credits(&d.aggregate_credits.cast);
     for (i, creator) in d.created_by.iter().enumerate() {

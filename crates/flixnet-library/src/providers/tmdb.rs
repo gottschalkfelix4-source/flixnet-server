@@ -111,6 +111,25 @@ pub struct Named {
     pub name: String,
 }
 
+/// Keywords ("time travel", "dinosaur"): movies list them under `keywords`, TV
+/// shows under `results`.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Keywords {
+    #[serde(default, alias = "results")]
+    pub keywords: Vec<Named>,
+}
+
+impl Keywords {
+    pub fn names(&self) -> Vec<String> {
+        self.keywords
+            .iter()
+            .map(|k| k.name.trim().to_owned())
+            .filter(|k| !k.is_empty())
+            .take(30)
+            .collect()
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct CastMember {
     pub id: i64,
@@ -232,6 +251,8 @@ pub struct MovieDetails {
     pub release_dates: ReleaseDates,
     #[serde(default)]
     pub external_ids: ExternalIds,
+    #[serde(default)]
+    pub keywords: Keywords,
     /// The movie series this movie is part of ("Matrix Filmreihe").
     pub belongs_to_collection: Option<CollectionRef>,
 }
@@ -297,6 +318,8 @@ pub struct TvDetails {
     pub content_ratings: ContentRatings,
     #[serde(default)]
     pub external_ids: ExternalIds,
+    #[serde(default)]
+    pub keywords: Keywords,
     #[serde(default)]
     pub seasons: Vec<SeasonSummary>,
 }
@@ -447,7 +470,7 @@ impl Tmdb {
         let query = [
             (
                 "append_to_response",
-                "credits,images,release_dates,external_ids".to_owned(),
+                "credits,images,release_dates,external_ids,keywords".to_owned(),
             ),
             ("include_image_language", self.image_languages()),
             self.lang(),
@@ -477,7 +500,7 @@ impl Tmdb {
         let query = [
             (
                 "append_to_response",
-                "aggregate_credits,images,content_ratings,external_ids".to_owned(),
+                "aggregate_credits,images,content_ratings,external_ids,keywords".to_owned(),
             ),
             ("include_image_language", self.image_languages()),
             self.lang(),

@@ -9,6 +9,7 @@ name = "flixnet-server"
 path = "src/main.rs"
 
 [dependencies]
+flixnet-ai.workspace = true
 flixnet-api.workspace = true
 flixnet-core.workspace = true
 flixnet-db.workspace = true

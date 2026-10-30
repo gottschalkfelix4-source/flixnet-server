@@ -24,10 +24,17 @@ pub struct TestApp {
     pub dir: TempDir,
     pub router: Router,
     pub db: Db,
+    /// The state behind the router (services such as the AI).
+    pub state: AppState,
 }
 
 /// Router backed by a fresh, empty database.
 pub async fn app() -> TestApp {
+    app_with(|_| {}).await
+}
+
+/// Like [`app`], with a tweaked configuration.
+pub async fn app_with(configure: impl FnOnce(&mut Config)) -> TestApp {
     let dir = tempfile::tempdir().unwrap();
     let db = Db::open(&dir.path().join("flixnet.db")).await.unwrap();
     // Jobs are queued but no workers run in API tests.
@@ -63,8 +70,15 @@ pub async fn app() -> TestApp {
     // downloaded subtitles) stay in the temp dir.
     let mut config = Config::default();
     config.paths.config_dir = dir.path().to_path_buf();
-    let router = router(AppState::new(config, db.clone(), services));
-    TestApp { dir, router, db }
+    configure(&mut config);
+    let state = AppState::new(config, db.clone(), services);
+    let router = router(state.clone());
+    TestApp {
+        dir,
+        router,
+        db,
+        state,
+    }
 }
 
 pub struct Response {

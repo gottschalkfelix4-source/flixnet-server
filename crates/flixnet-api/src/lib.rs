@@ -22,6 +22,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
 pub mod active_sessions;
+mod ai;
 pub mod auth;
 pub mod browse;
 mod collections;
@@ -70,6 +71,8 @@ pub struct AppState {
     pub playback: active_sessions::ActiveSessions,
     /// Live TV streams (shared per channel).
     pub livetv: flixnet_livetv::LiveTvManager,
+    /// Embeddings, semantic search and recommendations.
+    pub ai: flixnet_ai::Ai,
 }
 
 /// Long-lived services the API talks to.
@@ -94,6 +97,8 @@ impl AppState {
     pub fn new(config: Config, db: Db, services: Services) -> Self {
         let playback = active_sessions::ActiveSessions::default();
         playback.spawn_reaper(db.clone());
+        let ai = flixnet_ai::Ai::new(db.clone(), &config);
+        ai.set_busy_probe(playback_busy_probe(&services.transcoder, &services.livetv));
         Self {
             config: Arc::new(config),
             db,
@@ -109,8 +114,31 @@ impl AppState {
             subtitles: services.subtitles,
             livetv: services.livetv,
             playback,
+            ai,
         }
     }
+
+    /// Uses `ai` (shared with the job handlers) instead of the default instance.
+    pub fn with_ai(mut self, ai: flixnet_ai::Ai) -> Self {
+        self.ai = ai;
+        self
+    }
+}
+
+/// "Someone is transcoding": AI jobs wait while a playback transcode or a live TV
+/// stream runs, so they never take CPU away from playback.
+pub fn playback_busy_probe(
+    transcoder: &TranscodeManager,
+    livetv: &flixnet_livetv::LiveTvManager,
+) -> flixnet_ai::BusyProbe {
+    let (transcoder, livetv) = (transcoder.clone(), livetv.clone());
+    std::sync::Arc::new(move || {
+        let (transcoder, livetv) = (transcoder.clone(), livetv.clone());
+        Box::pin(async move {
+            !livetv.streams().is_empty()
+                || transcoder.sessions().await.iter().any(|s| s.transcoding)
+        })
+    })
 }
 
 #[derive(OpenApi)]
@@ -136,6 +164,7 @@ impl AppState {
         (name = "playlists", description = "Personal and smart playlists"),
         (name = "settings", description = "Server settings (administrators)"),
         (name = "livetv", description = "Live TV: tuners, channels, guide and live playback"),
+        (name = "recommendations", description = "Personal recommendations, onboarding and group mode"),
     )
 )]
 struct ApiDoc;
@@ -187,6 +216,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, livetv::router())
         .nest(API_PREFIX, segments::router())
         .nest(API_PREFIX, subtitle_search::router())
+        .nest(API_PREFIX, ai::router())
         .split_for_parts()
 }
 

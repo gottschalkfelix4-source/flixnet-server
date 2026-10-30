@@ -553,7 +553,8 @@ pub(crate) fn card(state: &AppState, s: ItemSummary) -> ItemCardDto {
     }
 }
 
-/// Browse and search items.
+/// Browse and search items. Searches sorted by relevance combine full-text and
+/// semantic search (Reciprocal Rank Fusion) once the library is embedded.
 #[utoipa::path(
     get,
     path = "/items",
@@ -573,7 +574,25 @@ async fn list_items(
 ) -> ApiResult<Json<ItemPage>> {
     let library_ids = visible_libraries(&state, &user, query.library_id).await?;
     let filter = filter_from(&query, library_ids, &user)?;
-    let (rows, total) = browse::list(&state.db, &filter).await?;
+    // Searches by relevance are hybrid (full text + vectors) once embeddings exist.
+    let hybrid = match query.search.as_deref() {
+        Some(text) if filter.sort == Sort::Relevance => flixnet_ai::search::hybrid_page(
+            &state.ai, &filter, text,
+        )
+        .await
+        .unwrap_or_else(|err| {
+            tracing::warn!(error = %format!("{err:#}"), "semantic search failed; using full text");
+            None
+        }),
+        _ => None,
+    };
+    let (rows, total) = match hybrid {
+        Some(page) => (
+            browse::summaries_ordered(&state.db, &page.ids, Some(user.user_id)).await?,
+            page.total,
+        ),
+        None => browse::list(&state.db, &filter).await?,
+    };
     Ok(Json(ItemPage {
         items: rows.into_iter().map(|r| card(&state, r)).collect(),
         total,

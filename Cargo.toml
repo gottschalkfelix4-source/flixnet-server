@@ -16,6 +16,7 @@ flixnet-library = { path = "crates/flixnet-library" }
 flixnet-media = { path = "crates/flixnet-media" }
 flixnet-jellyfin = { path = "crates/flixnet-jellyfin" }
 flixnet-livetv = { path = "crates/flixnet-livetv" }
+flixnet-ai = { path = "crates/flixnet-ai" }
 
 anyhow = "1"
 argon2 = "0.6"
@@ -30,6 +31,11 @@ blurhash = "0.2"
 hmac = "0.13"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "rayon"] }
 notify = "8.2"
+ort = { version = "=2.0.0-rc.15", default-features = false, features = ["std", "ndarray", "tracing", "load-dynamic", "api-22"] }
+ndarray = "0.17"
+tar = "0.4"
+tokenizers = { version = "0.22", default-features = false, features = ["fancy-regex"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 quick-xml = "0.42"
 regex = "1"
 reqwest = { version = "0.13", default-features = false, features = ["json", "query", "charset", "http2", "rustls-no-provider"] }

@@ -1,0 +1,40 @@
+[package]
+name = "flixnet-ai"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[features]
+default = ["onnx"]
+# Local embeddings with ONNX Runtime (loaded at runtime, see `models`).
+onnx = ["dep:ort", "dep:ndarray", "dep:tokenizers"]
+
+[dependencies]
+flixnet-core.workspace = true
+flixnet-db.workspace = true
+
+anyhow.workspace = true
+flate2.workspace = true
+hex.workspace = true
+ndarray = { workspace = true, optional = true }
+ort = { workspace = true, optional = true }
+reqwest.workspace = true
+rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+tar.workspace = true
+thiserror.workspace = true
+tokenizers = { workspace = true, optional = true }
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+zip.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+wiremock.workspace = true
+
+[lints]
+workspace = true
