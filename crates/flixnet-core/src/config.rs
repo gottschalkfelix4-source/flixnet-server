@@ -25,6 +25,7 @@ pub struct Config {
     pub log: LogConfig,
     pub jellyfin: JellyfinConfig,
     pub integrations: IntegrationsConfig,
+    pub ai: AiConfig,
     /// The TOML file this configuration was loaded from (set by the binary; copied
     /// into backups).
     #[serde(skip)]
@@ -45,6 +46,28 @@ impl Default for IntegrationsConfig {
             trakt_api_url: "https://api.trakt.tv".to_owned(),
         }
     }
+}
+
+/// Local AI (embeddings, recommendations). What the server embeds with is chosen in
+/// the admin settings; this file-level section only holds paths and test switches.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AiConfig {
+    /// `auto` (default): as configured in the settings. `stub`: a tiny deterministic
+    /// embedder without any model download — **only for tests** (E2E, CI).
+    pub embedder: EmbedderOverride,
+    /// ONNX Runtime library to load instead of the one downloaded into
+    /// `<config_dir>/models` (also honoured: the `ORT_DYLIB_PATH` environment variable).
+    pub onnxruntime_path: Option<PathBuf>,
+}
+
+/// `ai.embedder`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EmbedderOverride {
+    #[default]
+    Auto,
+    Stub,
 }
 
 /// The Jellyfin-compatible API for existing Jellyfin clients (Infuse, Swiftfin, …),
@@ -213,12 +236,14 @@ mod tests {
             jail.set_env("FLIXNET_SERVER__BIND", "127.0.0.1:9100");
             jail.set_env("FLIXNET_PATHS__CONFIG_DIR", "/config");
             jail.set_env("FLIXNET_JELLYFIN__ENABLED", "true");
+            jail.set_env("FLIXNET_AI__EMBEDDER", "stub");
 
             let config = Config::load(Path::new("flixnet.toml")).expect("load");
             assert_eq!(config.server.bind, "127.0.0.1:9100".parse().unwrap());
             assert_eq!(config.paths.config_dir, PathBuf::from("/config"));
             assert_eq!(config.log.level, "debug");
             assert!(config.jellyfin.enabled);
+            assert_eq!(config.ai.embedder, EmbedderOverride::Stub);
             Ok(())
         });
     }

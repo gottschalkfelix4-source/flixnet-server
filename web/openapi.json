@@ -12,6 +12,181 @@
     }
   ],
   "paths": {
+    "/api/v1/ai/embeddings": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Compute embeddings now.",
+        "operationId": "startEmbedding",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmbeddingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Embedding run queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueuedJobDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/model": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Download the local model now (progress via the job list).",
+        "operationId": "downloadAiModel",
+        "responses": {
+          "202": {
+            "description": "Download queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueuedJobDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No ONNX Runtime for this platform",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Delete the downloaded model files (frees the disk space).",
+        "operationId": "deleteAiModel",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ai/status": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "State of the AI: model, downloads, how much is embedded.",
+        "operationId": "getAiStatus",
+        "responses": {
+          "200": {
+            "description": "AI status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiStatusDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assistant/chat": {
       "post": {
         "tags": [
@@ -2453,7 +2628,7 @@
         "tags": [
           "items"
         ],
-        "summary": "Browse and search items.",
+        "summary": "Browse and search items. Searches sorted by relevance combine full-text and\nsemantic search (Reciprocal Rank Fusion) once the library is embedded.",
         "operationId": "listItems",
         "parameters": [
           {
@@ -3885,6 +4060,72 @@
           },
           "404": {
             "description": "No such item, file or segment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/similar": {
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "summary": "\"Mehr wie das\": titles similar to an item.",
+        "operationId": "listSimilarItems",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "Item id",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–100, default 40.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Similar titles (empty without AI)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemCardDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such (visible) item",
             "content": {
               "application/json": {
                 "schema": {
@@ -8159,6 +8400,227 @@
         }
       }
     },
+    "/api/v1/recommendations": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Personal recommendations (\"Für dich\").",
+        "operationId": "getRecommendations",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "1–100, default 40.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recommendations for the signed-in profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/group": {
+      "post": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "\"Was schauen wir heute?\": suggestions for several household profiles at once.",
+        "operationId": "getGroupRecommendations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Suggestions for the group",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupRecommendationsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or hidden profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Too many profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/onboarding": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Titles to choose from when a profile has no history yet.",
+        "operationId": "getOnboarding",
+        "responses": {
+          "200": {
+            "description": "Candidates and earlier picks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Store the titles a profile likes (replaces earlier picks).",
+        "operationId": "saveOnboarding",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "A title is not visible to this profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Too many titles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/rows": {
+      "get": {
+        "tags": [
+          "recommendations"
+        ],
+        "summary": "Recommendation rows for the home page: \"Für dich\" and \"Weil du X gesehen hast\".",
+        "operationId": "getRecommendationRows",
+        "responses": {
+          "200": {
+            "description": "Rows (empty without history or AI)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecommendationRowDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/scenes/search": {
       "get": {
         "tags": [
@@ -8264,6 +8726,106 @@
           },
           "403": {
             "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/ai": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "AI settings.",
+        "operationId": "getAiSettings",
+        "responses": {
+          "200": {
+            "description": "Current settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Change the AI settings. Choosing an endpoint tests it with one embedding request.",
+        "operationId": "updateAiSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAiSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Updated settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an administrator",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid URL, model or unreachable endpoint",
             "content": {
               "application/json": {
                 "schema": {
@@ -11340,6 +11902,162 @@
           }
         }
       },
+      "AiFileDto": {
+        "type": "object",
+        "required": [
+          "label",
+          "size"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Bytes (0 = unknown).",
+            "minimum": 0
+          }
+        }
+      },
+      "AiJobDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "state"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "progress": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "state": {
+            "type": "string",
+            "description": "queued | running"
+          }
+        }
+      },
+      "AiSettingsDto": {
+        "type": "object",
+        "required": [
+          "embedder",
+          "auto_download",
+          "has_openai_api_key"
+        ],
+        "properties": {
+          "auto_download": {
+            "type": "boolean",
+            "description": "Download the local model automatically on first use."
+          },
+          "embedder": {
+            "type": "string",
+            "enum": [
+              "local",
+              "openai",
+              "off"
+            ]
+          },
+          "has_openai_api_key": {
+            "type": "boolean",
+            "description": "Whether an API key is stored (the key itself is never returned)."
+          },
+          "openai_base_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "openai_model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AiStatusDto": {
+        "type": "object",
+        "required": [
+          "embedder",
+          "ready",
+          "missing",
+          "platform_supported",
+          "embedded",
+          "total"
+        ],
+        "properties": {
+          "download": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AiJobDto",
+                "description": "Running or queued model download."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "embedded": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Titles with a vector of the current model."
+          },
+          "embedder": {
+            "type": "string",
+            "description": "local | openai | off | stub"
+          },
+          "embedding": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AiJobDto",
+                "description": "Running or queued embedding run."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiFileDto"
+            },
+            "description": "Files the local model still needs."
+          },
+          "model_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platform_supported": {
+            "type": "boolean",
+            "description": "The local model can run on this platform."
+          },
+          "ready": {
+            "type": "boolean",
+            "description": "Vectors can be computed now."
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Movies and series in total."
+          }
+        }
+      },
       "AlbumDetailDto": {
         "allOf": [
           {
@@ -13249,6 +13967,15 @@
           }
         }
       },
+      "EmbeddingRequest": {
+        "type": "object",
+        "properties": {
+          "rebuild": {
+            "type": "boolean",
+            "description": "Recompute every vector instead of only new and changed titles."
+          }
+        }
+      },
       "EncoderKind": {
         "type": "string",
         "description": "Which encoder a session runs.",
@@ -13478,6 +14205,113 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "GroupMemberDto": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "has_history"
+        ],
+        "properties": {
+          "has_history": {
+            "type": "boolean",
+            "description": "The profile has history or onboarding picks that shape the suggestions."
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "GroupRecommendationsDto": {
+        "type": "object",
+        "required": [
+          "available",
+          "members",
+          "items"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupSuggestionDto"
+            }
+          },
+          "max_age_rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "Age limit applied for the group (the lowest of all members), if any."
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupMemberDto"
+            }
+          }
+        }
+      },
+      "GroupRequest": {
+        "type": "object",
+        "required": [
+          "user_ids"
+        ],
+        "properties": {
+          "exclude_watched": {
+            "type": "boolean",
+            "description": "Leave out what any member has already watched or started (default: yes)."
+          },
+          "limit": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "1–50, default 20."
+          },
+          "user_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Household profiles watching together (the signed-in profile always counts)."
+          }
+        }
+      },
+      "GroupSuggestionDto": {
+        "type": "object",
+        "required": [
+          "item",
+          "reason",
+          "matches"
+        ],
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/ItemCardDto"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Members this title suits especially well."
+          },
+          "reason": {
+            "type": "string",
+            "description": "e.g. „Passt zu allen“, „Passt besonders zu Anna“."
           }
         }
       },
@@ -15400,6 +16234,46 @@
           }
         }
       },
+      "OnboardingDto": {
+        "type": "object",
+        "required": [
+          "items",
+          "selected"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemCardDto"
+            },
+            "description": "Well-rated titles from across the library to pick from."
+          },
+          "selected": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Titles picked earlier."
+          }
+        }
+      },
+      "OnboardingRequest": {
+        "type": "object",
+        "required": [
+          "item_ids"
+        ],
+        "properties": {
+          "item_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "description": "Liked titles (movies or series), at most 50; an empty list clears the picks."
+          }
+        }
+      },
       "PersonCreditDto": {
         "type": "object",
         "required": [
@@ -16233,6 +17107,19 @@
           }
         }
       },
+      "QueuedJobDto": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "`null` when an equal job is already queued or running."
+          }
+        }
+      },
       "Reason": {
         "type": "string",
         "description": "Why the file cannot simply be played as-is.",
@@ -16278,6 +17165,86 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "RecommendationRowDto": {
+        "type": "object",
+        "required": [
+          "kind",
+          "title",
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemCardDto"
+            }
+          },
+          "kind": {
+            "type": "string",
+            "description": "for_you | because"
+          },
+          "source_item_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "For `because` rows: the title the row is based on."
+          },
+          "title": {
+            "type": "string",
+            "description": "Row title, e.g. „Weil du „Dark“ gesehen hast“."
+          }
+        }
+      },
+      "RecommendationsDto": {
+        "type": "object",
+        "required": [
+          "available",
+          "needs_onboarding",
+          "items"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "description": "Semantic data exists (AI enabled and the library embedded)."
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendedItemDto"
+            }
+          },
+          "needs_onboarding": {
+            "type": "boolean",
+            "description": "No history and no onboarding picks yet: show the onboarding."
+          }
+        }
+      },
+      "RecommendedItemDto": {
+        "type": "object",
+        "required": [
+          "item",
+          "reason"
+        ],
+        "properties": {
+          "because_item_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "description": "The title the explanation refers to."
+          },
+          "item": {
+            "$ref": "#/components/schemas/ItemCardDto"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Rule-based explanation, e.g. „Weil du „Alien“ gesehen hast“."
           }
         }
       },
@@ -18344,6 +19311,52 @@
           "locked"
         ]
       },
+      "UpdateAiSettings": {
+        "type": "object",
+        "properties": {
+          "auto_download": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "embedder": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "openai",
+                  "off"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "openai_api_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`null` removes the stored key."
+          },
+          "openai_base_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "e.g. `https://api.openai.com/v1` or `http://192.168.1.10:11434/v1`."
+          },
+          "openai_model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
       "UpdateBackupSettings": {
         "type": "object",
         "properties": {
@@ -19324,6 +20337,10 @@
     {
       "name": "audiobooks",
       "description": "Audiobook libraries: books, chapters and listening progress"
+    },
+    {
+      "name": "recommendations",
+      "description": "Personal recommendations, onboarding and group mode"
     }
   ]
 }

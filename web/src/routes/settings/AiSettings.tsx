@@ -13,10 +13,13 @@ import { FormError } from '@/components/layout/AuthLayout'
 import { Button } from '@/components/ui/Button'
 import { Checkbox, Section, SelectField } from '@/components/ui/Section'
 import { TextField } from '@/components/ui/TextField'
+import { EmbeddingSettings } from './EmbeddingSettings'
 
 export function AiSettings() {
   return (
     <div className="flex flex-col gap-6">
+      {/* Local embeddings first: semantic search and recommendations need no LLM. */}
+      <EmbeddingSettings />
       <LlmSection />
       <SceneSection />
     </div>

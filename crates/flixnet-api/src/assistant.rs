@@ -267,13 +267,31 @@ async fn keyword_search(
     let Some(semantic) = &state.semantic else {
         return Ok((rows, total));
     };
-    let semantic_ids: Vec<i64> = match semantic.search_items(text_query, 50).await {
-        Ok(hits) => hits.into_iter().map(|(id, _)| id).collect(),
+    let hits = match semantic.search_items(text_query, 50).await {
+        Ok(hits) => hits,
         Err(err) => {
             tracing::warn!(%err, "semantic item search failed");
             return Ok((rows, total));
         }
     };
+    // A title the keyword search did not find must match the meaning better than the
+    // best keyword hit: looking up a name shows that title, not merely similar ones.
+    let keyword_ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
+    let keyword_best = hits
+        .iter()
+        .filter(|(id, _)| keyword_ids.contains(id))
+        .map(|(_, score)| *score)
+        .fold(None, |best: Option<f32>, s| {
+            Some(best.map_or(s, |b| b.max(s)))
+        });
+    let semantic_ids: Vec<i64> = hits
+        .into_iter()
+        .filter(|(id, score)| {
+            keyword_ids.contains(id)
+                || (keyword_ids.is_empty() || keyword_best.is_some_and(|k| *score > k))
+        })
+        .map(|(id, _)| id)
+        .collect();
     let merged = rrf(&[rows.iter().map(|r| r.id).collect(), semantic_ids], 60.0);
     if merged.is_empty() {
         return Ok((rows, total));

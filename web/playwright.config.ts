@@ -73,6 +73,8 @@ export default defineConfig({
         // Music lookups stay local (the stub answers 404).
         FLIXNET_MUSICBRAINZ_URL: `http://127.0.0.1:${stubPort}/musicbrainz`,
         FLIXNET_COVERART_URL: `http://127.0.0.1:${stubPort}/coverart`,
+        // Deterministic test embeddings: no model download (e2e/foryou.spec.ts).
+        FLIXNET_AI__EMBEDDER: 'stub',
       },
     },
   ],

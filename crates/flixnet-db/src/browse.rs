@@ -447,6 +447,52 @@ pub async fn list(db: &Db, f: &ItemFilter) -> Result<(Vec<ItemSummary>, i64)> {
     Ok((rows, total))
 }
 
+/// Ids of one page in the filter's order (with a search: by bm25 relevance), plus
+/// the total count. The cheap first phase of [`list`], for rank fusion.
+pub async fn page_ids(db: &Db, f: &ItemFilter) -> Result<(Vec<i64>, i64)> {
+    let mut page: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT i.id");
+    push_from(&mut page, f);
+    push_filters(&mut page, f);
+    push_order(&mut page, f);
+    page.push(" LIMIT ")
+        .push_bind(f.limit)
+        .push(" OFFSET ")
+        .push_bind(f.offset);
+    let ids: Vec<(i64,)> = page.build_query_as().fetch_all(db.reader()).await?;
+    let mut count: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT COUNT(*)");
+    push_from(&mut count, f);
+    push_filters(&mut count, f);
+    let (total,): (i64,) = count.build_query_as().fetch_one(db.reader()).await?;
+    Ok((ids.into_iter().map(|(id,)| id).collect(), total))
+}
+
+/// Card details for `ids`, in the order given (ids that vanished are skipped).
+pub async fn summaries_ordered(
+    db: &Db,
+    ids: &[i64],
+    user_id: Option<i64>,
+) -> Result<Vec<ItemSummary>> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut rows = summaries(db, ids, user_id).await?;
+    let position: std::collections::HashMap<i64, usize> =
+        ids.iter().enumerate().map(|(pos, id)| (*id, pos)).collect();
+    rows.sort_by_key(|r| position.get(&r.id).copied().unwrap_or(usize::MAX));
+    Ok(rows)
+}
+
+/// Ids of every item matching the filter (no paging, no order): the visible
+/// candidate set for recommendations and semantic search. `search` is ignored.
+pub async fn visible_ids(db: &Db, f: &ItemFilter) -> Result<Vec<i64>> {
+    let mut unsearched = f.clone();
+    unsearched.search = None;
+    let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT i.id FROM items i");
+    push_filters(&mut qb, &unsearched);
+    let rows: Vec<(i64,)> = qb.build_query_as().fetch_all(db.reader()).await?;
+    Ok(rows.into_iter().map(|(id,)| id).collect())
+}
+
 /// Card details (poster, backdrop, child count, the viewer's state) for specific items.
 pub async fn summaries(db: &Db, ids: &[i64], user_id: Option<i64>) -> Result<Vec<ItemSummary>> {
     let mut qb: QueryBuilder<Sqlite> = QueryBuilder::new(

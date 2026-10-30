@@ -14,6 +14,7 @@ use sqlx::SqlitePool;
 use sqlx::migrate::Migrator;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 
+pub mod ai;
 pub mod audiobooks;
 pub mod backup;
 pub mod browse;

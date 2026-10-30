@@ -22,6 +22,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_scalar::{Scalar, Servable};
 
 pub mod active_sessions;
+mod ai;
 mod ai_settings;
 mod assistant;
 mod audiobooks;
@@ -46,6 +47,7 @@ mod playlists;
 pub mod playstate;
 mod scenes;
 mod segments;
+mod semantic_bridge;
 pub mod session;
 mod settings;
 pub mod signing;
@@ -89,6 +91,8 @@ pub struct AppState {
     pub syncplay: syncplay::SyncPlay,
     /// The DLNA server (started by [`dlna::DlnaService::apply`]).
     pub dlna: dlna::DlnaService,
+    /// Embeddings, semantic search and recommendations.
+    pub ai: flixnet_ai::Ai,
 }
 
 /// Long-lived services the API talks to.
@@ -115,6 +119,8 @@ impl AppState {
         playback.spawn_reaper(db.clone(), services.events.clone());
         let syncplay = syncplay::SyncPlay::default();
         syncplay.spawn_ticker();
+        let ai = flixnet_ai::Ai::new(db.clone(), &config);
+        ai.set_busy_probe(playback_busy_probe(&services.transcoder, &services.livetv));
         let state = Self {
             config: Arc::new(config),
             db,
@@ -131,9 +137,11 @@ impl AppState {
             livetv: services.livetv,
             playback,
             ops: ops::Ops::default(),
-            semantic: None,
+            // Local embeddings back natural-language search whenever they exist.
+            semantic: Some(Arc::new(semantic_bridge::AiSemantic(ai.clone()))),
             syncplay,
             dlna: dlna::DlnaService::default(),
+            ai,
         };
         ops::spawn_listeners(&state);
         state
@@ -144,6 +152,28 @@ impl AppState {
         self.semantic = Some(index);
         self
     }
+
+    /// Uses `ai` (shared with the job handlers) instead of the default instance.
+    pub fn with_ai(mut self, ai: flixnet_ai::Ai) -> Self {
+        self.ai = ai;
+        self
+    }
+}
+
+/// "Someone is transcoding": AI jobs wait while a playback transcode or a live TV
+/// stream runs, so they never take CPU away from playback.
+pub fn playback_busy_probe(
+    transcoder: &TranscodeManager,
+    livetv: &flixnet_livetv::LiveTvManager,
+) -> flixnet_ai::BusyProbe {
+    let (transcoder, livetv) = (transcoder.clone(), livetv.clone());
+    std::sync::Arc::new(move || {
+        let (transcoder, livetv) = (transcoder.clone(), livetv.clone());
+        Box::pin(async move {
+            !livetv.streams().is_empty()
+                || transcoder.sessions().await.iter().any(|s| s.transcoding)
+        })
+    })
 }
 
 #[derive(OpenApi)]
@@ -179,6 +209,7 @@ impl AppState {
         (name = "syncplay", description = "Watch together: synchronized playback groups"),
         (name = "photos", description = "Photo libraries: timeline, albums and pictures"),
         (name = "audiobooks", description = "Audiobook libraries: books, chapters and listening progress"),
+        (name = "recommendations", description = "Personal recommendations, onboarding and group mode"),
     ),
     components(schemas(syncplay::SyncPlayClientMessage))
 )]
@@ -240,6 +271,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, photos::router())
         .nest(API_PREFIX, audiobooks::router())
         .nest(API_PREFIX, network::router())
+        .nest(API_PREFIX, ai::router())
         .split_for_parts()
 }
 

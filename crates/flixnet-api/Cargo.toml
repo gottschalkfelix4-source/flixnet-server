@@ -5,6 +5,7 @@ edition.workspace = true
 publish.workspace = true
 
 [dependencies]
+flixnet-ai.workspace = true
 flixnet-core.workspace = true
 flixnet-db.workspace = true
 flixnet-library.workspace = true
@@ -37,6 +38,7 @@ utoipa-axum.workspace = true
 utoipa-scalar.workspace = true
 
 [dev-dependencies]
+sqlx.workspace = true
 flate2.workspace = true
 image.workspace = true
 tempfile.workspace = true

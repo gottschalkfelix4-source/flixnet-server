@@ -57,7 +57,8 @@ async fn tmdb_mock() -> MockServer {
                 { "iso_3166_1": "US", "release_dates": [{ "certification": "PG-13" }] },
                 { "iso_3166_1": "DE", "release_dates": [{ "certification": "" }, { "certification": "12" }] }
             ]},
-            "external_ids": { "imdb_id": "tt9000001" }
+            "external_ids": { "imdb_id": "tt9000001" },
+            "keywords": { "keywords": [{ "id": 1, "name": "time travel" }, { "id": 2, "name": "dinosaur" }] }
         })))
         .mount(&server)
         .await;
@@ -86,6 +87,7 @@ async fn tmdb_mock() -> MockServer {
             "images": { "posters": [{ "file_path": "/series.jpg", "iso_639_1": "de", "vote_average": 5.0 }] },
             "content_ratings": { "results": [{ "iso_3166_1": "DE", "rating": "16" }] },
             "external_ids": { "imdb_id": "tt7000001", "tvdb_id": 990_100 },
+            "keywords": { "results": [{ "id": 3, "name": "police" }] },
             "seasons": [{ "season_number": 1 }]
         })))
         .mount(&server)
@@ -196,6 +198,10 @@ async fn movies_and_series_are_matched_and_enriched() {
         metadata::genres(&db, alpha.id).await.unwrap(),
         ["Abenteuer", "Komödie"]
     );
+    assert_eq!(
+        flixnet_db::ai::keywords(&db, alpha.id).await.unwrap(),
+        ["time travel", "dinosaur"]
+    );
     let credits = metadata::credits(&db, alpha.id).await.unwrap();
     let names: Vec<_> = credits
         .iter()
@@ -268,6 +274,10 @@ async fn movies_and_series_are_matched_and_enriched() {
         .await
         .unwrap();
     assert_eq!(metadata::genres(&db, series.id).await.unwrap(), ["Drama"]);
+    assert_eq!(
+        flixnet_db::ai::keywords(&db, series.id).await.unwrap(),
+        ["police"]
+    );
     let roles: Vec<_> = metadata::credits(&db, series.id)
         .await
         .unwrap()

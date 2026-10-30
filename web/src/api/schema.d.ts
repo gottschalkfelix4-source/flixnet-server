@@ -4,6 +4,58 @@
  */
 
 export interface paths {
+    "/api/v1/ai/embeddings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compute embeddings now. */
+        post: operations["startEmbedding"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Download the local model now (progress via the job list). */
+        post: operations["downloadAiModel"];
+        /** Delete the downloaded model files (frees the disk space). */
+        delete: operations["deleteAiModel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** State of the AI: model, downloads, how much is embedded. */
+        get: operations["getAiStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assistant/chat": {
         parameters: {
             query?: never;
@@ -643,7 +695,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Browse and search items. */
+        /**
+         * Browse and search items. Searches sorted by relevance combine full-text and
+         *     semantic search (Reciprocal Rank Fusion) once the library is embedded.
+         */
         get: operations["listItems"];
         put?: never;
         post?: never;
@@ -920,6 +975,23 @@ export interface paths {
          *     analysis of the season.
          */
         delete: operations["deleteMediaSegment"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/items/{id}/similar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** "Mehr wie das": titles similar to an item. */
+        get: operations["listSimilarItems"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1892,6 +1964,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Personal recommendations ("Für dich"). */
+        get: operations["getRecommendations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** "Was schauen wir heute?": suggestions for several household profiles at once. */
+        post: operations["getGroupRecommendations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Titles to choose from when a profile has no history yet. */
+        get: operations["getOnboarding"];
+        /** Store the titles a profile likes (replaces earlier picks). */
+        put: operations["saveOnboarding"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recommendation rows for the home page: "Für dich" and "Weil du X gesehen hast". */
+        get: operations["getRecommendationRows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/scenes/search": {
         parameters: {
             query?: never;
@@ -1919,6 +2060,24 @@ export interface paths {
         /** Playback sessions that reported recently (administrators). */
         get: operations["listActiveSessions"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** AI settings. */
+        get: operations["getAiSettings"];
+        /** Change the AI settings. Choosing an endpoint tests it with one embedding request. */
+        put: operations["updateAiSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2695,6 +2854,56 @@ export interface components {
              */
             added: number;
         };
+        AiFileDto: {
+            label: string;
+            /**
+             * Format: int64
+             * @description Bytes (0 = unknown).
+             */
+            size: number;
+        };
+        AiJobDto: {
+            /** Format: int64 */
+            id: number;
+            /** Format: double */
+            progress?: number | null;
+            /** @description queued | running */
+            state: string;
+        };
+        AiSettingsDto: {
+            /** @description Download the local model automatically on first use. */
+            auto_download: boolean;
+            /** @enum {string} */
+            embedder: "local" | "openai" | "off";
+            /** @description Whether an API key is stored (the key itself is never returned). */
+            has_openai_api_key: boolean;
+            openai_base_url?: string | null;
+            openai_model?: string | null;
+        };
+        AiStatusDto: {
+            download?: components["schemas"]["AiJobDto"] | null;
+            /**
+             * Format: int64
+             * @description Titles with a vector of the current model.
+             */
+            embedded: number;
+            /** @description local | openai | off | stub */
+            embedder: string;
+            embedding?: components["schemas"]["AiJobDto"] | null;
+            last_error?: string | null;
+            /** @description Files the local model still needs. */
+            missing: components["schemas"]["AiFileDto"][];
+            model_key?: string | null;
+            /** @description The local model can run on this platform. */
+            platform_supported: boolean;
+            /** @description Vectors can be computed now. */
+            ready: boolean;
+            /**
+             * Format: int64
+             * @description Movies and series in total.
+             */
+            total: number;
+        };
         AlbumDetailDto: components["schemas"]["ItemCardDto"] & {
             /**
              * Format: int64
@@ -3357,6 +3566,10 @@ export interface components {
              */
             stream_index: number;
         };
+        EmbeddingRequest: {
+            /** @description Recompute every vector instead of only new and changed titles. */
+            rebuild?: boolean;
+        };
         /**
          * @description Which encoder a session runs.
          * @enum {string}
@@ -3439,6 +3652,41 @@ export interface components {
             /** Format: int64 */
             count: number;
             name: string;
+        };
+        GroupMemberDto: {
+            /** @description The profile has history or onboarding picks that shape the suggestions. */
+            has_history: boolean;
+            /** Format: int64 */
+            id: number;
+            name: string;
+        };
+        GroupRecommendationsDto: {
+            available: boolean;
+            items: components["schemas"]["GroupSuggestionDto"][];
+            /**
+             * Format: int64
+             * @description Age limit applied for the group (the lowest of all members), if any.
+             */
+            max_age_rating?: number | null;
+            members: components["schemas"]["GroupMemberDto"][];
+        };
+        GroupRequest: {
+            /** @description Leave out what any member has already watched or started (default: yes). */
+            exclude_watched?: boolean;
+            /**
+             * Format: int64
+             * @description 1–50, default 20.
+             */
+            limit?: number | null;
+            /** @description Household profiles watching together (the signed-in profile always counts). */
+            user_ids: number[];
+        };
+        GroupSuggestionDto: {
+            item: components["schemas"]["ItemCardDto"];
+            /** @description Members this title suits especially well. */
+            matches: number[];
+            /** @description e.g. „Passt zu allen“, „Passt besonders zu Anna“. */
+            reason: string;
         };
         GuideDto: {
             /** Format: int64 */
@@ -4074,6 +4322,16 @@ export interface components {
              */
             redirect_uri: string;
         };
+        OnboardingDto: {
+            /** @description Well-rated titles from across the library to pick from. */
+            items: components["schemas"]["ItemCardDto"][];
+            /** @description Titles picked earlier. */
+            selected: number[];
+        };
+        OnboardingRequest: {
+            /** @description Liked titles (movies or series), at most 50; an empty list clears the picks. */
+            item_ids: number[];
+        };
         PersonCreditDto: {
             character?: string | null;
             item: components["schemas"]["ItemCardDto"];
@@ -4348,6 +4606,13 @@ export interface components {
             /** Format: int64 */
             year?: number | null;
         };
+        QueuedJobDto: {
+            /**
+             * Format: int64
+             * @description `null` when an equal job is already queued or running.
+             */
+            job_id?: number | null;
+        };
         /**
          * @description Why the file cannot simply be played as-is.
          * @enum {string}
@@ -4364,6 +4629,35 @@ export interface components {
              */
             position_ms: number;
             text?: string | null;
+        };
+        RecommendationRowDto: {
+            items: components["schemas"]["ItemCardDto"][];
+            /** @description for_you | because */
+            kind: string;
+            /**
+             * Format: int64
+             * @description For `because` rows: the title the row is based on.
+             */
+            source_item_id?: number | null;
+            /** @description Row title, e.g. „Weil du „Dark“ gesehen hast“. */
+            title: string;
+        };
+        RecommendationsDto: {
+            /** @description Semantic data exists (AI enabled and the library embedded). */
+            available: boolean;
+            items: components["schemas"]["RecommendedItemDto"][];
+            /** @description No history and no onboarding picks yet: show the onboarding. */
+            needs_onboarding: boolean;
+        };
+        RecommendedItemDto: {
+            /**
+             * Format: int64
+             * @description The title the explanation refers to.
+             */
+            because_item_id?: number | null;
+            item: components["schemas"]["ItemCardDto"];
+            /** @description Rule-based explanation, e.g. „Weil du „Alien“ gesehen hast“. */
+            reason: string;
         };
         RematchDto: {
             /**
@@ -5098,6 +5392,15 @@ export interface components {
          * @enum {string}
          */
         Unlock: "none" | "pin" | "password" | "locked";
+        UpdateAiSettings: {
+            auto_download?: boolean | null;
+            embedder?: ("local" | "openai" | "off") | null;
+            /** @description `null` removes the stored key. */
+            openai_api_key?: string | null;
+            /** @description e.g. `https://api.openai.com/v1` or `http://192.168.1.10:11434/v1`. */
+            openai_base_url?: string | null;
+            openai_model?: string | null;
+        };
         UpdateBackupSettings: {
             /** @description Absolute folder; empty resets to the default. */
             directory?: string | null;
@@ -5374,6 +5677,169 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    startEmbedding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmbeddingRequest"];
+            };
+        };
+        responses: {
+            /** @description Embedding run queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuedJobDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    downloadAiModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Download queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QueuedJobDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No ONNX Runtime for this platform */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    deleteAiModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getAiStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description AI status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiStatusDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     assistantChat: {
         parameters: {
             query?: never;
@@ -8165,6 +8631,50 @@ export interface operations {
                 };
             };
             /** @description No such item, file or segment */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    listSimilarItems: {
+        parameters: {
+            query?: {
+                /** @description 1–100, default 40. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Item id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Similar titles (empty without AI) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemCardDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description No such (visible) item */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -11408,6 +11918,196 @@ export interface operations {
             };
         };
     };
+    getRecommendations: {
+        parameters: {
+            query?: {
+                /** @description 1–100, default 40. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recommendations for the signed-in profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getGroupRecommendations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupRequest"];
+            };
+        };
+        responses: {
+            /** @description Suggestions for the group */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupRecommendationsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Unknown or hidden profile */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many profiles */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getOnboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Candidates and earlier picks */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    saveOnboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description A title is not visible to this profile */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Too many titles */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getRecommendationRows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rows (empty without history or AI) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationRowDto"][];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     searchScenes: {
         parameters: {
             query?: {
@@ -11482,6 +12182,95 @@ export interface operations {
             };
             /** @description Not an administrator */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    getAiSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    updateAiSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAiSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiSettingsDto"];
+                };
+            };
+            /** @description Missing or invalid token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Not an administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Invalid URL, model or unreachable endpoint */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

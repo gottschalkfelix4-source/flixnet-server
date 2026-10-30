@@ -70,8 +70,17 @@ async fn app() -> (TestApp, flixnet_core::jobs::RunningJobs) {
             },
         ),
     };
-    let router = router(AppState::new(Config::default(), db.clone(), services));
-    (TestApp { dir, router, db }, running)
+    let state = AppState::new(Config::default(), db.clone(), services);
+    let router = router(state.clone());
+    (
+        TestApp {
+            dir,
+            router,
+            db,
+            state,
+        },
+        running,
+    )
 }
 
 /// Raw GET without a token (HLS URLs), returning status and body text.

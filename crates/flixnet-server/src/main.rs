@@ -189,6 +189,11 @@ async fn serve(config: Config) -> anyhow::Result<()> {
 
     // Background work: job workers plus the scheduler for recurring tasks.
     let ffprobe = flixnet_media::Ffprobe::new(&config.media.ffprobe);
+    // AI (embeddings, recommendations), shared by its jobs and the API.
+    let ai = flixnet_ai::Ai::new(db.clone(), &config);
+    if ai.is_stub() {
+        tracing::warn!("ai.embedder = stub: test-only embeddings, not for real libraries");
+    }
     let runtime = JobRuntime::new(db.clone(), events.clone())
         .register(maintenance::CleanupJobs)
         .register(library_jobs::ScanLibrary)
@@ -251,7 +256,9 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             ffprobe: flixnet_media::Ffprobe::new(&config.media.ffprobe),
             ffmpeg: config.media.ffmpeg.clone(),
             cache_dir: config.paths.config_dir.join("cache"),
-        });
+        })
+        .register(flixnet_ai::jobs::EmbedItems { ai: ai.clone() })
+        .register(flixnet_ai::jobs::DownloadModel { ai: ai.clone() });
     let jobs = runtime.handle();
     let running_jobs = runtime.start().await?;
     let tasks = TaskRegistry::new(
@@ -265,6 +272,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
             .chain(ops::tasks())
             .chain(scene_jobs::tasks())
             .chain(flixnet_llm::themes::tasks())
+            .chain(flixnet_ai::jobs::tasks())
             .collect(),
     );
     let stop_scheduler = CancellationToken::new();
@@ -306,6 +314,14 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         flixnet_livetv::LiveSettings::default(),
     );
 
+    // AI jobs pause while anyone transcodes; new metadata gets embedded shortly after.
+    ai.set_busy_probe(flixnet_api::playback_busy_probe(&transcoder, &livetv));
+    let ai_listener = flixnet_ai::jobs::spawn_event_listener(
+        &events,
+        jobs.queue().clone(),
+        Duration::from_secs(if ai.is_stub() { 2 } else { 60 }),
+    );
+
     let services = Services {
         events,
         jobs,
@@ -321,7 +337,16 @@ async fn serve(config: Config) -> anyhow::Result<()> {
         livetv: livetv.clone(),
     };
     let jellyfin = config.jellyfin.clone();
-    let state = AppState::new(config, db.clone(), services);
+    let state = AppState::new(config, db.clone(), services).with_ai(ai.clone());
+    // Load the model and the vectors in the background, so the first search is quick.
+    tokio::spawn(async move {
+        if let Err(err) = ai.ensure_index().await {
+            tracing::warn!(error = %format!("{err:#}"), "loading the vector index failed");
+        }
+        if let Err(err) = ai.embedder().await {
+            tracing::warn!(error = %format!("{err:#}"), "local embedding model unavailable");
+        }
+    });
     let app = flixnet_api::router(state.clone()).fallback_service(web::router());
     // DLNA runs only once an administrator picked its user (settings).
     state.dlna.apply(&state).await;
@@ -369,6 +394,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     }
 
     dlna.stop().await;
+    ai_listener.abort();
     transcoder.stop_all().await;
     livetv.stop_all().await;
     stop_scheduler.cancel();

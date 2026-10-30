@@ -16,6 +16,8 @@ import { AudiobooksPage } from '@/routes/AudiobooksPage'
 import { type BrowseSearch, BrowsePage } from '@/routes/BrowsePage'
 import { CollectionPage } from '@/routes/CollectionPage'
 import { CollectionsPage } from '@/routes/CollectionsPage'
+import { ForYouPage } from '@/routes/ForYouPage'
+import { GroupPage } from '@/routes/GroupPage'
 import { HomePage } from '@/routes/HomePage'
 import { ItemPage } from '@/routes/ItemPage'
 import { LivePlayerPage } from '@/routes/LivePlayerPage'
@@ -35,7 +37,6 @@ import { InvitePage } from '@/routes/InvitePage'
 import { LoginPage } from '@/routes/LoginPage'
 import { type OidcCallbackSearch, OidcCallbackPage } from '@/routes/OidcCallbackPage'
 import { NotFoundPage } from '@/routes/NotFoundPage'
-import { PlaceholderPage } from '@/routes/PlaceholderPage'
 import { ProfilesPage } from '@/routes/ProfilesPage'
 import { SetupPage } from '@/routes/SetupPage'
 import { WatchTogetherPage } from '@/routes/WatchTogetherPage'
@@ -303,14 +304,6 @@ const musicArtistRoute = createRoute({
   component: ArtistPage,
 })
 
-function placeholder(path: string, title: string, note: string) {
-  return createRoute({
-    getParentRoute: () => appRoute,
-    path,
-    component: () => <PlaceholderPage title={title} note={note} />,
-  })
-}
-
 const routeTree = rootRoute.addChildren([
   setupRoute,
   loginRoute,
@@ -339,7 +332,8 @@ const routeTree = rootRoute.addChildren([
     photosRoute,
     audiobooksRoute,
     audiobookRoute,
-    placeholder('/for-you', 'Für dich', 'KI-Empfehlungen folgen in Phase 6.'),
+    createRoute({ getParentRoute: () => appRoute, path: '/for-you', component: ForYouPage }),
+    createRoute({ getParentRoute: () => appRoute, path: '/group', component: GroupPage }),
   ]),
 ])
 
