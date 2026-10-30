@@ -28,6 +28,7 @@ use utoipa_axum::routes;
 
 use crate::AppState;
 use crate::auth::{AdminUser, AuthUser};
+use crate::dvr::{live_viewer, program_allowed};
 use crate::error::{ApiError, ApiResult, ErrorBody};
 use crate::validate;
 
@@ -43,6 +44,7 @@ pub(crate) fn router() -> OpenApiRouter<AppState> {
         .routes(routes!(list_epg_channels))
         .routes(routes!(list_channels))
         .routes(routes!(update_channel))
+        .routes(routes!(get_channel_logo))
         .routes(routes!(set_channel_epg))
         .routes(routes!(rematch_channels))
         .routes(routes!(get_guide))
@@ -786,10 +788,77 @@ pub struct ProgramDto {
     pub icon_url: Option<String>,
     pub rating: Option<String>,
     pub is_new: bool,
+    /// The parental controls of this profile hide the program (title and texts are
+    /// replaced).
+    pub restricted: bool,
+    /// Scheduled, running or done recording of this broadcast.
+    pub recording: Option<ProgramRecordingDto>,
 }
 
-fn program_dto(p: Program) -> ProgramDto {
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ProgramRecordingDto {
+    pub id: i64,
+    pub status: crate::dvr::RecordingStatus,
+    /// Recorded by a series rule.
+    pub series: bool,
+    pub conflict: bool,
+}
+
+/// Recordings by broadcast slot `(channel, start)`.
+type Marks = HashMap<(i64, i64), ProgramRecordingDto>;
+
+async fn marks(state: &AppState, from_ms: i64, to_ms: i64) -> ApiResult<Marks> {
+    Ok(flixnet_db::dvr::between(&state.db, from_ms, to_ms)
+        .await?
+        .into_iter()
+        .filter_map(|r| {
+            let status = match r.status.as_str() {
+                "recording" => crate::dvr::RecordingStatus::Recording,
+                "completed" => crate::dvr::RecordingStatus::Completed,
+                "failed" => crate::dvr::RecordingStatus::Failed,
+                _ => crate::dvr::RecordingStatus::Scheduled,
+            };
+            Some((
+                (r.channel_id?, r.start_ms),
+                ProgramRecordingDto {
+                    id: r.id,
+                    status,
+                    series: r.rule_kind.as_deref() == Some("series"),
+                    conflict: r.conflict,
+                },
+            ))
+        })
+        .collect())
+}
+
+/// The program as the profile may see it: restricted ones keep only their slot and
+/// rating.
+fn program_dto(p: Program, user: &AuthUser, marks: &Marks) -> ProgramDto {
+    let recording = marks.get(&(p.channel, p.start_ms)).cloned();
+    if !program_allowed(&user.restriction, p.rating.as_deref(), &p.category_list()) {
+        return ProgramDto {
+            id: p.id,
+            channel_id: p.channel,
+            start_ms: p.start_ms,
+            end_ms: p.end_ms,
+            title: "Gesperrte Sendung".to_owned(),
+            subtitle: None,
+            description: None,
+            categories: Vec::new(),
+            season: None,
+            episode: None,
+            episode_label: None,
+            year: None,
+            icon_url: None,
+            rating: p.rating,
+            is_new: false,
+            restricted: true,
+            recording: None,
+        };
+    }
     ProgramDto {
+        restricted: false,
+        recording,
         categories: p.category_list(),
         id: p.id,
         channel_id: p.channel,
@@ -829,12 +898,25 @@ pub struct ChannelDto {
     pub next: Option<ProgramDto>,
 }
 
+/// Channel logos go through the image cache: a signed URL of the server instead of
+/// the provider's (which may be slow, tracking, or plain HTTP on an HTTPS page).
+fn logo_url(state: &AppState, c: &Channel) -> Option<String> {
+    c.logo_url.as_deref().filter(|u| http::is_http(u))?;
+    let (expires, sig) = state.signer.sign("logo", c.id);
+    Some(format!(
+        "/api/v1/livetv/channels/{}/logo?exp={expires}&sig={sig}",
+        c.id
+    ))
+}
+
 fn channel_dto(
+    state: &AppState,
     c: Channel,
     admin: bool,
     now: Option<ProgramDto>,
     next: Option<ProgramDto>,
 ) -> ChannelDto {
+    let logo = logo_url(state, &c);
     let manual = c.epg_match.as_deref() == Some("manual");
     let epg = match (c.epg_source_id, c.epg_channel_id) {
         (Some(source), Some(channel)) => Some(ChannelEpgDto {
@@ -855,7 +937,7 @@ fn channel_dto(
         tuner_id: c.tuner_host_id,
         number: c.number,
         name: c.name,
-        logo_url: c.logo_url,
+        logo_url: logo,
         group: c.group_title,
         is_hd: c.is_hd,
         enabled: c.enabled,
@@ -891,9 +973,11 @@ async fn list_channels(
     State(state): State<AppState>,
     Query(query): Query<ChannelsQuery>,
 ) -> ApiResult<Json<Vec<ChannelDto>>> {
+    live_viewer(&state, &user).await?;
     let all = query.include_disabled && user.is_admin;
     let channels = livetv::list_channels(&state.db, !all).await?;
     let now = flixnet_db::now_ms();
+    let marks = marks(&state, now, now + 6 * 3_600_000).await?;
     let ids: Vec<i64> = channels.iter().map(|c| c.id).collect();
     // Now and next: whatever overlaps the coming hours, first two per channel.
     let mut by_channel: HashMap<i64, Vec<Program>> = HashMap::new();
@@ -913,10 +997,11 @@ async fn list_channels(
                 other => (None, other),
             };
             channel_dto(
+                &state,
                 c,
                 user.is_admin,
-                current.map(program_dto),
-                next.map(program_dto),
+                current.map(|p| program_dto(p, &user, &marks)),
+                next.map(|p| program_dto(p, &user, &marks)),
             )
         })
         .collect();
@@ -957,6 +1042,91 @@ async fn update_channel(
         livetv::set_channel_enabled(&state.db, id, enabled).await?;
     }
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize, IntoParams)]
+#[into_params(parameter_in = Query)]
+pub struct LogoQuery {
+    /// Width in pixels (snapped to a few sizes).
+    pub w: Option<u32>,
+    /// Expiry of a signed URL (unix seconds).
+    pub exp: Option<i64>,
+    /// Signature of a signed URL.
+    pub sig: Option<String>,
+}
+
+/// A channel's logo from the image cache (fetched from the provider once).
+///
+/// Use the signed URL from `listChannels`; alternatively authenticate normally.
+#[utoipa::path(
+    get,
+    path = "/livetv/channels/{id}/logo",
+    operation_id = "getChannelLogo",
+    tag = "livetv",
+    security(()),
+    params(("id" = i64, Path, description = "Channel id"), LogoQuery),
+    responses(
+        (status = OK, description = "The logo (PNG)", content_type = "image/png"),
+        (status = UNAUTHORIZED, description = "Neither a valid signature nor a valid token", body = ErrorBody),
+        (status = NOT_FOUND, description = "No logo", body = ErrorBody),
+    )
+)]
+async fn get_channel_logo(
+    user: Option<AuthUser>,
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Query(query): Query<LogoQuery>,
+) -> ApiResult<Response> {
+    let signed = match (query.exp, query.sig.as_deref()) {
+        (Some(exp), Some(sig)) => state.signer.verify("logo", id, exp, sig),
+        _ => false,
+    };
+    if !signed && user.is_none() {
+        return Err(ApiError::unauthorized());
+    }
+    let missing = || ApiError::not_found("Kein Logo.");
+    let channel = livetv::get_channel(&state.db, id)
+        .await?
+        .ok_or_else(missing)?;
+    let url = channel
+        .logo_url
+        .filter(|u| http::is_http(u))
+        .ok_or_else(missing)?;
+    let image = flixnet_db::metadata::Image {
+        id: 0,
+        item_id: 0,
+        kind: "logo".to_owned(),
+        source: "livetv".to_owned(),
+        path: None,
+        url: Some(url),
+        language: None,
+        width: None,
+        height: None,
+        // Not stored: logos need no placeholder.
+        blurhash: Some(String::new()),
+        score: 0.0,
+    };
+    let variant = state.images.variant(&image, query.w).await.map_err(|err| {
+        tracing::debug!(channel = id, %err, "channel logo unavailable");
+        missing()
+    })?;
+    let bytes = tokio::fs::read(&variant.path)
+        .await
+        .map_err(ApiError::internal)?;
+    Ok((
+        [
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static(variant.content_type),
+            ),
+            (
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("private, max-age=86400"),
+            ),
+        ],
+        bytes,
+    )
+        .into_response())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ToSchema)]
@@ -1053,7 +1223,7 @@ async fn set_channel_epg(
     let channel = livetv::get_channel(&state.db, id)
         .await?
         .ok_or_else(|| ApiError::not_found("Sender nicht gefunden."))?;
-    Ok(Json(channel_dto(channel, true, None, None)))
+    Ok(Json(channel_dto(&state, channel, true, None, None)))
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -1134,10 +1304,11 @@ pub struct GuideDto {
     )
 )]
 async fn get_guide(
-    _: AuthUser,
+    user: AuthUser,
     State(state): State<AppState>,
     Query(query): Query<GuideQuery>,
 ) -> ApiResult<Json<GuideDto>> {
+    live_viewer(&state, &user).await?;
     if query.end_ms <= query.start_ms || query.end_ms - query.start_ms > MAX_GUIDE_WINDOW_MS {
         return Err(ApiError::validation(
             "Das Zeitfenster muss zwischen 0 und 48 Stunden lang sein.",
@@ -1153,12 +1324,13 @@ async fn get_guide(
         .take(limit as usize)
         .map(|c| c.id)
         .collect();
+    let marks = marks(&state, query.start_ms, query.end_ms).await?;
     let mut by_channel: HashMap<i64, Vec<ProgramDto>> = HashMap::new();
     for program in livetv::programs_between(&state.db, &page, query.start_ms, query.end_ms).await? {
         by_channel
             .entry(program.channel)
             .or_default()
-            .push(program_dto(program));
+            .push(program_dto(program, &user, &marks));
     }
     Ok(Json(GuideDto {
         start_ms: query.start_ms,
@@ -1197,16 +1369,26 @@ pub struct ProgramSearchQuery {
     )
 )]
 async fn search_programs(
-    _: AuthUser,
+    user: AuthUser,
     State(state): State<AppState>,
     Query(query): Query<ProgramSearchQuery>,
 ) -> ApiResult<Json<Vec<ProgramDto>>> {
+    live_viewer(&state, &user).await?;
     let Some(fts) = flixnet_db::browse::fts_query(&query.q) else {
         return Ok(Json(Vec::new()));
     };
     let limit = query.limit.unwrap_or(30).clamp(1, 100);
     let found = livetv::search_programs(&state.db, &fts, flixnet_db::now_ms(), limit).await?;
-    Ok(Json(found.into_iter().map(program_dto).collect()))
+    let now = flixnet_db::now_ms();
+    let marks = marks(&state, now, now + flixnet_livetv::dvr::plan::HORIZON_MS).await?;
+    Ok(Json(
+        found
+            .into_iter()
+            // Restricted programs are not found at all.
+            .filter(|p| program_allowed(&user.restriction, p.rating.as_deref(), &p.category_list()))
+            .map(|p| program_dto(p, &user, &marks))
+            .collect(),
+    ))
 }
 
 /// One program.
@@ -1223,14 +1405,17 @@ async fn search_programs(
     )
 )]
 async fn get_program(
-    _: AuthUser,
+    user: AuthUser,
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<Json<ProgramDto>> {
+    live_viewer(&state, &user).await?;
     let program = livetv::get_program(&state.db, id)
         .await?
+        .filter(|p| program_allowed(&user.restriction, p.rating.as_deref(), &p.category_list()))
         .ok_or_else(|| ApiError::not_found("Sendung nicht gefunden."))?;
-    Ok(Json(program_dto(program)))
+    let marks = marks(&state, program.start_ms, program.end_ms).await?;
+    Ok(Json(program_dto(program, &user, &marks)))
 }
 
 // ---- Playback ----------------------------------------------------------------------
@@ -1368,6 +1553,7 @@ async fn watch_channel(
     Path(id): Path<i64>,
     Json(body): Json<WatchChannelRequest>,
 ) -> ApiResult<Json<LiveSessionDto>> {
+    live_viewer(&state, &user).await?;
     let not_found = || ApiError::not_found("Sender nicht gefunden.");
     let mut channel = livetv::get_channel(&state.db, id)
         .await?
@@ -1382,6 +1568,19 @@ async fn watch_channel(
         return Err(live_error(LiveError::Failed(
             "unsupported stream URL".into(),
         )));
+    }
+    // What runs now must be allowed for the profile.
+    let now = flixnet_db::now_ms();
+    let running = livetv::programs_between(&state.db, &[id], now, now + 1).await?;
+    if running
+        .iter()
+        .any(|p| !program_allowed(&user.restriction, p.rating.as_deref(), &p.category_list()))
+    {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "program_restricted",
+            "Diese Sendung ist für dein Profil gesperrt.",
+        ));
     }
     let source = stream_source(&host, &channel.stream_url);
     // No free tuner: say so before a probe would need one.
@@ -1625,17 +1824,42 @@ async fn list_live_streams(
 pub struct LiveTvSettingsDto {
     /// Timeshift buffer per running channel in minutes (0 = live window only).
     pub timeshift_minutes: i64,
+    /// Folder recordings are written to (`Serien/…`, `Filme/…`; each becomes a
+    /// library). `null` = the default below.
+    pub recordings_path: Option<String>,
+    /// The folder used when none is set.
+    pub default_recordings_path: String,
+    /// Default padding of new recordings (minutes).
+    pub padding_before_minutes: i64,
+    pub padding_after_minutes: i64,
 }
 
 #[derive(Debug, Default, Deserialize, ToSchema)]
 pub struct UpdateLiveTvSettings {
     /// 0–360 minutes.
     pub timeshift_minutes: Option<i64>,
+    /// Absolute folder; `null` returns to the default.
+    #[serde(default, deserialize_with = "validate::double_option")]
+    #[schema(value_type = Option<String>, nullable)]
+    pub recordings_path: Option<Option<String>>,
+    /// 0–120 minutes.
+    pub padding_before_minutes: Option<i64>,
+    pub padding_after_minutes: Option<i64>,
 }
 
-fn settings_dto(config: &LiveTvConfig) -> LiveTvSettingsDto {
+fn settings_dto(state: &AppState, config: &LiveTvConfig) -> LiveTvSettingsDto {
     LiveTvSettingsDto {
         timeshift_minutes: config.timeshift_minutes,
+        recordings_path: config.recordings_path.clone(),
+        default_recordings_path: state
+            .config
+            .paths
+            .config_dir
+            .join("recordings")
+            .to_string_lossy()
+            .into_owned(),
+        padding_before_minutes: config.padding_before_minutes,
+        padding_after_minutes: config.padding_after_minutes,
     }
 }
 
@@ -1655,7 +1879,7 @@ async fn get_livetv_settings(
     _: AdminUser,
     State(state): State<AppState>,
 ) -> ApiResult<Json<LiveTvSettingsDto>> {
-    Ok(Json(settings_dto(&config::load(&state.db).await?)))
+    Ok(Json(settings_dto(&state, &config::load(&state.db).await?)))
 }
 
 /// Changes Live TV settings; a new timeshift buffer applies to running streams at once.
@@ -1686,9 +1910,41 @@ async fn update_livetv_settings(
         }
         current.timeshift_minutes = minutes;
     }
+    for (value, target) in [
+        (
+            body.padding_before_minutes,
+            &mut current.padding_before_minutes,
+        ),
+        (
+            body.padding_after_minutes,
+            &mut current.padding_after_minutes,
+        ),
+    ] {
+        if let Some(minutes) = value {
+            if !(0..=config::MAX_PADDING_MINUTES).contains(&minutes) {
+                return Err(ApiError::validation(
+                    "Vor- und Nachlauf dürfen höchstens 120 Minuten lang sein.",
+                ));
+            }
+            *target = minutes;
+        }
+    }
+    match body.recordings_path {
+        Some(Some(path)) if !path.trim().is_empty() => {
+            let path = path.trim();
+            if !is_absolute_path(path) || path.chars().any(char::is_control) || path.len() > 1024 {
+                return Err(ApiError::validation(
+                    "Der Aufnahme-Ordner braucht einen absoluten Pfad.",
+                ));
+            }
+            current.recordings_path = Some(path.to_owned());
+        }
+        Some(_) => current.recordings_path = None,
+        None => {}
+    }
     config::save(&state.db, &current).await?;
     state.livetv.set_buffer(current.timeshift());
-    Ok(Json(settings_dto(&current)))
+    Ok(Json(settings_dto(&state, &current)))
 }
 
 /// Applies the stored Live TV settings to the running services (server start).

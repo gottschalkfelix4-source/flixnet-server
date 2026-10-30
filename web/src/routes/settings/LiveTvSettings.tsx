@@ -19,6 +19,10 @@ import {
   useEpgSources,
   useImportTuner,
   useLiveStreams,
+  useLiveTvProfiles,
+  useLiveTvSettings,
+  useSetLiveTvAccess,
+  useUpdateLiveTvSettings,
   useRefreshEpgSource,
   useRematchChannels,
   useSetChannelEpg,
@@ -40,6 +44,8 @@ export function LiveTvSettings() {
       <TunersSection />
       <EpgSourcesSection />
       <ChannelsSection />
+      <RecordingSettingsSection />
+      <ProfilesSection />
       <StreamsSection />
     </div>
   )
@@ -591,6 +597,112 @@ function StreamsSection() {
             <span className="text-muted">
               {stream.video_copied && stream.audio_copied ? 'Kopie' : 'Transcode'} · seit {relativeTime(stream.started_at, now)}
             </span>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  )
+}
+
+// ---- Timeshift and recordings -------------------------------------------------------
+
+function RecordingSettingsSection() {
+  const settings = useLiveTvSettings()
+  if (!settings.data) return null
+  return <RecordingSettingsForm data={settings.data} />
+}
+
+function RecordingSettingsForm({ data }: { data: NonNullable<ReturnType<typeof useLiveTvSettings>['data']> }) {
+  const update = useUpdateLiveTvSettings()
+  const [timeshift, setTimeshift] = useState(String(data.timeshift_minutes))
+  const [path, setPath] = useState(data.recordings_path ?? '')
+  const [before, setBefore] = useState(String(data.padding_before_minutes))
+  const [after, setAfter] = useState(String(data.padding_after_minutes))
+
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    update.mutate({
+      timeshift_minutes: Number(timeshift),
+      recordings_path: path.trim() ? path.trim() : null,
+      padding_before_minutes: Number(before),
+      padding_after_minutes: Number(after),
+    })
+  }
+
+  return (
+    <Section
+      title="Zeitversatz und Aufnahmen"
+      description="Laufende Sender halten einen Puffer zum Pausieren und Zurückspulen. Aufnahmen landen als Serien und Filme in eigenen Bibliotheken."
+    >
+      <form onSubmit={submit} className="grid gap-4 md:grid-cols-2" data-testid="recording-settings">
+        <TextField
+          label="Zeitversatz-Puffer (Minuten)"
+          type="number"
+          min={0}
+          max={360}
+          value={timeshift}
+          onChange={(e) => setTimeshift(e.target.value)}
+          hint="0 schaltet den Zeitversatz ab; der Puffer liegt im Transcode-Ordner."
+        />
+        <TextField
+          label="Aufnahme-Ordner"
+          placeholder={data.default_recordings_path}
+          value={path}
+          onChange={(e) => setPath(e.target.value)}
+          hint="Leer lassen für den Standardordner."
+        />
+        <TextField
+          label="Vorlauf (Minuten)"
+          type="number"
+          min={0}
+          max={120}
+          value={before}
+          onChange={(e) => setBefore(e.target.value)}
+        />
+        <TextField
+          label="Nachlauf (Minuten)"
+          type="number"
+          min={0}
+          max={120}
+          value={after}
+          onChange={(e) => setAfter(e.target.value)}
+        />
+        <div className="flex items-center gap-3 md:col-span-2">
+          <Button type="submit" variant="accent" loading={update.isPending}>
+            Speichern
+          </Button>
+          {update.isSuccess && (
+            <span className="inline-flex items-center gap-1 text-sm text-muted">
+              <CheckCircle2 className="size-4 text-accent" aria-hidden="true" />
+              Gespeichert
+            </span>
+          )}
+          <FormError error={update.error} />
+        </div>
+      </form>
+    </Section>
+  )
+}
+
+// ---- Live TV per profile -------------------------------------------------------------
+
+function ProfilesSection() {
+  const profiles = useLiveTvProfiles()
+  const access = useSetLiveTvAccess()
+  if (!profiles.data?.length) return null
+  return (
+    <Section
+      title="Live TV erlaubt"
+      description="Profile ohne Freigabe sehen weder Sender noch Programm noch Aufnahmen. Altersfreigaben der Sendungen gelten zusätzlich."
+    >
+      <ul className="divide-y divide-line/60" data-testid="livetv-profiles">
+        {profiles.data.map((profile) => (
+          <li key={profile.user_id} className="py-2.5">
+            <Checkbox
+              label={profile.name}
+              checked={profile.live_tv_allowed}
+              onChange={(allowed) => access.mutate({ id: profile.user_id, allowed })}
+            />
           </li>
         ))}
       </ul>

@@ -222,6 +222,7 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     let jellyfin = config.jellyfin.clone();
     let state = AppState::new(config, db.clone(), services);
     flixnet_api::start_services(&state).await?;
+    let dvr = state.dvr.clone();
     let app = flixnet_api::router(state.clone()).fallback_service(web::router());
 
     let listener = tokio::net::TcpListener::bind(bind)
@@ -266,6 +267,8 @@ async fn serve(config: Config) -> anyhow::Result<()> {
     }
 
     transcoder.stop_all().await;
+    // Running recordings resume into a new part after the next start.
+    dvr.shutdown().await;
     livetv.stop_all().await;
     stop_scheduler.cancel();
     let _ = scheduler.await;

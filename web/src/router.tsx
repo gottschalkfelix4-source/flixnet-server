@@ -18,6 +18,7 @@ import { HomePage } from '@/routes/HomePage'
 import { ItemPage } from '@/routes/ItemPage'
 import { LivePlayerPage } from '@/routes/LivePlayerPage'
 import { LiveTvPage } from '@/routes/LiveTvPage'
+import { RecordingsPage } from '@/routes/RecordingsPage'
 import { PersonPage } from '@/routes/PersonPage'
 import { PlaylistPage } from '@/routes/PlaylistPage'
 import { PlaylistsPage } from '@/routes/PlaylistsPage'
@@ -131,6 +132,12 @@ const liveRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/live',
   component: LiveTvPage,
+})
+
+const recordingsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/live/recordings',
+  component: RecordingsPage,
 })
 
 /** Public invitation landing page. */
@@ -251,6 +258,7 @@ const routeTree = rootRoute.addChildren([
     playlistRoute,
     searchRoute,
     liveRoute,
+    recordingsRoute,
     placeholder('/music', 'Musik', 'Musikbibliotheken folgen in Phase 9.'),
     placeholder('/for-you', 'Für dich', 'KI-Empfehlungen folgen in Phase 6.'),
   ]),

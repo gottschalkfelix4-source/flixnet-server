@@ -108,6 +108,10 @@ impl JobHandler for RefreshGuide {
             }
         }
         matching::auto_match(ctx.db()).await?;
+        // New programs: schedule what the recording rules want.
+        if let Err(err) = crate::dvr::plan::plan(ctx.db()).await {
+            tracing::warn!(%err, "planning recordings after the guide refresh failed");
+        }
         failed.map_or(Ok(()), Err)
     }
 }

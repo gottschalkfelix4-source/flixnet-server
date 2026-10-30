@@ -25,6 +25,7 @@ pub mod active_sessions;
 pub mod auth;
 pub mod browse;
 mod collections;
+mod dvr;
 pub mod error;
 pub mod images;
 mod invitations;
@@ -70,6 +71,9 @@ pub struct AppState {
     pub playback: active_sessions::ActiveSessions,
     /// Live TV streams (shared per channel).
     pub livetv: flixnet_livetv::LiveTvManager,
+    /// Recordings (started with the state; recordings land in
+    /// `<config_dir>/recordings` unless configured otherwise).
+    pub dvr: flixnet_livetv::dvr::Dvr,
 }
 
 /// Long-lived services the API talks to.
@@ -94,7 +98,13 @@ impl AppState {
     pub fn new(config: Config, db: Db, services: Services) -> Self {
         let playback = active_sessions::ActiveSessions::default();
         playback.spawn_reaper(db.clone());
-        Self {
+        let dvr = flixnet_livetv::dvr::Dvr::start(
+            db.clone(),
+            services.livetv.clone(),
+            config.paths.config_dir.join("recordings"),
+            flixnet_livetv::dvr::DvrSettings::default(),
+        );
+        let state = Self {
             config: Arc::new(config),
             db,
             limits: Arc::default(),
@@ -108,8 +118,11 @@ impl AppState {
             ffprobe: services.ffprobe,
             subtitles: services.subtitles,
             livetv: services.livetv,
+            dvr,
             playback,
-        }
+        };
+        state.dvr.set_hook(dvr::library_hook(state.clone()));
+        state
     }
 }
 
@@ -135,7 +148,7 @@ impl AppState {
         (name = "collections", description = "Movie collections (automatic from TMDB and manual)"),
         (name = "playlists", description = "Personal and smart playlists"),
         (name = "settings", description = "Server settings (administrators)"),
-        (name = "livetv", description = "Live TV: tuners, channels, guide and live playback"),
+        (name = "livetv", description = "Live TV: tuners, channels, guide, live playback and recordings"),
     )
 )]
 struct ApiDoc;
@@ -191,6 +204,7 @@ fn api() -> (Router<AppState>, utoipa::openapi::OpenApi) {
         .nest(API_PREFIX, trickplay::router())
         .nest(API_PREFIX, settings::router())
         .nest(API_PREFIX, livetv::router())
+        .nest(API_PREFIX, dvr::router())
         .nest(API_PREFIX, segments::router())
         .nest(API_PREFIX, subtitle_search::router())
         .split_for_parts()

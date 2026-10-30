@@ -212,6 +212,9 @@ async fn every_protected_operation_requires_a_token() {
             "GET /api/v1/files/{file_id}/trickplay/{sheet}",
             "GET /api/v1/images/{id}",
             "GET /api/v1/invitations/redeem/{code}",
+            // Signed URL for <img> tags, or a token; channel logos are not
+            // sensitive (dvr_api.rs).
+            "GET /api/v1/livetv/channels/{id}/logo",
             // The 128-bit live viewer session id is the capability (livetv_api.rs).
             "GET /api/v1/livetv/sessions/{session}/live.m3u8",
             "GET /api/v1/livetv/sessions/{session}/{segment}",

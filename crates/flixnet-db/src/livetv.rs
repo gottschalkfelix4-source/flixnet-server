@@ -616,6 +616,8 @@ pub struct NewProgram {
     pub icon_url: Option<String>,
     pub rating: Option<String>,
     pub is_new: bool,
+    /// Series identity from the guide (dd_progid, Schedules Direct).
+    pub series_id: Option<String>,
 }
 
 /// The next generation number for a refresh of `source` (rows written with it stay
@@ -647,8 +649,8 @@ pub async fn insert_programs(
             sqlx::query(
                 "INSERT INTO programs (epg_source_id, generation, channel_id, start_ms, end_ms,
                      title, subtitle, description, categories, season, episode, episode_label,
-                     year, icon_url, rating, is_new)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                     year, icon_url, rating, is_new, series_id)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(source)
             .bind(generation)
@@ -666,6 +668,7 @@ pub async fn insert_programs(
             .bind(&p.icon_url)
             .bind(&p.rating)
             .bind(p.is_new)
+            .bind(&p.series_id)
             .execute(&mut *tx)
             .await?;
         }
@@ -769,6 +772,7 @@ pub struct Program {
     pub icon_url: Option<String>,
     pub rating: Option<String>,
     pub is_new: bool,
+    pub series_id: Option<String>,
 }
 
 impl Program {
@@ -781,7 +785,7 @@ macro_rules! program_columns {
     () => {
         "p.id, c.id AS channel, p.start_ms, p.end_ms, p.title, p.subtitle, p.description,
          p.categories, p.season, p.episode, p.episode_label, p.year, p.icon_url, p.rating,
-         p.is_new"
+         p.is_new, p.series_id"
     };
 }
 

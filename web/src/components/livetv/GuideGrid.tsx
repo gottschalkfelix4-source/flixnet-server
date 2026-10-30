@@ -146,7 +146,19 @@ export function GuideGrid({
                     title={program.title}
                     data-testid="guide-program"
                   >
-                    <span className="block truncate text-sm font-semibold">{program.title}</span>
+                    <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                      {program.recording && program.recording.status !== 'failed' && (
+                        <span
+                          className={clsx(
+                            'size-2 shrink-0 rounded-full',
+                            program.recording.conflict ? 'bg-amber-400' : 'bg-red-500',
+                          )}
+                          data-testid="guide-recording"
+                          title={program.recording.conflict ? 'Aufnahme mit Konflikt' : 'Wird aufgenommen'}
+                        />
+                      )}
+                      <span className="truncate">{program.title}</span>
+                    </span>
                     <span className="block truncate text-xs text-subtle">
                       {formatClock(program.start_ms)}
                       {program.episode_label ? ` · ${program.episode_label}` : ''}

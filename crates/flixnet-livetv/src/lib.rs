@@ -7,6 +7,7 @@
 //! [`stream::LiveTvManager`] for playback.
 
 pub mod config;
+pub mod dvr;
 pub mod ffmpeg;
 pub mod guide;
 pub mod hdhomerun;

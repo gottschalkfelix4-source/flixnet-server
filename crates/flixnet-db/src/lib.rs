@@ -17,6 +17,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, S
 pub mod browse;
 pub mod cache;
 pub mod collections;
+pub mod dvr;
 pub mod invitations;
 pub mod items;
 pub mod jobs;

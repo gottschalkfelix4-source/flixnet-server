@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import clsx from 'clsx'
-import { CalendarDays, LayoutGrid, Radio, Search } from 'lucide-react'
+import { CalendarDays, CircleDot, LayoutGrid, Lock, Radio, Search } from 'lucide-react'
 import { useState } from 'react'
+import { ApiError } from '@/api/client'
 import {
   type Channel,
   type Program,
@@ -37,6 +38,13 @@ export function LiveTvPage() {
       <PageHeader title="Live TV">
         {list.length > 0 && (
           <div className="flex flex-wrap items-center gap-3">
+            <Link
+              to="/live/recordings"
+              className="inline-flex h-10 items-center gap-1.5 rounded-full bg-surface-2 px-4 text-sm font-semibold hover:bg-surface-3"
+            >
+              <CircleDot className="size-4 text-red-500" aria-hidden="true" />
+              Aufnahmen
+            </Link>
             <label className="relative">
               <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle" aria-hidden="true" />
               <input
@@ -77,6 +85,10 @@ export function LiveTvPage() {
 
       {channels.isPending ? (
         <p className="px-6 text-sm text-muted md:px-10">Wird geladen …</p>
+      ) : channels.error instanceof ApiError && channels.error.code === 'live_tv_forbidden' ? (
+        <EmptyState icon={Lock} title="Live TV ist gesperrt">
+          Für dieses Profil hat ein Administrator Live TV nicht freigegeben.
+        </EmptyState>
       ) : list.length === 0 ? (
         <EmptyState icon={Radio} title="Noch keine Sender">
           {session?.user.is_admin ? (
